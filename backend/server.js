@@ -87,42 +87,39 @@ const db = new sqlite3.Database('./memorial.db', (err) => {
 });
 
 function initDatabase(callback) {
-  // Use serialize to ensure tables are created in order
-  db.serialize(() => {
-    // Create memorials table first
-    db.run(`CREATE TABLE IF NOT EXISTS memorials (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
-      hebrewName TEXT,
-      birthDate TEXT,
-      deathDate TEXT,
-      biography TEXT,
-      images TEXT,
-      videos TEXT,
-      backgroundMusic TEXT,
-      heroImage TEXT,
-      heroSummary TEXT,
-      timeline TEXT,
-      tehilimChapters TEXT,
-      qrCodePath TEXT,
-      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
-    )`, (err) => {
-      if (err) {
-        console.error('Error creating memorials table:', err);
-        process.exit(1);
-      } else {
-        console.log('Memorials table ready');
-      }
-    });
-
-    // Ensure columns exist (run after memorials table is created)
-    db.run(`SELECT 1`, () => {
-      ensureColumn('memorials', 'backgroundMusic', 'TEXT');
-      ensureColumn('memorials', 'heroImage', 'TEXT');
-      ensureColumn('memorials', 'heroSummary', 'TEXT');
-      ensureColumn('memorials', 'timeline', 'TEXT');
-    });
-
+  console.log('Starting database initialization...');
+  
+  // Create all tables sequentially using callbacks
+  db.run(`CREATE TABLE IF NOT EXISTS memorials (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    hebrewName TEXT,
+    birthDate TEXT,
+    deathDate TEXT,
+    biography TEXT,
+    images TEXT,
+    videos TEXT,
+    backgroundMusic TEXT,
+    heroImage TEXT,
+    heroSummary TEXT,
+    timeline TEXT,
+    tehilimChapters TEXT,
+    qrCodePath TEXT,
+    createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`, (err) => {
+    if (err) {
+      console.error('Error creating memorials table:', err);
+      if (callback) callback(err);
+      return;
+    }
+    console.log('Memorials table ready');
+    
+    // Ensure columns exist
+    ensureColumn('memorials', 'backgroundMusic', 'TEXT');
+    ensureColumn('memorials', 'heroImage', 'TEXT');
+    ensureColumn('memorials', 'heroSummary', 'TEXT');
+    ensureColumn('memorials', 'timeline', 'TEXT');
+    
     // Create condolences table
     db.run(`CREATE TABLE IF NOT EXISTS condolences (
       id TEXT PRIMARY KEY,
@@ -135,38 +132,38 @@ function initDatabase(callback) {
     )`, (err) => {
       if (err) {
         console.error('Error creating condolences table:', err);
-        process.exit(1);
-      } else {
-        console.log('Condolences table ready');
+        if (callback) callback(err);
+        return;
       }
-    });
-
-    // Create candles table
-    db.run(`CREATE TABLE IF NOT EXISTS candles (
-      id TEXT PRIMARY KEY,
-      memorialId TEXT NOT NULL,
-      litBy TEXT,
-      visitorId TEXT,
-      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (memorialId) REFERENCES memorials(id)
-    )`, (err) => {
-      if (err) {
-        console.error('Error creating candles table:', err);
-        process.exit(1);
-      } else {
-        console.log('Candles table ready');
-      }
+      console.log('Condolences table ready');
       
-      // Create index for faster lookups (after candles table is created)
-      db.run(`CREATE INDEX IF NOT EXISTS idx_candles_memorial_visitor ON candles(memorialId, visitorId)`, (err) => {
+      // Create candles table
+      db.run(`CREATE TABLE IF NOT EXISTS candles (
+        id TEXT PRIMARY KEY,
+        memorialId TEXT NOT NULL,
+        litBy TEXT,
+        visitorId TEXT,
+        createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (memorialId) REFERENCES memorials(id)
+      )`, (err) => {
         if (err) {
-          console.error('Error creating candles index:', err);
+          console.error('Error creating candles table:', err);
           if (callback) callback(err);
-        } else {
+          return;
+        }
+        console.log('Candles table ready');
+        
+        // Create index
+        db.run(`CREATE INDEX IF NOT EXISTS idx_candles_memorial_visitor ON candles(memorialId, visitorId)`, (err) => {
+          if (err) {
+            console.error('Error creating candles index:', err);
+            if (callback) callback(err);
+            return;
+          }
           console.log('Candles index ready');
           console.log('Database initialization complete!');
           if (callback) callback(null);
-        }
+        });
       });
     });
   });
