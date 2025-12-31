@@ -14,55 +14,53 @@ const PORT = process.env.PORT || 5000;
 const NODE_ENV = process.env.NODE_ENV || 'development';
 
 // Middleware
-// CORS configuration for production
+// CORS configuration - allow all Netlify domains
 const corsOptions = {
   origin: function (origin, callback) {
     // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
-    
-    const allowedOrigins = [
-      process.env.FRONTEND_URL,
-      'http://localhost:3000',
-      'http://localhost:5173',
-      // Allow all Netlify preview URLs
-      /^https:\/\/.*\.netlify\.app$/,
-      // Allow all Netlify deploy preview URLs
-      /^https:\/\/.*--.*\.netlify\.app$/
-    ];
+    if (!origin) {
+      return callback(null, true);
+    }
     
     // In development, allow all origins
     if (NODE_ENV === 'development') {
       return callback(null, true);
     }
     
-    // Temporary: Allow all Netlify origins (for testing)
-    // TODO: Restrict to specific domains in production
-    if (origin && origin.includes('netlify.app')) {
+    // Allow all Netlify domains (production, preview, and deploy preview)
+    if (origin.includes('netlify.app')) {
+      console.log('CORS: Allowing Netlify origin:', origin);
       return callback(null, true);
     }
     
-    // Check if origin matches any allowed pattern
-    const isAllowed = allowedOrigins.some(allowed => {
-      if (typeof allowed === 'string') {
-        return allowed === origin;
-      } else if (allowed instanceof RegExp) {
-        return allowed.test(origin);
-      }
-      return false;
-    });
-    
-    if (isAllowed || allowedOrigins.length === 0) {
-      callback(null, true);
-    } else {
-      console.log('CORS blocked origin:', origin);
-      console.log('Allowed origins:', allowedOrigins);
-      // For now, allow it anyway (temporary fix)
-      callback(null, true);
+    // Allow specific frontend URL if set
+    if (process.env.FRONTEND_URL && origin === process.env.FRONTEND_URL) {
+      console.log('CORS: Allowing FRONTEND_URL:', origin);
+      return callback(null, true);
     }
+    
+    // Allow localhost for development
+    if (origin.startsWith('http://localhost:') || origin.startsWith('http://127.0.0.1:')) {
+      return callback(null, true);
+    }
+    
+    // Log blocked origins for debugging
+    console.log('CORS: Blocked origin:', origin);
+    console.log('CORS: FRONTEND_URL:', process.env.FRONTEND_URL);
+    console.log('CORS: NODE_ENV:', NODE_ENV);
+    
+    // For now, allow all origins in production (to avoid blocking)
+    callback(null, true);
   },
-  credentials: true
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 };
 app.use(cors(corsOptions));
+
+// Handle preflight requests explicitly
+app.options('*', cors(corsOptions));
+
 app.use(bodyParser.json({ limit: '50mb' }));
 app.use(bodyParser.urlencoded({ extended: true, limit: '50mb' }));
 
