@@ -23,18 +23,33 @@ const corsOptions = {
     const allowedOrigins = [
       process.env.FRONTEND_URL,
       'http://localhost:3000',
-      'http://localhost:5173'
-    ].filter(Boolean); // Remove undefined values
+      'http://localhost:5173',
+      // Allow all Netlify preview URLs
+      /^https:\/\/.*\.netlify\.app$/,
+      // Allow all Netlify deploy preview URLs
+      /^https:\/\/.*--.*\.netlify\.app$/
+    ];
     
     // In development, allow all origins
     if (NODE_ENV === 'development') {
       return callback(null, true);
     }
     
-    // In production, check against allowed origins
-    if (allowedOrigins.length === 0 || allowedOrigins.includes(origin)) {
+    // Check if origin matches any allowed pattern
+    const isAllowed = allowedOrigins.some(allowed => {
+      if (typeof allowed === 'string') {
+        return allowed === origin;
+      } else if (allowed instanceof RegExp) {
+        return allowed.test(origin);
+      }
+      return false;
+    });
+    
+    if (isAllowed || allowedOrigins.length === 0) {
       callback(null, true);
     } else {
+      console.log('CORS blocked origin:', origin);
+      console.log('Allowed origins:', allowedOrigins);
       callback(new Error('Not allowed by CORS'));
     }
   },

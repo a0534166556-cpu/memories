@@ -205,7 +205,27 @@ function CreateMemorial() {
       }
     } catch (error) {
       console.error('Error creating memorial:', error);
-      alert('שגיאה ביצירת דף הזיכרון. אנא נסה שוב.');
+      console.error('Error details:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+        apiUrl: getApiEndpoint('/api/memorials')
+      });
+      
+      let errorMessage = 'שגיאה ביצירת דף הזיכרון. אנא נסה שוב.';
+      
+      if (error.response) {
+        // Server responded with error
+        errorMessage = `שגיאה מהשרת (${error.response.status}): ${error.response.data?.error || error.message}`;
+      } else if (error.request) {
+        // Request was made but no response received
+        errorMessage = 'לא ניתן להתחבר לשרת. בדוק את חיבור האינטרנט או שהשרת לא זמין.';
+      } else {
+        // Something else happened
+        errorMessage = `שגיאה: ${error.message}`;
+      }
+      
+      alert(errorMessage);
     } finally {
       setLoading(false);
     }
