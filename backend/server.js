@@ -63,24 +63,30 @@ if (NODE_ENV === 'production') {
 });
 
 // Database setup
+let dbReady = false;
 const db = new sqlite3.Database('./memorial.db', (err) => {
   if (err) {
     console.error('Error opening database:', err);
+    process.exit(1);
   } else {
     console.log('Connected to SQLite database');
     // Enable foreign keys
     db.run('PRAGMA foreign_keys = ON', (err) => {
       if (err) {
         console.error('Error enabling foreign keys:', err);
+        process.exit(1);
       } else {
         console.log('Foreign keys enabled');
+        initDatabase(() => {
+          dbReady = true;
+          startServer();
+        });
       }
-      initDatabase();
     });
   }
 });
 
-function initDatabase() {
+function initDatabase(callback) {
   // Use serialize to ensure tables are created in order
   db.serialize(() => {
     // Create memorials table first
@@ -155,14 +161,22 @@ function initDatabase() {
       db.run(`CREATE INDEX IF NOT EXISTS idx_candles_memorial_visitor ON candles(memorialId, visitorId)`, (err) => {
         if (err) {
           console.error('Error creating candles index:', err);
+          if (callback) callback(err);
         } else {
           console.log('Candles index ready');
           console.log('Database initialization complete!');
+          if (callback) callback(null);
         }
       });
     });
   });
 }
+
+function startServer() {
+  if (!dbReady) {
+    console.log('Waiting for database to be ready...');
+    return;
+  }
 
 function parseTimeline(rawValue) {
   if (!rawValue) {
@@ -632,12 +646,13 @@ app.get('/api/music', (req, res) => {
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-  console.log(`Environment: ${NODE_ENV}`);
-  if (NODE_ENV === 'production') {
-    console.log(`Frontend URL: ${process.env.FRONTEND_URL || 'Not set'}`);
-    console.log(`Base URL: ${process.env.BASE_URL || 'Using request host'}`);
-  }
-});
+  app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+    console.log(`Environment: ${NODE_ENV}`);
+    if (NODE_ENV === 'production') {
+      console.log(`Frontend URL: ${process.env.FRONTEND_URL || 'Not set'}`);
+      console.log(`Base URL: ${process.env.BASE_URL || 'Using request host'}`);
+    }
+  });
+}
 
