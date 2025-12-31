@@ -177,6 +177,17 @@ function startServer() {
     console.log('Waiting for database to be ready...');
     return;
   }
+  
+  // Start the server only after database is ready
+  app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+    console.log(`Environment: ${NODE_ENV}`);
+    if (NODE_ENV === 'production') {
+      console.log(`Frontend URL: ${process.env.FRONTEND_URL || 'Not set'}`);
+      console.log(`Base URL: ${process.env.BASE_URL || 'Using request host'}`);
+    }
+  });
+}
 
 function parseTimeline(rawValue) {
   if (!rawValue) {
@@ -645,14 +656,4 @@ app.get('/api/music', (req, res) => {
     res.json({ success: true, musicFiles: [] });
   }
 });
-
-  app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
-    console.log(`Environment: ${NODE_ENV}`);
-    if (NODE_ENV === 'production') {
-      console.log(`Frontend URL: ${process.env.FRONTEND_URL || 'Not set'}`);
-      console.log(`Base URL: ${process.env.BASE_URL || 'Using request host'}`);
-    }
-  });
-}
 
