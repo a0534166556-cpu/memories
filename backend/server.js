@@ -16,7 +16,28 @@ const NODE_ENV = process.env.NODE_ENV || 'development';
 // Middleware
 // CORS configuration for production
 const corsOptions = {
-  origin: process.env.FRONTEND_URL || (NODE_ENV === 'production' ? false : true),
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    const allowedOrigins = [
+      process.env.FRONTEND_URL,
+      'http://localhost:3000',
+      'http://localhost:5173'
+    ].filter(Boolean); // Remove undefined values
+    
+    // In development, allow all origins
+    if (NODE_ENV === 'development') {
+      return callback(null, true);
+    }
+    
+    // In production, check against allowed origins
+    if (allowedOrigins.length === 0 || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true
 };
 app.use(cors(corsOptions));
