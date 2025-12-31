@@ -1,0 +1,23 @@
+{
+  "name": "memorial-backend",
+  "version": "1.0.0",
+  "description": "Backend API for Memorial App",
+  "main": "server.js",
+  "scripts": {
+    "dev": "nodemon server.js",
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "multer": "^1.4.5-lts.1",
+    "uuid": "^9.0.1",
+    "qrcode": "^1.5.3",
+    "body-parser": "^1.20.2",
+    "sqlite3": "^5.1.7"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  }
+}
+
