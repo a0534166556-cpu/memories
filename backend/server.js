@@ -14,52 +14,23 @@ const PORT = process.env.PORT || 5000;
 const NODE_ENV = process.env.NODE_ENV || 'development';
 
 // Middleware
-// CORS configuration - allow all Netlify domains
-const corsOptions = {
-  origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) {
-      return callback(null, true);
-    }
-    
-    // In development, allow all origins
-    if (NODE_ENV === 'development') {
-      return callback(null, true);
-    }
-    
-    // Allow all Netlify domains (production, preview, and deploy preview)
-    if (origin.includes('netlify.app')) {
-      console.log('CORS: Allowing Netlify origin:', origin);
-      return callback(null, true);
-    }
-    
-    // Allow specific frontend URL if set
-    if (process.env.FRONTEND_URL && origin === process.env.FRONTEND_URL) {
-      console.log('CORS: Allowing FRONTEND_URL:', origin);
-      return callback(null, true);
-    }
-    
-    // Allow localhost for development
-    if (origin.startsWith('http://localhost:') || origin.startsWith('http://127.0.0.1:')) {
-      return callback(null, true);
-    }
-    
-    // Log blocked origins for debugging
-    console.log('CORS: Blocked origin:', origin);
-    console.log('CORS: FRONTEND_URL:', process.env.FRONTEND_URL);
-    console.log('CORS: NODE_ENV:', NODE_ENV);
-    
-    // For now, allow all origins in production (to avoid blocking)
-    callback(null, true);
-  },
-  credentials: true,
+// CORS configuration - TEMPORARILY ALLOW ALL ORIGINS (for debugging)
+// TODO: Restrict to specific domains after testing
+app.use(cors({
+  origin: '*', // Allow all origins - TEMPORARY FIX
+  credentials: false, // Set to false when using origin: '*'
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
-};
-app.use(cors(corsOptions));
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  exposedHeaders: ['Content-Length', 'Content-Type']
+}));
 
 // Handle preflight requests explicitly
-app.options('*', cors(corsOptions));
+app.options('*', (req, res) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+  res.sendStatus(200);
+});
 
 app.use(bodyParser.json({ limit: '50mb' }));
 app.use(bodyParser.urlencoded({ extended: true, limit: '50mb' }));
