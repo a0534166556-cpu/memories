@@ -187,12 +187,20 @@ function initDatabase(callback) {
   });
 }
 
+let serverStarted = false;
+
 function startServer() {
+  if (serverStarted) {
+    console.log('Server already started');
+    return;
+  }
+  
   if (app.listening) {
     console.log('Server already listening');
     return;
   }
   
+  serverStarted = true;
   app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
     console.log(`Environment: ${NODE_ENV}`);
