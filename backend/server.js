@@ -64,20 +64,37 @@ if (NODE_ENV === 'production') {
 
 // Database setup
 let dbReady = false;
+let dbError = false;
+
 const db = new sqlite3.Database('./memorial.db', (err) => {
   if (err) {
     console.error('Error opening database:', err);
-    process.exit(1);
+    console.error('Server will start anyway - database may be created later');
+    dbError = true;
+    // Don't exit - let server start and handle errors in routes
+    dbReady = true;
+    startServer();
   } else {
     console.log('Connected to SQLite database');
     // Enable foreign keys
     db.run('PRAGMA foreign_keys = ON', (err) => {
       if (err) {
         console.error('Error enabling foreign keys:', err);
-        process.exit(1);
+        console.error('Server will start anyway - foreign keys may not work');
+        // Don't exit - let server start
+        dbError = true;
+        dbReady = true;
+        startServer();
       } else {
         console.log('Foreign keys enabled');
-        initDatabase(() => {
+        initDatabase((err) => {
+          if (err) {
+            console.error('Database initialization failed:', err);
+            console.error('Server will start anyway - tables may already exist');
+            // Don't exit - let server start and handle errors in routes
+          } else {
+            console.log('Database initialization successful');
+          }
           dbReady = true;
           startServer();
         });
@@ -113,12 +130,6 @@ function initDatabase(callback) {
       return;
     }
     console.log('Memorials table ready');
-    
-    // Ensure columns exist
-    ensureColumn('memorials', 'backgroundMusic', 'TEXT');
-    ensureColumn('memorials', 'heroImage', 'TEXT');
-    ensureColumn('memorials', 'heroSummary', 'TEXT');
-    ensureColumn('memorials', 'timeline', 'TEXT');
     
     // Create condolences table
     db.run(`CREATE TABLE IF NOT EXISTS condolences (
@@ -161,6 +172,13 @@ function initDatabase(callback) {
             return;
           }
           console.log('Candles index ready');
+          
+          // Ensure columns exist after all tables are created
+          ensureColumn('memorials', 'backgroundMusic', 'TEXT');
+          ensureColumn('memorials', 'heroImage', 'TEXT');
+          ensureColumn('memorials', 'heroSummary', 'TEXT');
+          ensureColumn('memorials', 'timeline', 'TEXT');
+          
           console.log('Database initialization complete!');
           if (callback) callback(null);
         });
@@ -170,18 +188,22 @@ function initDatabase(callback) {
 }
 
 function startServer() {
-  if (!dbReady) {
-    console.log('Waiting for database to be ready...');
+  if (app.listening) {
+    console.log('Server already listening');
     return;
   }
   
-  // Start the server only after database is ready
   app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
     console.log(`Environment: ${NODE_ENV}`);
     if (NODE_ENV === 'production') {
       console.log(`Frontend URL: ${process.env.FRONTEND_URL || 'Not set'}`);
       console.log(`Base URL: ${process.env.BASE_URL || 'Using request host'}`);
+    }
+    if (dbReady) {
+      console.log('Database initialization complete');
+    } else {
+      console.log('Database initialization may still be in progress');
     }
   });
 }
