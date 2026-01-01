@@ -90,6 +90,15 @@ const db = new sqlite3.Database('./memorial.db', (err) => {
     dbReady = true;
     startServer();
   } else {
+    // Add error handler to database to prevent crashes
+    db.on('error', (err) => {
+      if (err.code === 'SQLITE_ERROR' && err.message && err.message.includes('no such table')) {
+        console.error('Database table not found (this is OK during startup):', err.message);
+        // Don't crash - let the server continue
+        return;
+      }
+      console.error('Database error:', err);
+    });
     console.log('Connected to SQLite database');
     // Enable foreign keys
     db.run('PRAGMA foreign_keys = ON', (err) => {
@@ -243,6 +252,17 @@ function parseTimeline(rawValue) {
     console.warn('Failed to parse stored timeline', error);
     return [];
   }
+}
+
+// Helper function to handle database errors
+function handleDbError(err, res) {
+  if (err && err.code === 'SQLITE_ERROR' && err.message && err.message.includes('no such table')) {
+    return res.status(503).json({ 
+      success: false, 
+      error: 'Database is initializing. Please try again in a moment.' 
+    });
+  }
+  return res.status(500).json({ success: false, error: err ? err.message : 'Database error' });
 }
 
 function ensureColumn(tableName, columnName, columnDefinition) {
@@ -468,6 +488,13 @@ app.get('/api/memorials/:id', checkDbReady, (req, res) => {
   
   db.get('SELECT * FROM memorials WHERE id = ?', [id], (err, row) => {
     if (err) {
+      // If database table doesn't exist, return 503 instead of 500
+      if (err.code === 'SQLITE_ERROR' && err.message.includes('no such table')) {
+        return res.status(503).json({ 
+          success: false, 
+          error: 'Database is initializing. Please try again in a moment.' 
+        });
+      }
       return res.status(500).json({ success: false, error: err.message });
     }
     
@@ -494,6 +521,13 @@ app.get('/api/memorials/:id', checkDbReady, (req, res) => {
 app.get('/api/memorials', checkDbReady, (req, res) => {
   db.all('SELECT * FROM memorials ORDER BY createdAt DESC', [], (err, rows) => {
     if (err) {
+      // If database table doesn't exist, return 503 instead of 500
+      if (err.code === 'SQLITE_ERROR' && err.message.includes('no such table')) {
+        return res.status(503).json({ 
+          success: false, 
+          error: 'Database is initializing. Please try again in a moment.' 
+        });
+      }
       return res.status(500).json({ success: false, error: err.message });
     }
     
@@ -586,7 +620,7 @@ app.get('/api/memorials/:id/condolences', checkDbReady, (req, res) => {
     [id],
     (err, rows) => {
       if (err) {
-        return res.status(500).json({ success: false, error: err.message });
+        return handleDbError(err, res);
       }
       res.json({ success: true, condolences: rows || [] });
     }
@@ -608,6 +642,13 @@ app.post('/api/memorials/:id/candles', checkDbReady, (req, res) => {
     [id, visitorId],
     (err, row) => {
       if (err) {
+        // If database table doesn't exist, return 503 instead of 500
+        if (err.code === 'SQLITE_ERROR' && err.message.includes('no such table')) {
+          return res.status(503).json({ 
+            success: false, 
+            error: 'Database is initializing. Please try again in a moment.' 
+          });
+        }
         return res.status(500).json({ success: false, error: err.message });
       }
       
@@ -627,7 +668,7 @@ app.post('/api/memorials/:id/candles', checkDbReady, (req, res) => {
         [candleId, id, litBy || 'אנונימי', visitorId],
         (err) => {
           if (err) {
-            return res.status(500).json({ success: false, error: err.message });
+            return handleDbError(err, res);
           }
           // Get all candles for this memorial
           db.all(
@@ -635,7 +676,7 @@ app.post('/api/memorials/:id/candles', checkDbReady, (req, res) => {
             [id],
             (err, rows) => {
               if (err) {
-                return res.status(500).json({ success: false, error: err.message });
+                return handleDbError(err, res);
               }
               res.json({ success: true, candles: rows || [], candleCount: rows.length });
             }
@@ -657,7 +698,7 @@ app.get('/api/memorials/:id/candles', checkDbReady, (req, res) => {
     [id],
     (err, rows) => {
       if (err) {
-        return res.status(500).json({ success: false, error: err.message });
+        return handleDbError(err, res);
       }
       
       // Check if visitor already lit a candle
@@ -667,6 +708,18 @@ app.get('/api/memorials/:id/candles', checkDbReady, (req, res) => {
           'SELECT id FROM candles WHERE memorialId = ? AND visitorId = ?',
           [id, visitorId],
           (err, row) => {
+            if (err) {
+              // If table doesn't exist, just return empty result
+              if (err.code === 'SQLITE_ERROR' && err.message && err.message.includes('no such table')) {
+                return res.json({ 
+                  success: true, 
+                  candles: rows || [], 
+                  candleCount: rows.length,
+                  hasLitCandle: false 
+                });
+              }
+              return handleDbError(err, res);
+            }
             if (!err && row) {
               hasLitCandle = true;
             }
@@ -715,4 +768,42 @@ app.get('/api/music', (req, res) => {
     res.json({ success: true, musicFiles: [] });
   }
 });
+
+// Global error handler for database errors
+process.on('uncaughtException', (error) => {
+  if (error.code === 'SQLITE_ERROR' && error.message.includes('no such table')) {
+    console.error('Database table not found:', error.message);
+    console.error('This is OK during startup - database is still initializing');
+    // Don't crash - let the server continue
+    return;
+  }
+  console.error('Uncaught Exception:', error);
+  // Only exit for critical errors
+  if (error.code !== 'SQLITE_ERROR') {
+    process.exit(1);
+  }
+});
+
+// Handle unhandled promise rejections
+process.on('unhandledRejection', (reason, promise) => {
+  if (reason && reason.code === 'SQLITE_ERROR' && reason.message && reason.message.includes('no such table')) {
+    console.error('Database table not found (unhandled rejection):', reason.message);
+    console.error('This is OK during startup - database is still initializing');
+    return;
+  }
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+});
+
+// Add error handler to database
+if (db) {
+  db.on('error', (err) => {
+    if (err.code === 'SQLITE_ERROR' && err.message && err.message.includes('no such table')) {
+      console.error('Database error (table not found):', err.message);
+      console.error('This is OK during startup - database is still initializing');
+      // Don't crash - let the server continue
+      return;
+    }
+    console.error('Database error:', err);
+  });
+}
 
