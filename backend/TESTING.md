@@ -178,3 +178,4 @@ API_URL=https://memories-production-31c0.up.railway.app node test-railway.js
 2. בדוק את ה-console ב-Netlify
 3. הרץ את הבדיקות ובדוק את התוצאות
 
+
