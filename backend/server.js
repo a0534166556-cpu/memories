@@ -174,9 +174,17 @@ async function initDatabase() {
     )`);
     console.log('✅ Candles table ready');
     
-    // Create index
-    await db.execute(`CREATE INDEX IF NOT EXISTS idx_candles_memorial_visitor ON candles(memorialId, visitorId)`);
-    console.log('✅ Candles index ready');
+    // Create index (MySQL doesn't support IF NOT EXISTS for indexes)
+    try {
+      await db.execute(`CREATE INDEX idx_candles_memorial_visitor ON candles(memorialId, visitorId)`);
+      console.log('✅ Candles index ready');
+    } catch (indexErr) {
+      // Index might already exist, that's okay
+      if (indexErr.code !== 'ER_DUP_KEYNAME') {
+        throw indexErr;
+      }
+      console.log('✅ Candles index already exists');
+    }
     
     console.log('✅ Database initialization complete!');
   } catch (err) {
