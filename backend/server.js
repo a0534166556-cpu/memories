@@ -687,6 +687,7 @@ app.get('/api/memorials/:id/candles', checkDbReady, async (req, res) => {
 
 // Get list of available background music files
 app.get('/api/music', (req, res) => {
+  console.log('📻 /api/music endpoint called');
   // Explicitly set CORS headers for this endpoint
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
@@ -694,7 +695,9 @@ app.get('/api/music', (req, res) => {
   
   try {
     const audioDir = path.join(__dirname, 'uploads', 'audio');
+    console.log('📁 Audio directory:', audioDir);
     if (!fs.existsSync(audioDir)) {
+      console.log('📁 Audio directory does not exist, returning empty array');
       return res.json({ success: true, musicFiles: [] });
     }
 
@@ -709,9 +712,11 @@ app.get('/api/music', (req, res) => {
         displayName: path.basename(file, path.extname(file))
       }));
 
+    console.log('✅ Found', files.length, 'music files');
     res.json({ success: true, musicFiles: files });
   } catch (error) {
-    console.error('Error reading music files:', error);
+    console.error('❌ Error reading music files:', error);
+    res.setHeader('Access-Control-Allow-Origin', '*');
     res.json({ success: true, musicFiles: [] });
   }
 });
@@ -739,6 +744,20 @@ process.on('unhandledRejection', (reason, promise) => {
     return;
   }
   console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+});
+
+// 404 handler for API routes - MUST be after all specific API routes but before frontend catch-all
+app.all('/api/*', (req, res) => {
+  console.log('❌ 404 - API route not found:', req.method, req.path);
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+  res.status(404).json({ 
+    success: false, 
+    error: 'API endpoint not found',
+    path: req.path,
+    method: req.method
+  });
 });
 
 // Serve frontend build in production - MUST be after all API routes
