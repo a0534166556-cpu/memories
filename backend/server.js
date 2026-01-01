@@ -119,7 +119,9 @@ const db = new sqlite3.Database('./memorial.db', (err) => {
           } else {
             console.log('Database initialization successful');
           }
+          // Set dbReady to true ONLY after initialization is complete
           dbReady = true;
+          // Start server ONLY after database is ready
           startServer();
         });
       }
@@ -198,13 +200,22 @@ function initDatabase(callback) {
           console.log('Candles index ready');
           
           // Ensure columns exist after all tables are created
-          ensureColumn('memorials', 'backgroundMusic', 'TEXT');
-          ensureColumn('memorials', 'heroImage', 'TEXT');
-          ensureColumn('memorials', 'heroSummary', 'TEXT');
-          ensureColumn('memorials', 'timeline', 'TEXT');
+          // Use a counter to wait for all ensureColumn calls to complete
+          let columnsChecked = 0;
+          const totalColumns = 4;
           
-          console.log('Database initialization complete!');
-          if (callback) callback(null);
+          const checkColumnComplete = () => {
+            columnsChecked++;
+            if (columnsChecked === totalColumns) {
+              console.log('Database initialization complete!');
+              if (callback) callback(null);
+            }
+          };
+          
+          ensureColumn('memorials', 'backgroundMusic', 'TEXT', checkColumnComplete);
+          ensureColumn('memorials', 'heroImage', 'TEXT', checkColumnComplete);
+          ensureColumn('memorials', 'heroSummary', 'TEXT', checkColumnComplete);
+          ensureColumn('memorials', 'timeline', 'TEXT', checkColumnComplete);
         });
       });
     });
@@ -265,10 +276,11 @@ function handleDbError(err, res) {
   return res.status(500).json({ success: false, error: err ? err.message : 'Database error' });
 }
 
-function ensureColumn(tableName, columnName, columnDefinition) {
+function ensureColumn(tableName, columnName, columnDefinition, callback) {
   db.all(`PRAGMA table_info(${tableName})`, (err, columns) => {
     if (err) {
       console.error(`Error checking columns for ${tableName}:`, err);
+      if (callback) callback();
       return;
     }
 
@@ -280,7 +292,10 @@ function ensureColumn(tableName, columnName, columnDefinition) {
         } else {
           console.log(`Added column ${columnName} to ${tableName}`);
         }
+        if (callback) callback();
       });
+    } else {
+      if (callback) callback();
     }
   });
 }
@@ -451,31 +466,45 @@ app.post('/api/memorials', checkDbReady, validateInput, upload.fields([
       heroSummary,
       JSON.stringify(timeline),
       tehilimChapters || '',
-      `/${qrCodePath}`
-    );
-    
-    stmt.finalize();
-    
-    res.json({
-      success: true,
-      memorial: {
-        id,
-        name,
-        hebrewName,
-        birthDate,
-        deathDate,
-        biography,
-        images,
-        videos,
-        backgroundMusic,
-        heroImage,
-        heroSummary,
-        timeline,
-        tehilimChapters,
-        qrCodePath: `/${qrCodePath}`,
-        url: memorialUrl
+      `/${qrCodePath}`,
+      (err) => {
+        if (err) {
+          stmt.finalize();
+          // If database table doesn't exist, return 503 instead of 500
+          if (err.code === 'SQLITE_ERROR' && err.message && err.message.includes('no such table')) {
+            return res.status(503).json({ 
+              success: false, 
+              error: 'Database is initializing. Please try again in a moment.' 
+            });
+          }
+          console.error('Error saving memorial:', err);
+          return res.status(500).json({ success: false, error: err.message });
+        }
+        
+        stmt.finalize();
+        
+        res.json({
+          success: true,
+          memorial: {
+            id,
+            name,
+            hebrewName,
+            birthDate,
+            deathDate,
+            biography,
+            images,
+            videos,
+            backgroundMusic,
+            heroImage,
+            heroSummary,
+            timeline,
+            tehilimChapters,
+            qrCodePath: `/${qrCodePath}`,
+            url: memorialUrl
+          }
+        });
       }
-    });
+    );
   } catch (error) {
     console.error('Error creating memorial:', error);
     res.status(500).json({ success: false, error: error.message });
