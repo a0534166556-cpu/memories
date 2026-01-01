@@ -16,10 +16,11 @@ const NODE_ENV = process.env.NODE_ENV || 'development';
 // Middleware
 // CORS configuration - Add headers to ALL responses
 app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
-  res.header('Access-Control-Expose-Headers', 'Content-Length, Content-Type');
+  // Use setHeader to ensure headers are set
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+  res.setHeader('Access-Control-Expose-Headers', 'Content-Length, Content-Type');
   
   // Handle preflight requests
   if (req.method === 'OPTIONS') {
@@ -41,9 +42,17 @@ app.use(cors({
 app.use(bodyParser.json({ limit: '50mb' }));
 app.use(bodyParser.urlencoded({ extended: true, limit: '50mb' }));
 
-// Serve static files
-app.use('/uploads', express.static('uploads'));
-app.use('/qrcodes', express.static('qrcodes'));
+// Serve static files with CORS headers
+const staticOptions = {
+  setHeaders: (res, path) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+  }
+};
+
+app.use('/uploads', express.static('uploads', staticOptions));
+app.use('/qrcodes', express.static('qrcodes', staticOptions));
 
 // Serve frontend build in production
 if (NODE_ENV === 'production') {
@@ -307,10 +316,27 @@ const validateInput = (req, res, next) => {
   next();
 };
 
+// Middleware to check if database is ready
+const checkDbReady = (req, res, next) => {
+  if (!dbReady) {
+    return res.status(503).json({ 
+      success: false, 
+      error: 'Database is initializing. Please try again in a moment.' 
+    });
+  }
+  if (dbError) {
+    return res.status(503).json({ 
+      success: false, 
+      error: 'Database error. Please try again later.' 
+    });
+  }
+  next();
+};
+
 // Routes
 
 // Create new memorial
-app.post('/api/memorials', validateInput, upload.fields([
+app.post('/api/memorials', checkDbReady, validateInput, upload.fields([
   { name: 'files', maxCount: 20 },
   { name: 'headerImage', maxCount: 1 }
 ]), async (req, res) => {
@@ -437,7 +463,7 @@ app.post('/api/memorials', validateInput, upload.fields([
 });
 
 // Get memorial by ID
-app.get('/api/memorials/:id', (req, res) => {
+app.get('/api/memorials/:id', checkDbReady, (req, res) => {
   const { id } = req.params;
   
   db.get('SELECT * FROM memorials WHERE id = ?', [id], (err, row) => {
@@ -465,7 +491,7 @@ app.get('/api/memorials/:id', (req, res) => {
 });
 
 // Get all memorials
-app.get('/api/memorials', (req, res) => {
+app.get('/api/memorials', checkDbReady, (req, res) => {
   db.all('SELECT * FROM memorials ORDER BY createdAt DESC', [], (err, rows) => {
     if (err) {
       return res.status(500).json({ success: false, error: err.message });
@@ -486,7 +512,7 @@ app.get('/api/memorials', (req, res) => {
 });
 
 // Upload additional files to existing memorial
-app.post('/api/memorials/:id/upload', validateInput, upload.array('files', 10), (req, res) => {
+app.post('/api/memorials/:id/upload', checkDbReady, validateInput, upload.array('files', 10), (req, res) => {
   const { id } = req.params;
   
   db.get('SELECT * FROM memorials WHERE id = ?', [id], (err, row) => {
@@ -523,7 +549,7 @@ app.post('/api/memorials/:id/upload', validateInput, upload.array('files', 10), 
 });
 
 // Add condolence message
-app.post('/api/memorials/:id/condolences', validateInput, (req, res) => {
+app.post('/api/memorials/:id/condolences', checkDbReady, validateInput, (req, res) => {
   const { id } = req.params;
   let { name, message } = req.body;
   
@@ -553,7 +579,7 @@ app.post('/api/memorials/:id/condolences', validateInput, (req, res) => {
 });
 
 // Get condolences for a memorial (only approved)
-app.get('/api/memorials/:id/condolences', (req, res) => {
+app.get('/api/memorials/:id/condolences', checkDbReady, (req, res) => {
   const { id } = req.params;
   db.all(
     'SELECT id, name, message, createdAt FROM condolences WHERE memorialId = ? AND approved = 1 ORDER BY createdAt DESC',
@@ -568,7 +594,7 @@ app.get('/api/memorials/:id/condolences', (req, res) => {
 });
 
 // Light a virtual candle
-app.post('/api/memorials/:id/candles', (req, res) => {
+app.post('/api/memorials/:id/candles', checkDbReady, (req, res) => {
   const { id } = req.params;
   const { litBy, visitorId } = req.body;
 
@@ -621,7 +647,7 @@ app.post('/api/memorials/:id/candles', (req, res) => {
 });
 
 // Get candles for a memorial
-app.get('/api/memorials/:id/candles', (req, res) => {
+app.get('/api/memorials/:id/candles', checkDbReady, (req, res) => {
   const { id } = req.params;
   const { visitorId } = req.query;
   
