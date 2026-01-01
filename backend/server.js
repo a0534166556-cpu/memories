@@ -745,12 +745,16 @@ process.on('unhandledRejection', (reason, promise) => {
 if (NODE_ENV === 'production') {
   const frontendPath = path.join(__dirname, '../frontend/dist');
   if (fs.existsSync(frontendPath)) {
-    app.use(express.static(frontendPath));
-    // Handle React Router - serve index.html for all routes (except API routes)
-    app.get('*', (req, res) => {
+    // Only serve static files, not API routes
+    app.use(express.static(frontendPath, {
       // Don't serve index.html for API routes
+      index: false
+    }));
+    // Handle React Router - serve index.html for all routes (except API routes)
+    app.get('*', (req, res, next) => {
+      // Skip API routes, uploads, and qrcodes - they should be handled by API routes above
       if (req.path.startsWith('/api') || req.path.startsWith('/uploads') || req.path.startsWith('/qrcodes')) {
-        return res.status(404).json({ error: 'Not found' });
+        return next(); // Let Express continue to next route handler (should be 404 if no route matches)
       }
       res.sendFile(path.join(frontendPath, 'index.html'));
     });
