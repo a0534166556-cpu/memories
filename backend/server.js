@@ -54,21 +54,7 @@ const staticOptions = {
 app.use('/uploads', express.static('uploads', staticOptions));
 app.use('/qrcodes', express.static('qrcodes', staticOptions));
 
-// Serve frontend build in production
-if (NODE_ENV === 'production') {
-  const frontendPath = path.join(__dirname, '../frontend/dist');
-  if (fs.existsSync(frontendPath)) {
-    app.use(express.static(frontendPath));
-    // Handle React Router - serve index.html for all routes
-    app.get('*', (req, res) => {
-      // Don't serve index.html for API routes
-      if (req.path.startsWith('/api') || req.path.startsWith('/uploads') || req.path.startsWith('/qrcodes')) {
-        return res.status(404).json({ error: 'Not found' });
-      }
-      res.sendFile(path.join(frontendPath, 'index.html'));
-    });
-  }
-}
+// Note: Frontend static files will be served at the end, after all API routes
 
 // Create directories if they don't exist
 ['uploads/images', 'uploads/videos', 'uploads/audio', 'qrcodes'].forEach(dir => {
@@ -240,6 +226,11 @@ function parseTimeline(rawValue) {
 
 // Helper function to handle database errors
 function handleDbError(err, res) {
+  // Ensure CORS headers are set even on errors
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+  
   if (err && (err.code === 'ER_NO_SUCH_TABLE' || err.code === 'SQLITE_ERROR') && err.message && (err.message.includes('doesn\'t exist') || err.message.includes('no such table'))) {
     return res.status(503).json({ 
       success: false, 
@@ -749,4 +740,20 @@ process.on('unhandledRejection', (reason, promise) => {
   }
   console.error('Unhandled Rejection at:', promise, 'reason:', reason);
 });
+
+// Serve frontend build in production - MUST be after all API routes
+if (NODE_ENV === 'production') {
+  const frontendPath = path.join(__dirname, '../frontend/dist');
+  if (fs.existsSync(frontendPath)) {
+    app.use(express.static(frontendPath));
+    // Handle React Router - serve index.html for all routes (except API routes)
+    app.get('*', (req, res) => {
+      // Don't serve index.html for API routes
+      if (req.path.startsWith('/api') || req.path.startsWith('/uploads') || req.path.startsWith('/qrcodes')) {
+        return res.status(404).json({ error: 'Not found' });
+      }
+      res.sendFile(path.join(frontendPath, 'index.html'));
+    });
+  }
+}
 
