@@ -7,10 +7,10 @@ const fs = require('fs');
 const os = require('os');
 const { v4: uuidv4 } = require('uuid');
 const QRCode = require('qrcode');
-const sqlite3 = require('sqlite3').verbose();
+const mysql = require('mysql2/promise');
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 8080;
 const NODE_ENV = process.env.NODE_ENV || 'development';
 
 // Middleware
@@ -78,148 +78,111 @@ if (NODE_ENV === 'production') {
 });
 
 // Database setup
+let db = null;
 let dbReady = false;
 let dbError = false;
 
-const db = new sqlite3.Database('./memorial.db', (err) => {
-  if (err) {
-    console.error('Error opening database:', err);
-    console.error('Server will start anyway - database may be created later');
-    dbError = true;
-    // Don't exit - let server start and handle errors in routes
+// MySQL connection configuration
+const dbConfig = {
+  host: process.env.MYSQL_HOST || process.env.MYSQLHOST || 'localhost',
+  user: process.env.MYSQL_USER || process.env.MYSQLUSER || 'root',
+  password: process.env.MYSQL_PASSWORD || process.env.MYSQLPASSWORD || '',
+  database: process.env.MYSQL_DATABASE || process.env.MYSQLDATABASE || 'memorial',
+  port: process.env.MYSQL_PORT || process.env.MYSQLPORT || 3306
+};
+
+// Initialize MySQL connection
+async function initDatabaseConnection() {
+  try {
+    console.log('Connecting to MySQL database...');
+    db = await mysql.createConnection(dbConfig);
+    console.log('✅ Connected to MySQL database');
+    
+    // Enable foreign keys (MySQL uses different syntax)
+    await db.execute('SET FOREIGN_KEY_CHECKS = 1');
+    console.log('✅ Foreign keys enabled');
+    
+    // Initialize database tables
+    await initDatabase();
+    console.log('✅ Database initialization successful');
     dbReady = true;
     startServer();
-  } else {
-    // Add error handler to database to prevent crashes
-    db.on('error', (err) => {
-      if (err.code === 'SQLITE_ERROR' && err.message && err.message.includes('no such table')) {
-        console.error('Database table not found (this is OK during startup):', err.message);
-        // Don't crash - let the server continue
-        return;
-      }
-      console.error('Database error:', err);
-    });
-    console.log('Connected to SQLite database');
-    // Enable foreign keys
-    db.run('PRAGMA foreign_keys = ON', (err) => {
-      if (err) {
-        console.error('Error enabling foreign keys:', err);
-        console.error('Server will start anyway - foreign keys may not work');
-        // Don't exit - let server start
+  } catch (err) {
+    console.error('❌ Database connection failed:', err.message);
+    console.error('⏳ Retrying in 3 seconds...');
+    setTimeout(async () => {
+      try {
+        await initDatabaseConnection();
+      } catch (retryErr) {
+        console.error('❌ Database connection failed again:', retryErr.message);
+        console.error('⚠️  Starting server anyway - database may be available later');
         dbError = true;
         dbReady = true;
         startServer();
-      } else {
-        console.log('Foreign keys enabled');
-        initDatabase((err) => {
-          if (err) {
-            console.error('Database initialization failed:', err);
-            console.error('Server will start anyway - tables may already exist');
-            // Don't exit - let server start and handle errors in routes
-          } else {
-            console.log('Database initialization successful');
-          }
-          // Set dbReady to true ONLY after initialization is complete
-          dbReady = true;
-          // Start server ONLY after database is ready
-          startServer();
-        });
       }
-    });
+    }, 3000);
   }
-});
+}
 
-function initDatabase(callback) {
+// Start database connection
+initDatabaseConnection();
+
+async function initDatabase() {
   console.log('Starting database initialization...');
   
-  // Create all tables sequentially using callbacks
-  db.run(`CREATE TABLE IF NOT EXISTS memorials (
-    id TEXT PRIMARY KEY,
-    name TEXT NOT NULL,
-    hebrewName TEXT,
-    birthDate TEXT,
-    deathDate TEXT,
-    biography TEXT,
-    images TEXT,
-    videos TEXT,
-    backgroundMusic TEXT,
-    heroImage TEXT,
-    heroSummary TEXT,
-    timeline TEXT,
-    tehilimChapters TEXT,
-    qrCodePath TEXT,
-    createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
-  )`, (err) => {
-    if (err) {
-      console.error('Error creating memorials table:', err);
-      if (callback) callback(err);
-      return;
-    }
-    console.log('Memorials table ready');
+  try {
+    // Create memorials table
+    await db.execute(`CREATE TABLE IF NOT EXISTS memorials (
+      id VARCHAR(255) PRIMARY KEY,
+      name VARCHAR(255) NOT NULL,
+      hebrewName VARCHAR(255),
+      birthDate VARCHAR(255),
+      deathDate VARCHAR(255),
+      biography TEXT,
+      images TEXT,
+      videos TEXT,
+      backgroundMusic TEXT,
+      heroImage TEXT,
+      heroSummary TEXT,
+      timeline TEXT,
+      tehilimChapters TEXT,
+      qrCodePath TEXT,
+      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
+    )`);
+    console.log('✅ Memorials table ready');
     
     // Create condolences table
-    db.run(`CREATE TABLE IF NOT EXISTS condolences (
-      id TEXT PRIMARY KEY,
-      memorialId TEXT NOT NULL,
-      name TEXT NOT NULL,
+    await db.execute(`CREATE TABLE IF NOT EXISTS condolences (
+      id VARCHAR(255) PRIMARY KEY,
+      memorialId VARCHAR(255) NOT NULL,
+      name VARCHAR(255) NOT NULL,
       message TEXT NOT NULL,
-      approved INTEGER DEFAULT 0,
+      approved INT DEFAULT 1,
       createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (memorialId) REFERENCES memorials(id)
-    )`, (err) => {
-      if (err) {
-        console.error('Error creating condolences table:', err);
-        if (callback) callback(err);
-        return;
-      }
-      console.log('Condolences table ready');
-      
-      // Create candles table
-      db.run(`CREATE TABLE IF NOT EXISTS candles (
-        id TEXT PRIMARY KEY,
-        memorialId TEXT NOT NULL,
-        litBy TEXT,
-        visitorId TEXT,
-        createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (memorialId) REFERENCES memorials(id)
-      )`, (err) => {
-        if (err) {
-          console.error('Error creating candles table:', err);
-          if (callback) callback(err);
-          return;
-        }
-        console.log('Candles table ready');
-        
-        // Create index
-        db.run(`CREATE INDEX IF NOT EXISTS idx_candles_memorial_visitor ON candles(memorialId, visitorId)`, (err) => {
-          if (err) {
-            console.error('Error creating candles index:', err);
-            if (callback) callback(err);
-            return;
-          }
-          console.log('Candles index ready');
-          
-          // Ensure columns exist after all tables are created
-          // Use a counter to wait for all ensureColumn calls to complete
-          let columnsChecked = 0;
-          const totalColumns = 4;
-          
-          const checkColumnComplete = () => {
-            columnsChecked++;
-            if (columnsChecked === totalColumns) {
-              console.log('Database initialization complete!');
-              if (callback) callback(null);
-            }
-          };
-          
-          ensureColumn('memorials', 'backgroundMusic', 'TEXT', checkColumnComplete);
-          ensureColumn('memorials', 'heroImage', 'TEXT', checkColumnComplete);
-          ensureColumn('memorials', 'heroSummary', 'TEXT', checkColumnComplete);
-          ensureColumn('memorials', 'timeline', 'TEXT', checkColumnComplete);
-        });
-      });
-    });
-  });
+      FOREIGN KEY (memorialId) REFERENCES memorials(id) ON DELETE CASCADE
+    )`);
+    console.log('✅ Condolences table ready');
+    
+    // Create candles table
+    await db.execute(`CREATE TABLE IF NOT EXISTS candles (
+      id VARCHAR(255) PRIMARY KEY,
+      memorialId VARCHAR(255) NOT NULL,
+      litBy VARCHAR(255),
+      visitorId VARCHAR(255),
+      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (memorialId) REFERENCES memorials(id) ON DELETE CASCADE
+    )`);
+    console.log('✅ Candles table ready');
+    
+    // Create index
+    await db.execute(`CREATE INDEX IF NOT EXISTS idx_candles_memorial_visitor ON candles(memorialId, visitorId)`);
+    console.log('✅ Candles index ready');
+    
+    console.log('✅ Database initialization complete!');
+  } catch (err) {
+    console.error('❌ Error initializing database:', err);
+    throw err;
+  }
 }
 
 let serverStarted = false;
@@ -235,19 +198,21 @@ function startServer() {
     return;
   }
   
+  // Don't start if database is not ready
+  if (!dbReady) {
+    console.log('⏳ Waiting for database to be ready...');
+    return;
+  }
+  
   serverStarted = true;
   app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
-    console.log(`Environment: ${NODE_ENV}`);
+    console.log(`✅ Server running on port ${PORT}`);
+    console.log(`✅ Environment: ${NODE_ENV}`);
     if (NODE_ENV === 'production') {
-      console.log(`Frontend URL: ${process.env.FRONTEND_URL || 'Not set'}`);
-      console.log(`Base URL: ${process.env.BASE_URL || 'Using request host'}`);
+      console.log(`✅ Frontend URL: ${process.env.FRONTEND_URL || 'Not set'}`);
+      console.log(`✅ Base URL: ${process.env.BASE_URL || 'Using request host'}`);
     }
-    if (dbReady) {
-      console.log('Database initialization complete');
-    } else {
-      console.log('Database initialization may still be in progress');
-    }
+    console.log('✅ Database initialization complete - server is ready!');
   });
 }
 
@@ -267,7 +232,7 @@ function parseTimeline(rawValue) {
 
 // Helper function to handle database errors
 function handleDbError(err, res) {
-  if (err && err.code === 'SQLITE_ERROR' && err.message && err.message.includes('no such table')) {
+  if (err && (err.code === 'ER_NO_SUCH_TABLE' || err.code === 'SQLITE_ERROR') && err.message && (err.message.includes('doesn\'t exist') || err.message.includes('no such table'))) {
     return res.status(503).json({ 
       success: false, 
       error: 'Database is initializing. Please try again in a moment.' 
@@ -276,29 +241,7 @@ function handleDbError(err, res) {
   return res.status(500).json({ success: false, error: err ? err.message : 'Database error' });
 }
 
-function ensureColumn(tableName, columnName, columnDefinition, callback) {
-  db.all(`PRAGMA table_info(${tableName})`, (err, columns) => {
-    if (err) {
-      console.error(`Error checking columns for ${tableName}:`, err);
-      if (callback) callback();
-      return;
-    }
-
-    const columnExists = columns.some(column => column.name === columnName);
-    if (!columnExists) {
-      db.run(`ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${columnDefinition}`, (alterErr) => {
-        if (alterErr) {
-          console.error(`Error adding column ${columnName} to ${tableName}:`, alterErr);
-        } else {
-          console.log(`Added column ${columnName} to ${tableName}`);
-        }
-        if (callback) callback();
-      });
-    } else {
-      if (callback) callback();
-    }
-  });
-}
+// MySQL doesn't need ensureColumn - all columns are created with the table
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({
@@ -447,78 +390,50 @@ app.post('/api/memorials', checkDbReady, validateInput, upload.fields([
     await QRCode.toFile(qrCodePath, memorialUrl);
     
     // Save to database
-    const stmt = db.prepare(`
-      INSERT INTO memorials (id, name, hebrewName, birthDate, deathDate, biography, images, videos, backgroundMusic, heroImage, heroSummary, timeline, tehilimChapters, qrCodePath)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `);
-    
-    stmt.run(
-      id,
-      name,
-      hebrewName || '',
-      birthDate || '',
-      deathDate || '',
-      biography || '',
-      JSON.stringify(images),
-      JSON.stringify(videos),
-      backgroundMusic,
-      heroImage,
-      heroSummary,
-      JSON.stringify(timeline),
-      tehilimChapters || '',
-      `/${qrCodePath}`,
-      (err) => {
-        if (err) {
-          stmt.finalize();
-          // If database table doesn't exist, return 503 instead of 500
-          if (err.code === 'SQLITE_ERROR' && err.message && err.message.includes('no such table')) {
-            return res.status(503).json({ 
-              success: false, 
-              error: 'Database is initializing. Please try again in a moment.' 
-            });
-          }
-          console.error('Error saving memorial:', err);
-          return res.status(500).json({ success: false, error: err.message });
+    try {
+      await db.execute(`
+        INSERT INTO memorials (id, name, hebrewName, birthDate, deathDate, biography, images, videos, backgroundMusic, heroImage, heroSummary, timeline, tehilimChapters, qrCodePath)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `, [
+        id,
+        name,
+        hebrewName || '',
+        birthDate || '',
+        deathDate || '',
+        biography || '',
+        JSON.stringify(images),
+        JSON.stringify(videos),
+        backgroundMusic,
+        heroImage,
+        heroSummary,
+        JSON.stringify(timeline),
+        tehilimChapters || '',
+        `/${qrCodePath}`
+      ]);
+      
+      res.json({
+        success: true,
+        memorial: {
+          id,
+          name,
+          hebrewName,
+          birthDate,
+          deathDate,
+          biography,
+          images,
+          videos,
+          backgroundMusic,
+          heroImage,
+          heroSummary,
+          timeline,
+          tehilimChapters,
+          qrCodePath: `/${qrCodePath}`,
+          url: memorialUrl
         }
-        
-        stmt.finalize();
-        
-        res.json({
-          success: true,
-          memorial: {
-            id,
-            name,
-            hebrewName,
-            birthDate,
-            deathDate,
-            biography,
-            images,
-            videos,
-            backgroundMusic,
-            heroImage,
-            heroSummary,
-            timeline,
-            tehilimChapters,
-            qrCodePath: `/${qrCodePath}`,
-            url: memorialUrl
-          }
-        });
-      }
-    );
-  } catch (error) {
-    console.error('Error creating memorial:', error);
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-// Get memorial by ID
-app.get('/api/memorials/:id', checkDbReady, (req, res) => {
-  const { id } = req.params;
-  
-  db.get('SELECT * FROM memorials WHERE id = ?', [id], (err, row) => {
-    if (err) {
-      // If database table doesn't exist, return 503 instead of 500
-      if (err.code === 'SQLITE_ERROR' && err.message.includes('no such table')) {
+      });
+    } catch (err) {
+      console.error('Error saving memorial:', err);
+      if (err.code === 'ER_NO_SUCH_TABLE' || err.message.includes('doesn\'t exist')) {
         return res.status(503).json({ 
           success: false, 
           error: 'Database is initializing. Please try again in a moment.' 
@@ -526,11 +441,24 @@ app.get('/api/memorials/:id', checkDbReady, (req, res) => {
       }
       return res.status(500).json({ success: false, error: err.message });
     }
+  } catch (error) {
+    console.error('Error creating memorial:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Get memorial by ID
+app.get('/api/memorials/:id', checkDbReady, async (req, res) => {
+  const { id } = req.params;
+  
+  try {
+    const [rows] = await db.execute('SELECT * FROM memorials WHERE id = ?', [id]);
     
-    if (!row) {
+    if (rows.length === 0) {
       return res.status(404).json({ success: false, error: 'Memorial not found' });
     }
     
+    const row = rows[0];
     res.json({
       success: true,
       memorial: {
@@ -543,22 +471,21 @@ app.get('/api/memorials/:id', checkDbReady, (req, res) => {
         timeline: parseTimeline(row.timeline)
       }
     });
-  });
+  } catch (err) {
+    if (err.code === 'ER_NO_SUCH_TABLE' || err.message.includes('doesn\'t exist')) {
+      return res.status(503).json({ 
+        success: false, 
+        error: 'Database is initializing. Please try again in a moment.' 
+      });
+    }
+    return res.status(500).json({ success: false, error: err.message });
+  }
 });
 
 // Get all memorials
-app.get('/api/memorials', checkDbReady, (req, res) => {
-  db.all('SELECT * FROM memorials ORDER BY createdAt DESC', [], (err, rows) => {
-    if (err) {
-      // If database table doesn't exist, return 503 instead of 500
-      if (err.code === 'SQLITE_ERROR' && err.message.includes('no such table')) {
-        return res.status(503).json({ 
-          success: false, 
-          error: 'Database is initializing. Please try again in a moment.' 
-        });
-      }
-      return res.status(500).json({ success: false, error: err.message });
-    }
+app.get('/api/memorials', checkDbReady, async (req, res) => {
+  try {
+    const [rows] = await db.execute('SELECT * FROM memorials ORDER BY createdAt DESC');
     
     const memorials = rows.map(row => ({
       ...row,
@@ -571,18 +498,29 @@ app.get('/api/memorials', checkDbReady, (req, res) => {
     }));
     
     res.json({ success: true, memorials });
-  });
+  } catch (err) {
+    if (err.code === 'ER_NO_SUCH_TABLE' || err.message.includes('doesn\'t exist')) {
+      return res.status(503).json({ 
+        success: false, 
+        error: 'Database is initializing. Please try again in a moment.' 
+      });
+    }
+    return res.status(500).json({ success: false, error: err.message });
+  }
 });
 
 // Upload additional files to existing memorial
-app.post('/api/memorials/:id/upload', checkDbReady, validateInput, upload.array('files', 10), (req, res) => {
+app.post('/api/memorials/:id/upload', checkDbReady, validateInput, upload.array('files', 10), async (req, res) => {
   const { id } = req.params;
   
-  db.get('SELECT * FROM memorials WHERE id = ?', [id], (err, row) => {
-    if (err || !row) {
+  try {
+    const [rows] = await db.execute('SELECT * FROM memorials WHERE id = ?', [id]);
+    
+    if (rows.length === 0) {
       return res.status(404).json({ success: false, error: 'Memorial not found' });
     }
     
+    const row = rows[0];
     const existingImages = JSON.parse(row.images || '[]');
     const existingVideos = JSON.parse(row.videos || '[]');
     let backgroundMusic = row.backgroundMusic || '';
@@ -598,21 +536,19 @@ app.post('/api/memorials/:id/upload', checkDbReady, validateInput, upload.array(
       }
     });
     
-    db.run(
+    await db.execute(
       'UPDATE memorials SET images = ?, videos = ?, backgroundMusic = ? WHERE id = ?',
-      [JSON.stringify(existingImages), JSON.stringify(existingVideos), backgroundMusic, id],
-      (err) => {
-        if (err) {
-          return res.status(500).json({ success: false, error: err.message });
-        }
-        res.json({ success: true, images: existingImages, videos: existingVideos, backgroundMusic });
-      }
+      [JSON.stringify(existingImages), JSON.stringify(existingVideos), backgroundMusic, id]
     );
-  });
+    
+    res.json({ success: true, images: existingImages, videos: existingVideos, backgroundMusic });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
 });
 
 // Add condolence message
-app.post('/api/memorials/:id/condolences', checkDbReady, validateInput, (req, res) => {
+app.post('/api/memorials/:id/condolences', checkDbReady, validateInput, async (req, res) => {
   const { id } = req.params;
   let { name, message } = req.body;
   
@@ -628,36 +564,34 @@ app.post('/api/memorials/:id/condolences', checkDbReady, validateInput, (req, re
     return res.status(400).json({ success: false, error: 'שם והודעה נדרשים' });
   }
 
-  const condolenceId = uuidv4();
-  db.run(
-    'INSERT INTO condolences (id, memorialId, name, message, approved) VALUES (?, ?, ?, ?, ?)',
-    [condolenceId, id, name, message, 1], // 1 = approved (appear immediately)
-    (err) => {
-      if (err) {
-        return res.status(500).json({ success: false, error: err.message });
-      }
-      res.json({ success: true, condolence: { id: condolenceId, name, message, approved: true } });
-    }
-  );
+  try {
+    const condolenceId = uuidv4();
+    await db.execute(
+      'INSERT INTO condolences (id, memorialId, name, message, approved) VALUES (?, ?, ?, ?, ?)',
+      [condolenceId, id, name, message, 1] // 1 = approved (appear immediately)
+    );
+    res.json({ success: true, condolence: { id: condolenceId, name, message, approved: true } });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
 });
 
 // Get condolences for a memorial (only approved)
-app.get('/api/memorials/:id/condolences', checkDbReady, (req, res) => {
+app.get('/api/memorials/:id/condolences', checkDbReady, async (req, res) => {
   const { id } = req.params;
-  db.all(
-    'SELECT id, name, message, createdAt FROM condolences WHERE memorialId = ? AND approved = 1 ORDER BY createdAt DESC',
-    [id],
-    (err, rows) => {
-      if (err) {
-        return handleDbError(err, res);
-      }
-      res.json({ success: true, condolences: rows || [] });
-    }
-  );
+  try {
+    const [rows] = await db.execute(
+      'SELECT id, name, message, createdAt FROM condolences WHERE memorialId = ? AND approved = 1 ORDER BY createdAt DESC',
+      [id]
+    );
+    res.json({ success: true, condolences: rows || [] });
+  } catch (err) {
+    return handleDbError(err, res);
+  }
 });
 
 // Light a virtual candle
-app.post('/api/memorials/:id/candles', checkDbReady, (req, res) => {
+app.post('/api/memorials/:id/candles', checkDbReady, async (req, res) => {
   const { id } = req.params;
   const { litBy, visitorId } = req.body;
 
@@ -665,115 +599,100 @@ app.post('/api/memorials/:id/candles', checkDbReady, (req, res) => {
     return res.status(400).json({ success: false, error: 'נדרש מזהה מבקר' });
   }
 
-  // Check if this visitor already lit a candle
-  db.get(
-    'SELECT id FROM candles WHERE memorialId = ? AND visitorId = ?',
-    [id, visitorId],
-    (err, row) => {
-      if (err) {
-        // If database table doesn't exist, return 503 instead of 500
-        if (err.code === 'SQLITE_ERROR' && err.message.includes('no such table')) {
-          return res.status(503).json({ 
-            success: false, 
-            error: 'Database is initializing. Please try again in a moment.' 
-          });
-        }
-        return res.status(500).json({ success: false, error: err.message });
-      }
-      
-      if (row) {
-        // Visitor already lit a candle
-        return res.status(400).json({ 
-          success: false, 
-          error: 'כבר הדלקת נר זיכרון לדף זה',
-          alreadyLit: true 
-        });
-      }
-
-      // Create new candle
-      const candleId = uuidv4();
-      db.run(
-        'INSERT INTO candles (id, memorialId, litBy, visitorId) VALUES (?, ?, ?, ?)',
-        [candleId, id, litBy || 'אנונימי', visitorId],
-        (err) => {
-          if (err) {
-            return handleDbError(err, res);
-          }
-          // Get all candles for this memorial
-          db.all(
-            'SELECT id, litBy, createdAt FROM candles WHERE memorialId = ? ORDER BY createdAt DESC',
-            [id],
-            (err, rows) => {
-              if (err) {
-                return handleDbError(err, res);
-              }
-              res.json({ success: true, candles: rows || [], candleCount: rows.length });
-            }
-          );
-        }
-      );
+  try {
+    // Check if this visitor already lit a candle
+    const [existing] = await db.execute(
+      'SELECT id FROM candles WHERE memorialId = ? AND visitorId = ?',
+      [id, visitorId]
+    );
+    
+    if (existing.length > 0) {
+      // Visitor already lit a candle
+      return res.status(400).json({ 
+        success: false, 
+        error: 'כבר הדלקת נר זיכרון לדף זה',
+        alreadyLit: true 
+      });
     }
-  );
+
+    // Create new candle
+    const candleId = uuidv4();
+    await db.execute(
+      'INSERT INTO candles (id, memorialId, litBy, visitorId) VALUES (?, ?, ?, ?)',
+      [candleId, id, litBy || 'אנונימי', visitorId]
+    );
+    
+    // Get all candles for this memorial
+    const [rows] = await db.execute(
+      'SELECT id, litBy, createdAt FROM candles WHERE memorialId = ? ORDER BY createdAt DESC',
+      [id]
+    );
+    
+    res.json({ success: true, candles: rows || [], candleCount: rows.length });
+  } catch (err) {
+    if (err.code === 'ER_NO_SUCH_TABLE' || err.message.includes('doesn\'t exist')) {
+      return res.status(503).json({ 
+        success: false, 
+        error: 'Database is initializing. Please try again in a moment.' 
+      });
+    }
+    return handleDbError(err, res);
+  }
 });
 
 // Get candles for a memorial
-app.get('/api/memorials/:id/candles', checkDbReady, (req, res) => {
+app.get('/api/memorials/:id/candles', checkDbReady, async (req, res) => {
   const { id } = req.params;
   const { visitorId } = req.query;
   
-  // Get all candles
-  db.all(
-    'SELECT id, litBy, createdAt FROM candles WHERE memorialId = ? ORDER BY createdAt DESC',
-    [id],
-    (err, rows) => {
-      if (err) {
+  try {
+    // Get all candles
+    const [rows] = await db.execute(
+      'SELECT id, litBy, createdAt FROM candles WHERE memorialId = ? ORDER BY createdAt DESC',
+      [id]
+    );
+    
+    // Check if visitor already lit a candle
+    let hasLitCandle = false;
+    if (visitorId) {
+      try {
+        const [visitorCandles] = await db.execute(
+          'SELECT id FROM candles WHERE memorialId = ? AND visitorId = ?',
+          [id, visitorId]
+        );
+        hasLitCandle = visitorCandles.length > 0;
+      } catch (err) {
+        // If table doesn't exist, just return empty result
+        if (err.code === 'ER_NO_SUCH_TABLE' || err.message.includes('doesn\'t exist')) {
+          return res.json({ 
+            success: true, 
+            candles: rows || [], 
+            candleCount: rows.length,
+            hasLitCandle: false 
+          });
+        }
         return handleDbError(err, res);
       }
-      
-      // Check if visitor already lit a candle
-      let hasLitCandle = false;
-      if (visitorId) {
-        db.get(
-          'SELECT id FROM candles WHERE memorialId = ? AND visitorId = ?',
-          [id, visitorId],
-          (err, row) => {
-            if (err) {
-              // If table doesn't exist, just return empty result
-              if (err.code === 'SQLITE_ERROR' && err.message && err.message.includes('no such table')) {
-                return res.json({ 
-                  success: true, 
-                  candles: rows || [], 
-                  candleCount: rows.length,
-                  hasLitCandle: false 
-                });
-              }
-              return handleDbError(err, res);
-            }
-            if (!err && row) {
-              hasLitCandle = true;
-            }
-            res.json({ 
-              success: true, 
-              candles: rows || [], 
-              candleCount: rows.length,
-              hasLitCandle 
-            });
-          }
-        );
-      } else {
-        res.json({ 
-          success: true, 
-          candles: rows || [], 
-          candleCount: rows.length,
-          hasLitCandle: false 
-        });
-      }
     }
-  );
+    
+    res.json({ 
+      success: true, 
+      candles: rows || [], 
+      candleCount: rows.length,
+      hasLitCandle 
+    });
+  } catch (err) {
+    return handleDbError(err, res);
+  }
 });
 
 // Get list of available background music files
 app.get('/api/music', (req, res) => {
+  // Explicitly set CORS headers for this endpoint
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+  
   try {
     const audioDir = path.join(__dirname, 'uploads', 'audio');
     if (!fs.existsSync(audioDir)) {
@@ -800,7 +719,7 @@ app.get('/api/music', (req, res) => {
 
 // Global error handler for database errors
 process.on('uncaughtException', (error) => {
-  if (error.code === 'SQLITE_ERROR' && error.message.includes('no such table')) {
+  if ((error.code === 'ER_NO_SUCH_TABLE' || error.code === 'SQLITE_ERROR') && error.message && (error.message.includes('doesn\'t exist') || error.message.includes('no such table'))) {
     console.error('Database table not found:', error.message);
     console.error('This is OK during startup - database is still initializing');
     // Don't crash - let the server continue
@@ -808,31 +727,18 @@ process.on('uncaughtException', (error) => {
   }
   console.error('Uncaught Exception:', error);
   // Only exit for critical errors
-  if (error.code !== 'SQLITE_ERROR') {
+  if (error.code !== 'ER_NO_SUCH_TABLE' && error.code !== 'SQLITE_ERROR') {
     process.exit(1);
   }
 });
 
 // Handle unhandled promise rejections
 process.on('unhandledRejection', (reason, promise) => {
-  if (reason && reason.code === 'SQLITE_ERROR' && reason.message && reason.message.includes('no such table')) {
+  if (reason && (reason.code === 'ER_NO_SUCH_TABLE' || reason.code === 'SQLITE_ERROR') && reason.message && (reason.message.includes('doesn\'t exist') || reason.message.includes('no such table'))) {
     console.error('Database table not found (unhandled rejection):', reason.message);
     console.error('This is OK during startup - database is still initializing');
     return;
   }
   console.error('Unhandled Rejection at:', promise, 'reason:', reason);
 });
-
-// Add error handler to database
-if (db) {
-  db.on('error', (err) => {
-    if (err.code === 'SQLITE_ERROR' && err.message && err.message.includes('no such table')) {
-      console.error('Database error (table not found):', err.message);
-      console.error('This is OK during startup - database is still initializing');
-      // Don't crash - let the server continue
-      return;
-    }
-    console.error('Database error:', err);
-  });
-}
 
