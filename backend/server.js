@@ -78,6 +78,9 @@ const dbConfig = {
 };
 
 // Initialize MySQL connection
+let retryCount = 0;
+const MAX_RETRIES = 5; // Try 5 times, then start server anyway
+
 async function initDatabaseConnection() {
   try {
     console.log('Connecting to MySQL database...');
@@ -94,23 +97,32 @@ async function initDatabaseConnection() {
     dbReady = true;
     startServer();
   } catch (err) {
+    retryCount++;
     console.error('❌ Database connection failed:', err.message);
-    console.error('⏳ Retrying in 3 seconds...');
-    setTimeout(async () => {
-      try {
-        await initDatabaseConnection();
-      } catch (retryErr) {
-        console.error('❌ Database connection failed again:', retryErr.message);
-        console.error('⚠️  Starting server anyway - database may be available later');
-        dbError = true;
-        dbReady = true;
-        startServer();
-      }
-    }, 3000);
+    
+    if (retryCount >= MAX_RETRIES) {
+      console.error('⚠️  Max retries reached. Starting server anyway - database may be available later');
+      console.error('⚠️  Endpoints that require database will return 503 until database is available');
+      dbError = true;
+      dbReady = true; // Set to true so server can start
+      startServer(); // Start server even without database
+    } else {
+      console.error(`⏳ Retrying in 3 seconds... (${retryCount}/${MAX_RETRIES})`);
+      setTimeout(async () => {
+        try {
+          await initDatabaseConnection();
+        } catch (retryErr) {
+          // This will be caught by the outer catch
+        }
+      }, 3000);
+    }
   }
 }
 
-// Start database connection
+// Start server immediately (for endpoints that don't need database)
+startServer();
+
+// Start database connection (will retry in background)
 initDatabaseConnection();
 
 async function initDatabase() {
@@ -192,12 +204,6 @@ function startServer() {
     return;
   }
   
-  // Don't start if database is not ready
-  if (!dbReady) {
-    console.log('⏳ Waiting for database to be ready...');
-    return;
-  }
-  
   serverStarted = true;
   app.listen(PORT, () => {
     console.log(`✅ Server running on port ${PORT}`);
@@ -206,7 +212,12 @@ function startServer() {
       console.log(`✅ Frontend URL: ${process.env.FRONTEND_URL || 'Not set'}`);
       console.log(`✅ Base URL: ${process.env.BASE_URL || 'Using request host'}`);
     }
-    console.log('✅ Database initialization complete - server is ready!');
+    if (dbReady && !dbError) {
+      console.log('✅ Database connected - all endpoints available');
+    } else {
+      console.log('⚠️  Database not connected - endpoints requiring database will return 503');
+      console.log('⚠️  Endpoints like /api/music will work without database');
+    }
   });
 }
 
@@ -709,6 +720,14 @@ app.get('/api/memorials/:id/candles', checkDbReady, async (req, res) => {
   }
 });
 
+// Handle OPTIONS preflight for /api/music
+app.options('/api/music', (req, res) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+  res.sendStatus(200);
+});
+
 // Get list of available background music files
 app.get('/api/music', (req, res) => {
   console.log('📻 /api/music endpoint called');
@@ -740,8 +759,17 @@ app.get('/api/music', (req, res) => {
     res.json({ success: true, musicFiles: files });
   } catch (error) {
     console.error('❌ Error reading music files:', error);
+    console.error('❌ Error stack:', error.stack);
+    // Ensure CORS headers are set on error
     res.setHeader('Access-Control-Allow-Origin', '*');
-    res.json({ success: true, musicFiles: [] });
+    res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+    // Return error response instead of empty array
+    res.status(500).json({ 
+      success: false, 
+      error: error.message || 'Error reading music files',
+      musicFiles: [] 
+    });
   }
 });
 
