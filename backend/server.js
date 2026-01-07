@@ -317,6 +317,11 @@ app.post('/api/memorials', checkDbReady, validateInput, upload.fields([
   { name: 'files', maxCount: 20 },
   { name: 'headerImage', maxCount: 1 }
 ]), async (req, res) => {
+  // Explicitly set CORS headers for this endpoint
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+  
   try {
     const {
       name,
@@ -432,6 +437,11 @@ app.post('/api/memorials', checkDbReady, validateInput, upload.fields([
       });
     } catch (err) {
       console.error('Error saving memorial:', err);
+      // Ensure CORS headers are set on error
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+      
       if (err.code === 'ER_NO_SUCH_TABLE' || err.message.includes('doesn\'t exist')) {
         return res.status(503).json({ 
           success: false, 
@@ -442,6 +452,10 @@ app.post('/api/memorials', checkDbReady, validateInput, upload.fields([
     }
   } catch (error) {
     console.error('Error creating memorial:', error);
+    // Ensure CORS headers are set on error
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -483,6 +497,11 @@ app.get('/api/memorials/:id', checkDbReady, async (req, res) => {
 
 // Get all memorials
 app.get('/api/memorials', checkDbReady, async (req, res) => {
+  // Explicitly set CORS headers for this endpoint
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+  
   try {
     const [rows] = await db.execute('SELECT * FROM memorials ORDER BY createdAt DESC');
     
@@ -498,6 +517,11 @@ app.get('/api/memorials', checkDbReady, async (req, res) => {
     
     res.json({ success: true, memorials });
   } catch (err) {
+    // Ensure CORS headers are set on error
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+    
     if (err.code === 'ER_NO_SUCH_TABLE' || err.message.includes('doesn\'t exist')) {
       return res.status(503).json({ 
         success: false, 
