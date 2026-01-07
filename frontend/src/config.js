@@ -6,6 +6,11 @@
 const getApiUrl = () => {
   // תמיד השתמש ב-relative path (ריק) כדי שהבקשות יעברו דרך proxy
   // זה יעבוד גם ב-development (Vite proxy) וגם ב-production (Netlify proxy)
+  // IGNORE VITE_API_URL - תמיד השתמש ב-relative path
+  // eslint-disable-next-line no-undef
+  if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_URL) {
+    console.warn('⚠️ VITE_API_URL is set but ignored - using relative path for proxy');
+  }
   return '';
 };
 

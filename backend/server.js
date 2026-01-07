@@ -840,13 +840,14 @@ process.on('unhandledRejection', (reason, promise) => {
 
 // 404 handler for API routes - MUST be after all specific API routes but before frontend catch-all
 // NOTE: This should NOT catch /api/music or /api/memorials because they're defined above
-app.all('/api/*', (req, res) => {
+app.all('/api/*', (req, res, next) => {
   // Check if this is a known route that should have been handled
   if ((req.path === '/api/music' && req.method === 'GET') || 
       (req.path === '/api/memorials' && (req.method === 'POST' || req.method === 'GET'))) {
     console.log(`⚠️ WARNING: ${req.method} ${req.path} should have been handled by specific handler!`);
+    console.log(`⚠️ Calling next() to continue to actual handler`);
     // Don't return 404, let it continue to the actual handler
-    return;
+    return next();
   }
   
   console.log('❌ 404 - API route not found:', req.method, req.path);
