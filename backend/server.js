@@ -230,12 +230,17 @@ function startServer() {
     console.log('🔍 Verifying API endpoints are registered...');
     const routes = app._router.stack
       .filter(r => r.route)
-      .map(r => `${r.route.stack[0].method.toUpperCase()} ${r.route.path}`);
-    const musicRoute = routes.find(r => r.includes('/api/music'));
-    if (musicRoute) {
-      console.log(`✅ /api/music endpoint registered: ${musicRoute}`);
+      .map(r => {
+        const methods = r.route.stack.map(s => s.method.toUpperCase()).join(', ');
+        return `${methods} ${r.route.path}`;
+      });
+    const musicRoutes = routes.filter(r => r.includes('/api/music'));
+    if (musicRoutes.length > 0) {
+      console.log(`✅ /api/music endpoints registered:`);
+      musicRoutes.forEach(route => console.log(`   - ${route}`));
     } else {
       console.log('❌ ERROR: /api/music endpoint NOT registered!');
+      console.log('❌ Available routes:', routes.filter(r => r.includes('/api')).join(', '));
     }
   });
 }
