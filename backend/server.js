@@ -67,6 +67,7 @@ app.use('/qrcodes', express.static('qrcodes', staticOptions));
 let db = null;
 let dbReady = false;
 let dbError = false;
+let serverStarted = false;
 
 // MySQL connection configuration
 const dbConfig = {
@@ -190,8 +191,6 @@ async function initDatabase() {
     throw err;
   }
 }
-
-let serverStarted = false;
 
 function startServer() {
   if (serverStarted) {
