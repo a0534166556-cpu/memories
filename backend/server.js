@@ -19,6 +19,11 @@ const NODE_ENV = process.env.NODE_ENV || 'development';
 // Middleware
 // CORS configuration - Add headers to ALL responses
 app.use((req, res, next) => {
+  // Log all API requests for debugging
+  if (req.path.startsWith('/api')) {
+    console.log(`🌐 API Request: ${req.method} ${req.path}`);
+  }
+  
   // Use setHeader to ensure headers are set
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
@@ -219,6 +224,18 @@ function startServer() {
     } else {
       console.log('⚠️  Database not connected - endpoints requiring database will return 503');
       console.log('⚠️  Endpoints like /api/music will work without database');
+    }
+    
+    // Verify that /api/music endpoint is registered
+    console.log('🔍 Verifying API endpoints are registered...');
+    const routes = app._router.stack
+      .filter(r => r.route)
+      .map(r => `${r.route.stack[0].method.toUpperCase()} ${r.route.path}`);
+    const musicRoute = routes.find(r => r.includes('/api/music'));
+    if (musicRoute) {
+      console.log(`✅ /api/music endpoint registered: ${musicRoute}`);
+    } else {
+      console.log('❌ ERROR: /api/music endpoint NOT registered!');
     }
   });
 }
@@ -804,14 +821,10 @@ process.on('unhandledRejection', (reason, promise) => {
 });
 
 // 404 handler for API routes - MUST be after all specific API routes but before frontend catch-all
-app.all('/api/*', (req, res, next) => {
-  // Check if this is a known route that should have been handled
-  if (req.path === '/api/music' && req.method === 'GET') {
-    console.log('⚠️ WARNING: /api/music should have been handled by app.get!');
-    // Don't return 404, let it continue to the actual handler
-    return next();
-  }
+// NOTE: This should NOT catch /api/music because it's defined above
+app.all('/api/*', (req, res) => {
   console.log('❌ 404 - API route not found:', req.method, req.path);
+  console.log('❌ All registered routes should be above this handler');
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
