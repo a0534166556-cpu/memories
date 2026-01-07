@@ -347,11 +347,24 @@ const checkDbReady = (req, res, next) => {
 
 // Routes
 
+// Handle OPTIONS preflight for /api/memorials
+app.options('/api/memorials', (req, res) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+  res.sendStatus(200);
+});
+
 // Create new memorial
 app.post('/api/memorials', checkDbReady, validateInput, upload.fields([
   { name: 'files', maxCount: 20 },
   { name: 'headerImage', maxCount: 1 }
 ]), async (req, res) => {
+  console.log('📝📝📝 /api/memorials POST endpoint called - REQUEST RECEIVED 📝📝📝');
+  console.log('📝 Request method:', req.method);
+  console.log('📝 Request path:', req.path);
+  console.log('📝 Request URL:', req.url);
+  
   // Explicitly set CORS headers for this endpoint
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
@@ -826,8 +839,16 @@ process.on('unhandledRejection', (reason, promise) => {
 });
 
 // 404 handler for API routes - MUST be after all specific API routes but before frontend catch-all
-// NOTE: This should NOT catch /api/music because it's defined above
+// NOTE: This should NOT catch /api/music or /api/memorials because they're defined above
 app.all('/api/*', (req, res) => {
+  // Check if this is a known route that should have been handled
+  if ((req.path === '/api/music' && req.method === 'GET') || 
+      (req.path === '/api/memorials' && (req.method === 'POST' || req.method === 'GET'))) {
+    console.log(`⚠️ WARNING: ${req.method} ${req.path} should have been handled by specific handler!`);
+    // Don't return 404, let it continue to the actual handler
+    return;
+  }
+  
   console.log('❌ 404 - API route not found:', req.method, req.path);
   console.log('❌ All registered routes should be above this handler');
   res.setHeader('Access-Control-Allow-Origin', '*');

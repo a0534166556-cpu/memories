@@ -1,22 +1,11 @@
 // API Configuration
-// ב-development: משתמש ב-proxy (localhost:5000)
-// ב-production: משתמש ב-VITE_API_URL או ב-URL של Netlify
+// תמיד משתמש ב-relative path כדי שהבקשות יעברו דרך Netlify proxy
+// ב-development: זה יעבוד עם ה-proxy ב-vite.config.js
+// ב-production: זה יעבוד עם ה-proxy ב-netlify.toml
 
 const getApiUrl = () => {
-  // אם יש משתנה סביבה מוגדר, השתמש בו (הכי חשוב!)
-  if (import.meta.env.VITE_API_URL) {
-    return import.meta.env.VITE_API_URL;
-  }
-  
-  // ב-development, השתמש ב-proxy (ריק = relative path)
-  // זה יעבוד עם ה-proxy ב-vite.config.js
-  if (import.meta.env.DEV) {
-    return '';
-  }
-  
-  // ב-production ללא VITE_API_URL, נשתמש ב-relative path
-  // זה יעבוד אם ה-backend על אותו domain
-  // אחרת, תצטרך להגדיר VITE_API_URL ב-Netlify
+  // תמיד השתמש ב-relative path (ריק) כדי שהבקשות יעברו דרך proxy
+  // זה יעבוד גם ב-development (Vite proxy) וגם ב-production (Netlify proxy)
   return '';
 };
 
