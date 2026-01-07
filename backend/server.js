@@ -9,6 +9,9 @@ const { v4: uuidv4 } = require('uuid');
 const QRCode = require('qrcode');
 const mysql = require('mysql2/promise');
 
+console.log('🚀 SERVER STARTING - VERSION WITH FIXES');
+console.log('🚀 Timestamp:', new Date().toISOString());
+
 const app = express();
 const PORT = process.env.PORT || 8080;
 const NODE_ENV = process.env.NODE_ENV || 'development';
@@ -729,7 +732,10 @@ app.options('/api/music', (req, res) => {
 
 // Get list of available background music files
 app.get('/api/music', (req, res) => {
-  console.log('📻 /api/music endpoint called');
+  console.log('📻📻📻 /api/music endpoint called - REQUEST RECEIVED 📻📻📻');
+  console.log('📻 Request method:', req.method);
+  console.log('📻 Request path:', req.path);
+  console.log('📻 Request URL:', req.url);
   // Explicitly set CORS headers for this endpoint
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
@@ -798,7 +804,13 @@ process.on('unhandledRejection', (reason, promise) => {
 });
 
 // 404 handler for API routes - MUST be after all specific API routes but before frontend catch-all
-app.all('/api/*', (req, res) => {
+app.all('/api/*', (req, res, next) => {
+  // Check if this is a known route that should have been handled
+  if (req.path === '/api/music' && req.method === 'GET') {
+    console.log('⚠️ WARNING: /api/music should have been handled by app.get!');
+    // Don't return 404, let it continue to the actual handler
+    return next();
+  }
   console.log('❌ 404 - API route not found:', req.method, req.path);
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
