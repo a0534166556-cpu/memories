@@ -8,12 +8,12 @@
   NODE_VERSION = "18"
 
 # Proxy API requests to Railway backend (MUST be before React Router redirect)
+# Use 200 status for proxy (not redirect) - this works for all HTTP methods including POST
 [[redirects]]
   from = "/api/*"
   to = "https://memories-production-31c0.up.railway.app/api/:splat"
   status = 200
   force = true
-  headers = {X-From = "Netlify"}
 
 # Proxy uploads to Railway backend
 [[redirects]]
@@ -30,6 +30,7 @@
   force = true
 
 # הגדרות redirects ל-React Router (MUST be last)
+# This will only match if /api/*, /uploads/*, /qrcodes/* didn't match
 [[redirects]]
   from = "/*"
   to = "/index.html"
