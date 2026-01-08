@@ -7,7 +7,29 @@
 [build.environment]
   NODE_VERSION = "18"
 
-# הגדרות redirects ל-React Router
+# Proxy API requests to Railway backend (MUST be before React Router redirect)
+[[redirects]]
+  from = "/api/*"
+  to = "https://memories-production-31c0.up.railway.app/api/:splat"
+  status = 200
+  force = true
+  headers = {X-From = "Netlify"}
+
+# Proxy uploads to Railway backend
+[[redirects]]
+  from = "/uploads/*"
+  to = "https://memories-production-31c0.up.railway.app/uploads/:splat"
+  status = 200
+  force = true
+
+# Proxy QR codes to Railway backend
+[[redirects]]
+  from = "/qrcodes/*"
+  to = "https://memories-production-31c0.up.railway.app/qrcodes/:splat"
+  status = 200
+  force = true
+
+# הגדרות redirects ל-React Router (MUST be last)
 [[redirects]]
   from = "/*"
   to = "/index.html"
@@ -26,5 +48,6 @@
   for = "/assets/*"
   [headers.values]
     Cache-Control = "public, max-age=31536000, immutable"
+
 
 

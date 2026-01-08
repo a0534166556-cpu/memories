@@ -1,5 +1,7 @@
 # Redirects for React Router
 # כל הנתיבים מועברים ל-index.html כדי ש-React Router יעבוד
-/*    /index.html   200
+# אבל לא /api/* - זה יעבוד דרך netlify.toml
+!/api/*    /index.html   200
+
 
 
