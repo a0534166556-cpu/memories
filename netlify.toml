@@ -7,11 +7,11 @@
 [build.environment]
   NODE_VERSION = "18"
 
-# Proxy API requests to Railway backend using Netlify Function
-# This works for all HTTP methods including POST
+# Proxy API requests to Railway backend - SIMPLE DIRECT PROXY
+# This should work for all HTTP methods
 [[redirects]]
   from = "/api/*"
-  to = "/.netlify/functions/api"
+  to = "https://memories-production-31c0.up.railway.app/api/:splat"
   status = 200
   force = true
 
