@@ -30,11 +30,12 @@
   force = true
 
 # הגדרות redirects ל-React Router (MUST be last)
-# This will only match if /api/*, /uploads/*, /qrcodes/* didn't match
+# Exclude /api/*, /uploads/*, /qrcodes/* from this redirect
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
+  force = false
 
 # הגדרות headers
 [[headers]]
