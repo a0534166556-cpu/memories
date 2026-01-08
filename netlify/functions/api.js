@@ -23,21 +23,22 @@ exports.handler = async (event, context) => {
   
   // Extract the path from the request
   // When redirected from "/api/*" to "/.netlify/functions/api/:splat",
-  // event.path can be either:
-  // - "/.netlify/functions/api/memorials" (with function prefix)
-  // - "/api/memorials" (original path, if Netlify preserves it)
+  // event.path will be "/.netlify/functions/api/memorials" (with :splat replaced)
   let path = event.path;
   
-  // Try multiple ways to get the correct path
+  // Log everything for debugging
+  console.log(`[PROXY DEBUG] Full event:`, JSON.stringify({
+    path: event.path,
+    rawPath: event.rawPath,
+    httpMethod: event.httpMethod,
+    queryStringParameters: event.queryStringParameters,
+    multiValueQueryStringParameters: event.multiValueQueryStringParameters,
+    headers: Object.keys(event.headers)
+  }, null, 2));
+  
+  // Remove function path prefix
   if (path.startsWith('/.netlify/functions/api')) {
-    // Remove function path prefix
     path = path.replace('/.netlify/functions/api', '');
-  } else if (path.startsWith('/api')) {
-    // Already has /api prefix, use as is
-    path = path;
-  } else {
-    // No prefix, add /api
-    path = `/api${path}`;
   }
   
   // Ensure path starts with /api
@@ -45,8 +46,7 @@ exports.handler = async (event, context) => {
     path = `/api${path}`;
   }
   
-  // Log for debugging
-  console.log(`[PROXY DEBUG] event.path=${event.path}, event.rawPath=${event.rawPath || 'N/A'}, final path=${path}`);
+  console.log(`[PROXY] Extracted path: ${path}`);
   
   const targetUrl = `${RAILWAY_URL}${path}${event.rawQuery ? '?' + event.rawQuery : ''}`;
   

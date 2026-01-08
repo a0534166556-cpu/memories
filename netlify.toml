@@ -8,8 +8,7 @@
   NODE_VERSION = "18"
 
 # Proxy API requests to Railway backend using Netlify Function
-# This is the ONLY way POST requests with FormData work reliably
-# Use :splat to pass the path to the function
+# Use :splat to pass the path - this SHOULD work
 [[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/api/:splat"
