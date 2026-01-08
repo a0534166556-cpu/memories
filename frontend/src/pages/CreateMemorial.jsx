@@ -194,11 +194,8 @@ function CreateMemorial() {
         formDataToSend.append('files', backgroundMusic);
       }
 
-      const response = await axios.post(getApiEndpoint('/api/memorials'), formDataToSend, {
-        headers: {
-          'Content-Type': 'multipart/form-data'
-        }
-      });
+      // Don't set Content-Type header - axios will set it automatically with boundary for FormData
+      const response = await axios.post(getApiEndpoint('/api/memorials'), formDataToSend);
 
       if (response.data.success) {
         navigate(`/memorial/${response.data.memorial.id}`);
