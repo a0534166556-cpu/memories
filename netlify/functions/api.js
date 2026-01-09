@@ -4,7 +4,7 @@
 const https = require('https');
 const { URL } = require('url');
 
-const RAILWAY_URL = 'https://memories-production-31c0.up.railway.app';
+const RAILWAY_URL = 'https://memories-production-47ee.up.railway.app';
 
 exports.handler = async (event, context) => {
   // Log immediately to see if function is called
