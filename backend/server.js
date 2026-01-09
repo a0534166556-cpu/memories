@@ -217,7 +217,10 @@ function startServer() {
     console.log(`✅ Environment: ${NODE_ENV}`);
     if (NODE_ENV === 'production') {
       console.log(`✅ Frontend URL: ${process.env.FRONTEND_URL || 'Not set'}`);
-      console.log(`✅ Base URL: ${process.env.BASE_URL || 'Using request host'}`);
+      console.log(`✅ Base URL: ${process.env.BASE_URL || 'NOT SET - Using request host (will be Railway URL!)'}`);
+      if (!process.env.BASE_URL) {
+        console.log(`⚠️  WARNING: BASE_URL not set! QR codes will point to Railway instead of Netlify!`);
+      }
     }
     if (dbReady && !dbError) {
       console.log('✅ Database connected - all endpoints available');
@@ -436,8 +439,12 @@ app.post('/api/memorials', checkDbReady, validateInput, upload.fields([
     
     // Generate QR Code
     // Use BASE_URL from environment if available, otherwise use request host
+    // IMPORTANT: BASE_URL should be set to Netlify URL (e.g., https://memoriesman.netlify.app)
     const baseUrl = process.env.BASE_URL || `${req.protocol}://${req.get('host')}`;
+    console.log('🔗 QR Code baseUrl:', baseUrl);
+    console.log('🔗 BASE_URL env var:', process.env.BASE_URL || 'NOT SET');
     const memorialUrl = `${baseUrl}/memorial/${id}`;
+    console.log('🔗 Memorial URL for QR:', memorialUrl);
     const qrCodePath = `qrcodes/${id}.png`;
     await QRCode.toFile(qrCodePath, memorialUrl);
     
