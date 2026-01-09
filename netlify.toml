@@ -3,6 +3,8 @@
   publish = "frontend/dist"
   # פקודת הבנייה
   command = "cd frontend && npm install && npm run build"
+  # Netlify Functions directory
+  functions = "netlify/functions"
 
 [build.environment]
   NODE_VERSION = "18"
