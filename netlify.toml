@@ -7,13 +7,8 @@
 [build.environment]
   NODE_VERSION = "18"
 
-# Proxy API requests to Railway backend using Netlify Function
-# Use :splat to pass the path - this SHOULD work
-[[redirects]]
-  from = "/api/*"
-  to = "/.netlify/functions/api/:splat"
-  status = 200
-  force = true
+# Proxy API requests - using _redirects file in frontend/public/ instead
+# The _redirects file takes precedence over netlify.toml redirects
 
 # Proxy uploads to Railway backend
 [[redirects]]

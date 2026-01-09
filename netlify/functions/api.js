@@ -24,7 +24,7 @@ exports.handler = async (event, context) => {
   // Extract the path from the request
   // When redirected from "/api/*" to "/.netlify/functions/api/:splat",
   // event.path will be "/.netlify/functions/api/memorials" (with :splat replaced)
-  let path = event.path;
+  let path = event.path || event.rawPath || '';
   
   // Log everything for debugging
   console.log(`[PROXY DEBUG] Full event:`, JSON.stringify({
@@ -32,8 +32,7 @@ exports.handler = async (event, context) => {
     rawPath: event.rawPath,
     httpMethod: event.httpMethod,
     queryStringParameters: event.queryStringParameters,
-    multiValueQueryStringParameters: event.multiValueQueryStringParameters,
-    headers: Object.keys(event.headers)
+    headers: Object.keys(event.headers).slice(0, 10) // First 10 headers
   }, null, 2));
   
   // Remove function path prefix
@@ -46,7 +45,19 @@ exports.handler = async (event, context) => {
     path = `/api${path}`;
   }
   
-  console.log(`[PROXY] Extracted path: ${path}`);
+  // If path is empty or just /api, try to get from headers
+  if (!path || path === '/api') {
+    const originalUri = event.headers['x-original-uri'] || event.headers['x-forwarded-uri'] || '';
+    if (originalUri && originalUri.startsWith('/api')) {
+      path = originalUri.split('?')[0];
+      console.log(`[PROXY] Got path from headers: ${path}`);
+    } else {
+      path = '/api/memorials'; // Fallback
+      console.log(`[PROXY WARNING] Using fallback path: ${path}`);
+    }
+  }
+  
+  console.log(`[PROXY] Final extracted path: ${path}`);
   
   const targetUrl = `${RAILWAY_URL}${path}${event.rawQuery ? '?' + event.rawQuery : ''}`;
   
