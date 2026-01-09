@@ -1,7 +1,2 @@
-# Netlify redirects file - this takes precedence over netlify.toml
-# Proxy API requests to Netlify Function
-# Note: :splat passes the rest of the path to the function
-/api/* /.netlify/functions/api/:splat 200!
-
-# React Router - must be last (this catches everything else)
+# React Router - only this, API redirect is in netlify.toml
 /* /index.html 200

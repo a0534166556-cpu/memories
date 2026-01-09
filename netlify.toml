@@ -9,8 +9,14 @@
 [build.environment]
   NODE_VERSION = "18"
 
-# Proxy API requests - using _redirects file in frontend/public/ instead
-# The _redirects file takes precedence over netlify.toml redirects
+# Proxy API requests to Railway backend using Netlify Function
+# MUST use Function for POST requests with FormData
+# Use :splat to pass the path to the function
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/api/:splat"
+  status = 200
+  force = true
 
 # Proxy uploads to Railway backend
 [[redirects]]

@@ -29,39 +29,35 @@ exports.handler = async (event, context) => {
     };
   }
   
-  // Extract the path - try multiple methods
+  // Extract the path from the request
+  // When redirected from "/api/*" to "/.netlify/functions/api/:splat",
+  // event.path should be "/.netlify/functions/api/memorials" (with :splat replaced)
   let path = event.path || event.rawPath || '';
-  console.log('📍 Original path:', path);
+  console.log('📍 Original path from event:', path);
   
-  // Remove function path prefix if exists
+  // Remove function path prefix
   if (path.startsWith('/.netlify/functions/api')) {
     path = path.replace('/.netlify/functions/api', '');
     console.log('📍 After removing function prefix:', path);
   }
   
-  // If path doesn't start with /api, add it
+  // Ensure path starts with /api
   if (!path.startsWith('/api')) {
     path = `/api${path}`;
     console.log('📍 After adding /api:', path);
   }
   
-  // Try to get from headers if still empty
+  // If path is empty or just /api, try to get from headers
   if (!path || path === '/api') {
-    const originalUri = event.headers['x-original-uri'] || event.headers['x-forwarded-uri'] || event.headers['referer'] || '';
+    const originalUri = event.headers['x-original-uri'] || event.headers['x-forwarded-uri'] || '';
     console.log('📍 Trying headers:', originalUri);
-    if (originalUri && originalUri.includes('/api/')) {
-      const match = originalUri.match(/\/api\/[^?]*/);
-      if (match) {
-        path = match[0];
-        console.log('📍 Found in headers:', path);
-      }
+    if (originalUri && originalUri.startsWith('/api')) {
+      path = originalUri.split('?')[0];
+      console.log('📍 Found in headers:', path);
+    } else {
+      path = '/api/memorials'; // Fallback
+      console.log('⚠️ Using fallback path:', path);
     }
-  }
-  
-  // Last resort fallback
-  if (!path || path === '/api') {
-    path = '/api/memorials';
-    console.log('⚠️ Using fallback path:', path);
   }
   
   const targetUrl = `${RAILWAY_URL}${path}${event.rawQuery ? '?' + event.rawQuery : ''}`;
