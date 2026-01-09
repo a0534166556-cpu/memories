@@ -34,6 +34,7 @@ exports.handler = async (event, context) => {
   // event.path should be "/.netlify/functions/api/memorials" (with :splat replaced)
   let path = event.path || event.rawPath || '';
   console.log('📍 Original path from event:', path);
+  console.log('📍 All event properties:', Object.keys(event));
   
   // Remove function path prefix
   if (path.startsWith('/.netlify/functions/api')) {
@@ -42,18 +43,25 @@ exports.handler = async (event, context) => {
   }
   
   // Ensure path starts with /api
-  if (!path.startsWith('/api')) {
+  if (path && !path.startsWith('/api')) {
     path = `/api${path}`;
     console.log('📍 After adding /api:', path);
   }
   
   // If path is empty or just /api, try to get from headers
   if (!path || path === '/api') {
-    const originalUri = event.headers['x-original-uri'] || event.headers['x-forwarded-uri'] || '';
+    // Log all headers for debugging
+    console.log('📍 All headers:', JSON.stringify(event.headers, null, 2));
+    
+    const originalUri = event.headers['x-original-uri'] || event.headers['x-forwarded-uri'] || event.headers['referer'] || '';
     console.log('📍 Trying headers:', originalUri);
-    if (originalUri && originalUri.startsWith('/api')) {
-      path = originalUri.split('?')[0];
-      console.log('📍 Found in headers:', path);
+    
+    if (originalUri && originalUri.includes('/api/')) {
+      const match = originalUri.match(/\/api\/[^?]*/);
+      if (match) {
+        path = match[0];
+        console.log('📍 Found in headers:', path);
+      }
     } else {
       path = '/api/memorials'; // Fallback
       console.log('⚠️ Using fallback path:', path);
@@ -73,9 +81,10 @@ exports.handler = async (event, context) => {
       headers: {}
     };
     
-    // Copy headers
+    // Copy headers - IMPORTANT: preserve Content-Type for FormData
     if (event.headers['content-type']) {
       options.headers['Content-Type'] = event.headers['content-type'];
+      console.log('📋 Content-Type:', event.headers['content-type']);
     }
     if (event.headers['content-length']) {
       options.headers['Content-Length'] = event.headers['content-length'];
@@ -86,8 +95,13 @@ exports.handler = async (event, context) => {
     if (event.isBase64Encoded && requestBody) {
       requestBody = Buffer.from(requestBody, 'base64');
       options.headers['Content-Length'] = requestBody.length.toString();
+      console.log('📦 Body is base64 encoded, decoded size:', requestBody.length);
+    } else if (requestBody) {
+      console.log('📦 Body size:', typeof requestBody === 'string' ? requestBody.length : 'unknown');
     }
     
+    // Log all headers being sent
+    console.log('📤 Headers being sent to Railway:', JSON.stringify(options.headers, null, 2));
     console.log('📤 Sending request to Railway...');
     
     return new Promise((resolve, reject) => {
@@ -96,6 +110,7 @@ exports.handler = async (event, context) => {
         res.on('data', (chunk) => { data += chunk; });
         res.on('end', () => {
           console.log(`✅ Got response: ${res.statusCode}`);
+          console.log(`📥 Response body (first 500 chars):`, data.substring(0, 500));
           resolve({
             statusCode: res.statusCode,
             headers: {
