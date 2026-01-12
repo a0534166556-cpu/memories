@@ -1,0 +1,18 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="512" height="512" fill="#2c3e50" rx="80"/>
+  
+  <!-- Candle -->
+  <rect x="206" y="180" width="100" height="220" fill="#8b7355" rx="8"/>
+  
+  <!-- Candle flame -->
+  <path d="M256 120 Q 240 100 240 80 Q 240 60 256 50 Q 272 60 272 80 Q 272 100 256 120 Z" fill="#f5a623"/>
+  <path d="M256 110 Q 248 95 248 80 Q 248 65 256 55 Q 264 65 264 80 Q 264 95 256 110 Z" fill="#ffd700"/>
+  
+  <!-- Wax drips -->
+  <ellipse cx="240" cy="320" rx="12" ry="20" fill="#75614a"/>
+  <ellipse cx="272" cy="340" rx="10" ry="16" fill="#75614a"/>
+  
+  <!-- Memorial text (subtle) -->
+  <text x="256" y="450" font-family="Arial, sans-serif" font-size="48" font-weight="bold" fill="rgba(255,255,255,0.3)" text-anchor="middle">ז</text>
+</svg>
