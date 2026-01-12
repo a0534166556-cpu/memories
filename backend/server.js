@@ -90,11 +90,46 @@ const dbConfig = {
 let retryCount = 0;
 const MAX_RETRIES = 5; // Try 5 times, then start server anyway
 
+// Function to check if connection is alive and reconnect if needed
+async function ensureDbConnection() {
+  if (!db) {
+    console.log('🔄 No database connection, attempting to connect...');
+    await initDatabaseConnection();
+    return;
+  }
+  
+  try {
+    // Try a simple query to check if connection is alive
+    await db.execute('SELECT 1');
+    return; // Connection is alive
+  } catch (err) {
+    if (err.message && (err.message.includes('closed state') || err.message.includes('PROTOCOL_CONNECTION_LOST'))) {
+      console.error('❌ Database connection is closed, reconnecting...');
+      db = null;
+      dbReady = false;
+      retryCount = 0; // Reset retry count for reconnection
+      await initDatabaseConnection();
+    } else {
+      throw err; // Re-throw other errors
+    }
+  }
+}
+
 async function initDatabaseConnection() {
   try {
     console.log('Connecting to MySQL database...');
     db = await mysql.createConnection(dbConfig);
     console.log('✅ Connected to MySQL database');
+    
+    // Handle connection errors and reconnection
+    db.on('error', async (err) => {
+      console.error('❌ MySQL connection error:', err.message);
+      if (err.code === 'PROTOCOL_CONNECTION_LOST' || err.code === 'ECONNRESET') {
+        console.log('🔄 Connection lost, will reconnect on next query...');
+        db = null;
+        dbReady = false;
+      }
+    });
     
     // Enable foreign keys (MySQL uses different syntax)
     await db.execute('SET FOREIGN_KEY_CHECKS = 1');
@@ -115,7 +150,7 @@ async function initDatabaseConnection() {
       dbError = true;
       dbReady = true; // Set to true so server can start
       startServer(); // Start server even without database
-    } else {
+  } else {
       console.error(`⏳ Retrying in 3 seconds... (${retryCount}/${MAX_RETRIES})`);
       setTimeout(async () => {
         try {
@@ -145,17 +180,17 @@ async function initDatabase() {
       hebrewName VARCHAR(255),
       birthDate VARCHAR(255),
       deathDate VARCHAR(255),
-      biography TEXT,
-      images TEXT,
-      videos TEXT,
-      backgroundMusic TEXT,
-      heroImage TEXT,
-      heroSummary TEXT,
-      timeline TEXT,
-      tehilimChapters TEXT,
-      qrCodePath TEXT,
-      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
-    )`);
+    biography TEXT,
+    images TEXT,
+    videos TEXT,
+    backgroundMusic TEXT,
+    heroImage TEXT,
+    heroSummary TEXT,
+    timeline TEXT,
+    tehilimChapters TEXT,
+    qrCodePath TEXT,
+    createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
     console.log('✅ Memorials table ready');
     
     // Create condolences table
@@ -163,9 +198,9 @@ async function initDatabase() {
       id VARCHAR(255) PRIMARY KEY,
       memorialId VARCHAR(255) NOT NULL,
       name VARCHAR(255) NOT NULL,
-      message TEXT NOT NULL,
+    message TEXT NOT NULL,
       approved INT DEFAULT 1,
-      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+    createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (memorialId) REFERENCES memorials(id) ON DELETE CASCADE
     )`);
     console.log('✅ Condolences table ready');
@@ -176,7 +211,7 @@ async function initDatabase() {
       memorialId VARCHAR(255) NOT NULL,
       litBy VARCHAR(255),
       visitorId VARCHAR(255),
-      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+    createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (memorialId) REFERENCES memorials(id) ON DELETE CASCADE
     )`);
     console.log('✅ Candles table ready');
@@ -446,50 +481,71 @@ app.post('/api/memorials', checkDbReady, validateInput, upload.fields([
     const memorialUrl = `${baseUrl}/memorial/${id}`;
     console.log('🔗 Memorial URL for QR:', memorialUrl);
     const qrCodePath = `qrcodes/${id}.png`;
+    
+    try {
+      // Ensure qrcodes directory exists
+      if (!fs.existsSync('qrcodes')) {
+        fs.mkdirSync('qrcodes', { recursive: true });
+        console.log('✅ Created qrcodes directory');
+      }
     await QRCode.toFile(qrCodePath, memorialUrl);
+      console.log('✅ QR Code generated successfully:', qrCodePath);
+    } catch (qrError) {
+      console.error('❌ Error generating QR code:', qrError);
+      console.error('❌ QR Error details:', {
+        message: qrError.message,
+        code: qrError.code,
+        stack: qrError.stack
+      });
+      // Don't fail the whole request if QR code fails - just log it
+      // The memorial will still be created, just without QR code
+    }
     
     // Save to database
     try {
+      // Ensure database connection is alive before executing query
+      await ensureDbConnection();
+      
       await db.execute(`
-        INSERT INTO memorials (id, name, hebrewName, birthDate, deathDate, biography, images, videos, backgroundMusic, heroImage, heroSummary, timeline, tehilimChapters, qrCodePath)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO memorials (id, name, hebrewName, birthDate, deathDate, biography, images, videos, backgroundMusic, heroImage, heroSummary, timeline, tehilimChapters, qrCodePath)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `, [
+      id,
+      name,
+      hebrewName || '',
+      birthDate || '',
+      deathDate || '',
+      biography || '',
+      JSON.stringify(images),
+      JSON.stringify(videos),
+      backgroundMusic,
+      heroImage,
+      heroSummary,
+      JSON.stringify(timeline),
+      tehilimChapters || '',
+      `/${qrCodePath}`
+      ]);
+    
+    res.json({
+      success: true,
+      memorial: {
         id,
         name,
-        hebrewName || '',
-        birthDate || '',
-        deathDate || '',
-        biography || '',
-        JSON.stringify(images),
-        JSON.stringify(videos),
+        hebrewName,
+        birthDate,
+        deathDate,
+        biography,
+        images,
+        videos,
         backgroundMusic,
         heroImage,
         heroSummary,
-        JSON.stringify(timeline),
-        tehilimChapters || '',
-        `/${qrCodePath}`
-      ]);
-      
-      res.json({
-        success: true,
-        memorial: {
-          id,
-          name,
-          hebrewName,
-          birthDate,
-          deathDate,
-          biography,
-          images,
-          videos,
-          backgroundMusic,
-          heroImage,
-          heroSummary,
-          timeline,
-          tehilimChapters,
-          qrCodePath: `/${qrCodePath}`,
-          url: memorialUrl
-        }
-      });
+        timeline,
+        tehilimChapters,
+        qrCodePath: `/${qrCodePath}`,
+        url: memorialUrl
+      }
+    });
     } catch (err) {
       console.error('Error saving memorial:', err);
       // Ensure CORS headers are set on error
@@ -506,12 +562,22 @@ app.post('/api/memorials', checkDbReady, validateInput, upload.fields([
       return res.status(500).json({ success: false, error: err.message });
     }
   } catch (error) {
-    console.error('Error creating memorial:', error);
+    console.error('❌ Error creating memorial:', error);
+    console.error('❌ Error stack:', error.stack);
+    console.error('❌ Error details:', {
+      message: error.message,
+      code: error.code,
+      name: error.name
+    });
     // Ensure CORS headers are set on error
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
-    res.status(500).json({ success: false, error: error.message });
+    res.status(500).json({ 
+      success: false, 
+      error: error.message,
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
   }
 });
 
@@ -544,7 +610,7 @@ app.get('/api/memorials/:id', checkDbReady, async (req, res) => {
       return res.status(503).json({ 
         success: false, 
         error: 'Database is initializing. Please try again in a moment.' 
-      });
+  });
     }
     return res.status(500).json({ success: false, error: err.message });
   }
@@ -621,8 +687,8 @@ app.post('/api/memorials/:id/upload', checkDbReady, validateInput, upload.array(
     
     res.json({ success: true, images: existingImages, videos: existingVideos, backgroundMusic });
   } catch (err) {
-    return res.status(500).json({ success: false, error: err.message });
-  }
+          return res.status(500).json({ success: false, error: err.message });
+        }
 });
 
 // Add condolence message
@@ -643,15 +709,15 @@ app.post('/api/memorials/:id/condolences', checkDbReady, validateInput, async (r
   }
 
   try {
-    const condolenceId = uuidv4();
+  const condolenceId = uuidv4();
     await db.execute(
-      'INSERT INTO condolences (id, memorialId, name, message, approved) VALUES (?, ?, ?, ?, ?)',
+    'INSERT INTO condolences (id, memorialId, name, message, approved) VALUES (?, ?, ?, ?, ?)',
       [condolenceId, id, name, message, 1] // 1 = approved (appear immediately)
     );
     res.json({ success: true, condolence: { id: condolenceId, name, message, approved: true } });
   } catch (err) {
-    return res.status(500).json({ success: false, error: err.message });
-  }
+        return res.status(500).json({ success: false, error: err.message });
+      }
 });
 
 // Get condolences for a memorial (only approved)
@@ -659,13 +725,13 @@ app.get('/api/memorials/:id/condolences', checkDbReady, async (req, res) => {
   const { id } = req.params;
   try {
     const [rows] = await db.execute(
-      'SELECT id, name, message, createdAt FROM condolences WHERE memorialId = ? AND approved = 1 ORDER BY createdAt DESC',
+    'SELECT id, name, message, createdAt FROM condolences WHERE memorialId = ? AND approved = 1 ORDER BY createdAt DESC',
       [id]
     );
-    res.json({ success: true, condolences: rows || [] });
+      res.json({ success: true, condolences: rows || [] });
   } catch (err) {
     return handleDbError(err, res);
-  }
+    }
 });
 
 // Light a virtual candle
@@ -678,35 +744,35 @@ app.post('/api/memorials/:id/candles', checkDbReady, async (req, res) => {
   }
 
   try {
-    // Check if this visitor already lit a candle
+  // Check if this visitor already lit a candle
     const [existing] = await db.execute(
-      'SELECT id FROM candles WHERE memorialId = ? AND visitorId = ?',
+    'SELECT id FROM candles WHERE memorialId = ? AND visitorId = ?',
       [id, visitorId]
     );
     
     if (existing.length > 0) {
-      // Visitor already lit a candle
-      return res.status(400).json({ 
-        success: false, 
-        error: 'כבר הדלקת נר זיכרון לדף זה',
-        alreadyLit: true 
-      });
-    }
+        // Visitor already lit a candle
+        return res.status(400).json({ 
+          success: false, 
+          error: 'כבר הדלקת נר זיכרון לדף זה',
+          alreadyLit: true 
+        });
+      }
 
-    // Create new candle
-    const candleId = uuidv4();
+      // Create new candle
+      const candleId = uuidv4();
     await db.execute(
-      'INSERT INTO candles (id, memorialId, litBy, visitorId) VALUES (?, ?, ?, ?)',
+        'INSERT INTO candles (id, memorialId, litBy, visitorId) VALUES (?, ?, ?, ?)',
       [candleId, id, litBy || 'אנונימי', visitorId]
     );
     
-    // Get all candles for this memorial
+          // Get all candles for this memorial
     const [rows] = await db.execute(
-      'SELECT id, litBy, createdAt FROM candles WHERE memorialId = ? ORDER BY createdAt DESC',
+            'SELECT id, litBy, createdAt FROM candles WHERE memorialId = ? ORDER BY createdAt DESC',
       [id]
     );
     
-    res.json({ success: true, candles: rows || [], candleCount: rows.length });
+              res.json({ success: true, candles: rows || [], candleCount: rows.length });
   } catch (err) {
     if (err.code === 'ER_NO_SUCH_TABLE' || err.message.includes('doesn\'t exist')) {
       return res.status(503).json({ 
@@ -724,15 +790,15 @@ app.get('/api/memorials/:id/candles', checkDbReady, async (req, res) => {
   const { visitorId } = req.query;
   
   try {
-    // Get all candles
+  // Get all candles
     const [rows] = await db.execute(
-      'SELECT id, litBy, createdAt FROM candles WHERE memorialId = ? ORDER BY createdAt DESC',
+    'SELECT id, litBy, createdAt FROM candles WHERE memorialId = ? ORDER BY createdAt DESC',
       [id]
     );
-    
-    // Check if visitor already lit a candle
-    let hasLitCandle = false;
-    if (visitorId) {
+      
+      // Check if visitor already lit a candle
+      let hasLitCandle = false;
+      if (visitorId) {
       try {
         const [visitorCandles] = await db.execute(
           'SELECT id FROM candles WHERE memorialId = ? AND visitorId = ?',
@@ -743,12 +809,12 @@ app.get('/api/memorials/:id/candles', checkDbReady, async (req, res) => {
         // If table doesn't exist, just return empty result
         if (err.code === 'ER_NO_SUCH_TABLE' || err.message.includes('doesn\'t exist')) {
           return res.json({ 
-            success: true, 
-            candles: rows || [], 
-            candleCount: rows.length,
-            hasLitCandle: false 
-          });
-        }
+          success: true, 
+          candles: rows || [], 
+          candleCount: rows.length,
+          hasLitCandle: false 
+        });
+      }
         return handleDbError(err, res);
       }
     }
