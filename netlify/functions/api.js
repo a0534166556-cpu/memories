@@ -13,6 +13,8 @@ exports.handler = async (event, context) => {
   console.log('Path:', event.path);
   console.log('RawPath:', event.rawPath);
   console.log('Query:', event.queryStringParameters);
+  // Log ALL headers immediately to debug
+  console.log('📋 ALL EVENT HEADERS:', JSON.stringify(event.headers, null, 2));
   
   // Handle OPTIONS (preflight) requests immediately
   if (event.httpMethod === 'OPTIONS') {

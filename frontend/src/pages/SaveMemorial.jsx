@@ -37,16 +37,18 @@ function SaveMemorial() {
   };
 
   const handleSelectOption = async (planType) => {
-    const token = localStorage.getItem('token');
-    
     if (planType === 'skip') {
       // Skip payment - continue to memorial page
       navigate(`/memorial/${id}`);
       return;
     }
 
-    if (!token && planType !== 'skip') {
-      // Redirect to login
+    // Get token fresh from localStorage
+    const token = localStorage.getItem('token');
+    
+    if (!token || !token.trim()) {
+      // No token - redirect to login
+      alert('נדרש להתחבר כדי לבצע תשלום. תועבר לדף ההתחברות...');
       navigate(`/login?redirect=/save/${id}&plan=${planType}`);
       return;
     }
@@ -61,8 +63,16 @@ function SaveMemorial() {
       };
 
       const plan = plans[planType];
-      if (!plan) return;
+      if (!plan) {
+        setProcessing(false);
+        return;
+      }
 
+      // Debug: Log token before sending
+      console.log('🔑 Token exists:', !!token);
+      console.log('🔑 Token length:', token ? token.length : 0);
+      console.log('🔑 Token preview:', token ? token.substring(0, 20) + '...' : 'none');
+      
       // Create payment with PayPal
       const response = await axios.post(
         getApiEndpoint('/api/payments/create'),
@@ -73,7 +83,8 @@ function SaveMemorial() {
         },
         {
           headers: {
-            Authorization: `Bearer ${token}`
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token.trim()}`
           }
         }
       );
@@ -87,7 +98,18 @@ function SaveMemorial() {
       }
     } catch (err) {
       console.error('Payment creation error:', err);
-      alert(err.response?.data?.message || 'אירעה שגיאה ביצירת התשלום');
+      console.error('Error response:', err.response?.data);
+      console.error('Error status:', err.response?.status);
+      
+      if (err.response?.status === 401) {
+        // Token expired or invalid - clear and redirect to login
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        alert('ההתחברות פגה. אנא התחבר שוב.');
+        navigate(`/login?redirect=/save/${id}&plan=${planType}`);
+      } else {
+        alert(err.response?.data?.message || 'אירעה שגיאה ביצירת התשלום');
+      }
       setProcessing(false);
     }
   };

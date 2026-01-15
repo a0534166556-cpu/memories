@@ -531,11 +531,16 @@ const validateInput = (req, res, next) => {
 // Authentication middleware
 const authenticateToken = async (req, res, next) => {
   const authHeader = req.headers['authorization'];
+  console.log('🔍 Auth header received:', authHeader ? 'Yes' : 'No');
+  console.log('🔍 All headers:', JSON.stringify(req.headers, null, 2));
   const token = authHeader && authHeader.split(' ')[1];
 
   if (!token) {
+    console.log('❌ No token found in request');
     return res.status(401).json({ success: false, message: 'No token provided' });
   }
+  
+  console.log('✅ Token found, length:', token.length);
 
   try {
     const decoded = jwt.verify(token, JWT_SECRET);

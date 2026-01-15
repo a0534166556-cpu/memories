@@ -40,10 +40,17 @@ function Login() {
           password: formData.password
         });
 
-        if (response.data.success) {
+        if (response.data.success && response.data.token) {
           localStorage.setItem('token', response.data.token);
-          localStorage.setItem('user', JSON.stringify(response.data.user));
-          navigate(redirectTo);
+          if (response.data.user) {
+            localStorage.setItem('user', JSON.stringify(response.data.user));
+          }
+          // Small delay to ensure localStorage is saved
+          setTimeout(() => {
+            navigate(redirectTo);
+          }, 100);
+        } else {
+          setError('לא התקבל טוקן מהשרת. נסה שוב.');
         }
       } else {
         // Signup
@@ -59,10 +66,17 @@ function Login() {
           password: formData.password
         });
 
-        if (response.data.success) {
+        if (response.data.success && response.data.token) {
           localStorage.setItem('token', response.data.token);
-          localStorage.setItem('user', JSON.stringify(response.data.user));
-          navigate(redirectTo);
+          if (response.data.user) {
+            localStorage.setItem('user', JSON.stringify(response.data.user));
+          }
+          // Small delay to ensure localStorage is saved
+          setTimeout(() => {
+            navigate(redirectTo);
+          }, 100);
+        } else {
+          setError('לא התקבל טוקן מהשרת. נסה שוב.');
         }
       }
     } catch (err) {
