@@ -14,6 +14,11 @@ exports.handler = async (event, context) => {
   console.log('RawPath:', event.rawPath);
   console.log('Query:', event.queryStringParameters);
   
+  // Log ALL headers IMMEDIATELY - check for Authorization
+  console.log('📋📋📋 ALL HEADERS KEYS:', Object.keys(event.headers || {}).join(', '));
+  const authHeaderValue = event.headers?.['authorization'] || event.headers?.['Authorization'] || event.headers?.['AUTHORIZATION'];
+  console.log('🔑🔑🔑 Authorization header value:', authHeaderValue ? `FOUND (${authHeaderValue.length} chars)` : 'NOT FOUND');
+  
   // Handle OPTIONS (preflight) requests immediately
   if (event.httpMethod === 'OPTIONS') {
     console.log('📋 OPTIONS request - returning CORS headers');

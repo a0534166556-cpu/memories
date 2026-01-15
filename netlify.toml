@@ -11,12 +11,13 @@
 
 # Proxy API requests to Railway backend using Netlify Function
 # MUST use Function for POST requests with FormData
-# Use :splat - this SHOULD work but might not always
+# Use :splat - IMPORTANT: Netlify should preserve headers in redirects
 [[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/api/:splat"
   status = 200
   force = true
+  headers = {X-From = "Netlify"}
 
 # Proxy uploads to Railway backend
 [[redirects]]

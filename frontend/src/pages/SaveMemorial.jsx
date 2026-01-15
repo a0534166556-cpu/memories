@@ -73,19 +73,26 @@ function SaveMemorial() {
       console.log('🔑 Token length:', token ? token.length : 0);
       console.log('🔑 Token preview:', token ? token.substring(0, 20) + '...' : 'none');
       
+      const requestUrl = getApiEndpoint('/api/payments/create');
+      const requestHeaders = {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token.trim()}`
+      };
+      
+      console.log('🌐 Request URL:', requestUrl);
+      console.log('📋 Request headers:', JSON.stringify(requestHeaders, null, 2));
+      console.log('📦 Request body:', { memorialId: id, planType: planType, amount: plan.price });
+      
       // Create payment with PayPal
       const response = await axios.post(
-        getApiEndpoint('/api/payments/create'),
+        requestUrl,
         {
           memorialId: id,
           planType: planType,
           amount: plan.price
         },
         {
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token.trim()}`
-          }
+          headers: requestHeaders
         }
       );
 
