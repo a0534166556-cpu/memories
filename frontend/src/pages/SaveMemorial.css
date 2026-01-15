@@ -36,7 +36,80 @@
   line-height: 1.8;
   color: #555;
   max-width: 600px;
-  margin: 0 auto;
+  margin: 0 auto 30px;
+}
+
+.registration-suggestion {
+  background: linear-gradient(135deg, #f0f7ff 0%, #e6f3ff 100%);
+  border: 2px solid #667eea;
+  border-radius: 12px;
+  padding: 25px;
+  margin-top: 30px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+  justify-content: space-between;
+}
+
+.suggestion-icon {
+  font-size: 2.5rem;
+  color: #667eea;
+  flex-shrink: 0;
+}
+
+.suggestion-text {
+  flex-grow: 1;
+  text-align: right;
+}
+
+.suggestion-text strong {
+  display: block;
+  font-size: 1.2rem;
+  color: #333;
+  margin-bottom: 8px;
+}
+
+.suggestion-text p {
+  margin: 0;
+  color: #666;
+  font-size: 1rem;
+  line-height: 1.6;
+}
+
+.btn-outline {
+  background: white;
+  color: #667eea;
+  border: 2px solid #667eea;
+  padding: 12px 24px;
+  border-radius: 8px;
+  text-decoration: none;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.btn-outline:hover {
+  background: #667eea;
+  color: white;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+@media (max-width: 768px) {
+  .registration-suggestion {
+    flex-direction: column;
+    text-align: center;
+  }
+  
+  .suggestion-text {
+    text-align: center;
+  }
+  
+  .btn-outline {
+    width: 100%;
+  }
 }
 
 .save-options {

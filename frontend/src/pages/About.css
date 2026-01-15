@@ -146,17 +146,49 @@
   padding: 20px 30px;
   background: #f8f9fa;
   border-radius: 12px;
+  width: 100%;
+  max-width: 500px;
 }
 
 .contact-icon {
   font-size: 1.5rem;
   color: var(--accent-color);
+  flex-shrink: 0;
 }
 
-.contact-item p {
+.contact-item p,
+.contact-item a {
   margin: 0;
   font-size: 1.1rem;
   color: #333;
+  text-decoration: none;
+}
+
+.contact-item a:hover {
+  color: var(--accent-color);
+  text-decoration: underline;
+}
+
+.contact-phone {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.contact-phone a {
+  font-size: 1.3rem;
+  font-weight: 600;
+  color: var(--primary-color);
+}
+
+.contact-phone a:hover {
+  color: var(--accent-color);
+}
+
+.contact-phone-label {
+  font-size: 0.9rem;
+  color: #666;
+  font-style: italic;
 }
 
 .about-cta {

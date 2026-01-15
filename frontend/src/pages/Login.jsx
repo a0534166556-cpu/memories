@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { FaUser, FaLock, FaEnvelope } from 'react-icons/fa';
 import axios from 'axios';
 import { getApiEndpoint } from '../config';
@@ -7,6 +7,8 @@ import './Login.css';
 
 function Login() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const redirectTo = searchParams.get('redirect') || '/';
   const [isLogin, setIsLogin] = useState(true);
   const [formData, setFormData] = useState({
     email: '',
@@ -41,8 +43,7 @@ function Login() {
         if (response.data.success) {
           localStorage.setItem('token', response.data.token);
           localStorage.setItem('user', JSON.stringify(response.data.user));
-          navigate('/');
-          window.location.reload();
+          navigate(redirectTo);
         }
       } else {
         // Signup
@@ -61,8 +62,7 @@ function Login() {
         if (response.data.success) {
           localStorage.setItem('token', response.data.token);
           localStorage.setItem('user', JSON.stringify(response.data.user));
-          navigate('/');
-          window.location.reload();
+          navigate(redirectTo);
         }
       }
     } catch (err) {

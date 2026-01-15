@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { FaHeart, FaQrcode, FaHistory, FaUsers, FaEnvelope } from 'react-icons/fa';
+import { FaHeart, FaQrcode, FaHistory, FaUsers, FaEnvelope, FaPhone } from 'react-icons/fa';
 import './About.css';
 
 function About() {
@@ -104,16 +104,20 @@ function About() {
             <div className="contact-info">
               <div className="contact-item">
                 <FaEnvelope className="contact-icon" />
-                <p>info@memoriesman.netlify.app</p>
+                <a href="mailto:a0534166556@gmail.com">a0534166556@gmail.com</a>
+              </div>
+              <div className="contact-item">
+                <FaPhone className="contact-icon" />
+                <div className="contact-phone">
+                  <a href="tel:0508254935">050-825-4935</a>
+                  <span className="contact-phone-label">דבר עם נציג מטעמנו לפרטים</span>
+                </div>
               </div>
             </div>
           </div>
 
           <div className="about-cta">
-            <Link to="/pricing" className="btn btn-primary">
-              צפה בתמחור
-            </Link>
-            <Link to="/create" className="btn btn-secondary">
+            <Link to="/create" className="btn btn-primary">
               צור דף זיכרון
             </Link>
           </div>
@@ -126,8 +130,6 @@ function About() {
           <div className="footer-links">
             <Link to="/">דף הבית</Link>
             <Link to="/about">אודות</Link>
-            <Link to="/pricing">תמחור</Link>
-            <Link to="/gallery">גלריה</Link>
           </div>
         </div>
       </footer>

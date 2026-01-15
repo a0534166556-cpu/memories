@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { FaHeart, FaCrown, FaCheckCircle, FaClock, FaSpinner } from 'react-icons/fa';
+import { FaHeart, FaCrown, FaCheckCircle, FaClock, FaSpinner, FaUser } from 'react-icons/fa';
 import axios from 'axios';
 import { getApiEndpoint } from '../config';
 import './SaveMemorial.css';
@@ -129,6 +129,20 @@ function SaveMemorial() {
             <br />
             יש לבחור אפשרות המשך.
           </p>
+          
+          {/* Registration suggestion for editing */}
+          {!localStorage.getItem('token') && (
+            <div className="registration-suggestion">
+              <FaUser className="suggestion-icon" />
+              <div className="suggestion-text">
+                <strong>רוצה לערוך את הדף בעתיד?</strong>
+                <p>הירשם עכשיו בחינם כדי לשמור את הדף שלך ולערוך אותו בכל עת</p>
+              </div>
+              <Link to={`/login?redirect=/save/${id}`} className="btn btn-outline">
+                הירשם עכשיו (חינם)
+              </Link>
+            </div>
+          )}
         </div>
 
         <div className="save-options">
@@ -162,6 +176,15 @@ function SaveMemorial() {
             >
               המשך ללא שמירה
             </button>
+            {!localStorage.getItem('token') && (
+              <Link 
+                to={`/login?redirect=/memorial/${id}`} 
+                className="btn btn-outline btn-full"
+                style={{ marginTop: '10px' }}
+              >
+                <FaUser /> הירשם לעריכה בעתיד (חינם)
+              </Link>
+            )}
           </div>
 
           {/* Option 2 - Annual */}

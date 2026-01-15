@@ -6,6 +6,7 @@ import { Swiper, SwiperSlide } from 'swiper/react';
 import { Navigation, Pagination, Autoplay } from 'swiper/modules';
 import { FaHome, FaDownload, FaBook, FaHeart, FaPlay, FaPause, FaVolumeUp, FaHistory, FaFire, FaComment, FaExclamationTriangle, FaClock } from 'react-icons/fa';
 import TehilimReader from '../components/TehilimReader';
+import MishnayotReader from '../components/MishnayotReader';
 import 'swiper/css';
 import 'swiper/css/navigation';
 import 'swiper/css/pagination';
@@ -25,6 +26,9 @@ function MemorialPage() {
   const [showCondolences, setShowCondolences] = useState(false);
   const [condolenceForm, setCondolenceForm] = useState({ name: '', message: '' });
   const [submittingCondolence, setSubmittingCondolence] = useState(false);
+  const [shortMessage, setShortMessage] = useState('');
+  const [submittingShortMessage, setSubmittingShortMessage] = useState(false);
+  const [showMishnayot, setShowMishnayot] = useState(false);
   const audioRef = useRef(null);
 
   const fetchMemorial = async () => {
@@ -148,6 +152,37 @@ function MemorialPage() {
       alert('שגיאה בשליחת ההודעה. אנא נסה שוב.');
     } finally {
       setSubmittingCondolence(false);
+    }
+  };
+
+  const submitShortMessage = async (messageText = null) => {
+    const messageToSend = messageText || shortMessage.trim();
+    
+    if (!messageToSend) {
+      alert('אנא כתוב משניה');
+      return;
+    }
+
+    if (messageToSend.length > 200) {
+      alert('משניה יכולה להיות עד 200 תווים');
+      return;
+    }
+
+    setSubmittingShortMessage(true);
+    try {
+      const response = await axios.post(getApiEndpoint(`/api/memorials/${id}/condolences`), {
+        name: 'אוהבים ומשפחה',
+        message: messageToSend
+      });
+      if (response.data.success) {
+        setShortMessage('');
+        fetchCondolences();
+      }
+    } catch (error) {
+      console.error('Error submitting short message:', error);
+      alert('שגיאה בשליחת המשניה. אנא נסה שוב.');
+    } finally {
+      setSubmittingShortMessage(false);
     }
   };
 
@@ -424,6 +459,26 @@ function MemorialPage() {
           </section>
         )}
 
+        {/* Mishnayot Section */}
+        {memorial.mishnayot && memorial.mishnayot.trim() && (
+          <section className="mishnayot-section">
+            <div className="tehilim-header">
+              <h2 className="section-title">
+                <FaBook /> משניות
+              </h2>
+              <button
+                className="btn btn-primary"
+                onClick={() => setShowMishnayot(!showMishnayot)}
+              >
+                {showMishnayot ? 'סגור משניות' : 'קרא משניות'}
+              </button>
+            </div>
+            {showMishnayot && (
+              <MishnayotReader mishnayot={memorial.mishnayot} />
+            )}
+          </section>
+        )}
+
         {/* Virtual Candle Section */}
         <section className="candle-section">
           <h2 className="section-title">
@@ -473,6 +528,41 @@ function MemorialPage() {
               </div>
             </div>
           )}
+        </section>
+
+        {/* Short Messages (משניות) - Always visible */}
+        <section className="short-messages-section">
+          <h2 className="section-title">
+            <FaComment /> משניות קצרות
+          </h2>
+          <p className="short-messages-subtitle">השאר משניה קצרה: זכרונו לברכה, תנוח דעתו, וכו'</p>
+          
+          <div className="short-message-form">
+            <input
+              type="text"
+              className="short-message-input"
+              value={shortMessage}
+              onChange={(e) => setShortMessage(e.target.value)}
+              onKeyPress={(e) => {
+                if (e.key === 'Enter' && shortMessage.trim()) {
+                  e.preventDefault();
+                  submitShortMessage();
+                }
+              }}
+              placeholder="או כתוב משניה קצרה מותאמת אישית (עד 200 תווים)"
+              maxLength={200}
+              disabled={submittingShortMessage}
+            />
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => submitShortMessage()}
+              disabled={submittingShortMessage || !shortMessage.trim()}
+            >
+              {submittingShortMessage ? 'שולח...' : 'שלח משניה'}
+            </button>
+          </div>
+          <p className="short-message-count">{shortMessage.length}/200</p>
         </section>
 
         {/* Condolences Section */}

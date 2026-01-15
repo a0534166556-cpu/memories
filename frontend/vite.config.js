@@ -12,6 +12,7 @@ export default defineConfig({
         name: 'דפי זיכרון דיגיטליים',
         short_name: 'דפי זיכרון',
         description: 'דפי זיכרון דיגיטליים להנצחת יקירינו',
+        version: '1.0.1',
         theme_color: '#2c3e50',
         background_color: '#ffffff',
         display: 'standalone',

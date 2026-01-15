@@ -5,6 +5,16 @@ import './Home.css';
 function Home() {
   return (
     <main className="home" role="main">
+      {/* Navigation Header */}
+      <nav className="top-navigation">
+        <div className="container">
+          <div className="nav-links">
+            <Link to="/" className="nav-link">דף הבית</Link>
+            <Link to="/about" className="nav-link">אודותינו</Link>
+          </div>
+        </div>
+      </nav>
+
       <header className="hero">
         <div className="hero-content">
           <h1 className="hero-title">דפי זיכרון דיגיטליים</h1>
@@ -13,7 +23,7 @@ function Home() {
           </p>
           <div className="hero-buttons">
             <Link to="/create" className="btn btn-primary">
-              <FaPlus /> צור דף זיכרון חדש
+              <FaPlus /> צור דף זיכרון עכשיו
             </Link>
             <Link to="/gallery/example" className="btn btn-secondary" aria-label="צפה בדף זיכרון לדוגמה">
               <FaImages /> דף זיכרון לדוגמה
@@ -68,8 +78,6 @@ function Home() {
         <div className="footer-links">
           <Link to="/">דף הבית</Link>
           <Link to="/about">אודות</Link>
-          <Link to="/gallery">גלריה</Link>
-          <Link to="/login">התחברות</Link>
         </div>
       </footer>
     </main>

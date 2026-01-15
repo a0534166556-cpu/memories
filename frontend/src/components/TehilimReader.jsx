@@ -69,7 +69,30 @@ function TehilimReader({ chapters }) {
             ))}
           </>
         ) : (
-          <p className="no-content">פרק {currentChapterNum} לא זמין כרגע</p>
+          <div className="no-content">
+            <p>פרק {currentChapterNum} לא זמין כרגע בקובץ המקומי</p>
+            <p style={{ marginTop: '15px', fontSize: '0.95rem' }}>
+              ניתן לקרוא את הפרק ב-{' '}
+              <a 
+                href={`https://www.sefaria.org/Psalms.${currentChapterNum}?lang=he`} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                style={{ color: '#667eea', textDecoration: 'underline' }}
+              >
+                ספריא
+              </a>
+              {', '}
+              <a 
+                href={`https://www.yo-yoo.co.il/tol/psalms/psalms${currentChapterNum}.html`} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                style={{ color: '#667eea', textDecoration: 'underline' }}
+              >
+                יויו
+              </a>
+              {' '}או במאגרי תהילים אונליין נוספים
+            </p>
+          </div>
         )}
       </div>
 

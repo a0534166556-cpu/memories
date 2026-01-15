@@ -30,6 +30,8 @@ function CreateMemorial() {
   const [loading, setLoading] = useState(false);
   const [showTehilimSelector, setShowTehilimSelector] = useState(false);
   const [selectedChapters, setSelectedChapters] = useState([1, 23, 121]);
+  const [showMishnayotSelector, setShowMishnayotSelector] = useState(false);
+  const [selectedMishnayot, setSelectedMishnayot] = useState([]);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     accept: {
@@ -111,6 +113,20 @@ function CreateMemorial() {
     setTimelineEntries(prev => prev.filter((_, i) => i !== index));
   };
 
+  const toggleMishna = (mishna) => {
+    setSelectedMishnayot(prev => {
+      if (prev.includes(mishna)) {
+        const updated = prev.filter(m => m !== mishna);
+        setFormData({ ...formData, mishnayot: updated.join(',') });
+        return updated;
+      } else {
+        const updated = [...prev, mishna];
+        setFormData({ ...formData, mishnayot: updated.join(',') });
+        return updated;
+      }
+    });
+  };
+
   const toggleChapter = (chapterNum) => {
     setSelectedChapters(prev => {
       if (prev.includes(chapterNum)) {
@@ -133,6 +149,90 @@ function CreateMemorial() {
 
   // Popular chapters for quick selection
   const popularChapters = [1, 23, 91, 103, 121, 130, 150];
+
+  // Popular Mishnayot for quick selection
+  const popularMishnayot = [
+    'ברכות א',
+    'ברכות ב',
+    'ברכות ט',
+    'פאה א',
+    'שבת א',
+    'שבת ז',
+    'ראש השנה א',
+    'יומא ח',
+    'כתובות א',
+    'קידושין א',
+    'מכות א',
+    'אבות א',
+    'אבות ב',
+    'אבות ג'
+  ];
+
+  // Mishnayot tractates structure (simplified - major tractates)
+  const mishnayotTractates = [
+    { name: 'ברכות', chapters: ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ז', 'ח', 'ט'] },
+    { name: 'פאה', chapters: ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ז', 'ח'] },
+    { name: 'דמאי', chapters: ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ז'] },
+    { name: 'כלאים', chapters: ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ז', 'ח', 'ט'] },
+    { name: 'שביעית', chapters: ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ז', 'ח', 'ט', 'י'] },
+    { name: 'תרומות', chapters: ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ז', 'ח', 'ט', 'י', 'יא'] },
+    { name: 'מעשרות', chapters: ['א', 'ב', 'ג', 'ד', 'ה'] },
+    { name: 'מעשר שני', chapters: ['א', 'ב', 'ג', 'ד', 'ה'] },
+    { name: 'חלה', chapters: ['א', 'ב', 'ג', 'ד'] },
+    { name: 'ערלה', chapters: ['א', 'ב', 'ג'] },
+    { name: 'ביכורים', chapters: ['א', 'ב', 'ג', 'ד'] },
+    { name: 'שבת', chapters: ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ז', 'ח', 'ט', 'י', 'יא', 'יב', 'יג', 'יד', 'טו', 'טז', 'יז', 'יח', 'יט', 'כ', 'כא', 'כג', 'כד'] },
+    { name: 'עירובין', chapters: ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ז', 'ח', 'ט', 'י'] },
+    { name: 'פסחים', chapters: ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ז', 'ח', 'ט', 'י'] },
+    { name: 'שקלים', chapters: ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ז', 'ח'] },
+    { name: 'יומא', chapters: ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ז', 'ח'] },
+    { name: 'סוכה', chapters: ['א', 'ב', 'ג', 'ד', 'ה'] },
+    { name: 'ביצה', chapters: ['א', 'ב', 'ג', 'ד', 'ה'] },
+    { name: 'ראש השנה', chapters: ['א', 'ב', 'ג', 'ד'] },
+    { name: 'תענית', chapters: ['א', 'ב', 'ג', 'ד'] },
+    { name: 'מגילה', chapters: ['א', 'ב', 'ג', 'ד'] },
+    { name: 'מועד קטן', chapters: ['א', 'ב', 'ג'] },
+    { name: 'חגיגה', chapters: ['א', 'ב', 'ג'] },
+    { name: 'יבמות', chapters: ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ז', 'ח', 'ט', 'י', 'יא', 'יב', 'יג', 'יד', 'טו', 'טז'] },
+    { name: 'כתובות', chapters: ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ז', 'ח', 'ט', 'י', 'יא', 'יב', 'יג'] },
+    { name: 'נדרים', chapters: ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ז', 'ח', 'ט', 'י', 'יא'] },
+    { name: 'נזיר', chapters: ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ז', 'ח', 'ט'] },
+    { name: 'סוטה', chapters: ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ז', 'ח', 'ט'] },
+    { name: 'גיטין', chapters: ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ז', 'ח', 'ט'] },
+    { name: 'קידושין', chapters: ['א', 'ב', 'ג', 'ד'] },
+    { name: 'בבא קמא', chapters: ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ז', 'ח', 'ט', 'י'] },
+    { name: 'בבא מציעא', chapters: ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ז', 'ח', 'ט', 'י'] },
+    { name: 'בבא בתרא', chapters: ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ז', 'ח', 'ט', 'י'] },
+    { name: 'סנהדרין', chapters: ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ז', 'ח', 'ט', 'י', 'יא'] },
+    { name: 'מכות', chapters: ['א', 'ב', 'ג'] },
+    { name: 'שבועות', chapters: ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ז', 'ח'] },
+    { name: 'עבודה זרה', chapters: ['א', 'ב', 'ג', 'ד', 'ה'] },
+    { name: 'הוריות', chapters: ['א', 'ב', 'ג'] },
+    { name: 'זבחים', chapters: ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ז', 'ח', 'ט', 'י', 'יא', 'יב', 'יג', 'יד'] },
+    { name: 'מנחות', chapters: ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ז', 'ח', 'ט', 'י', 'יא', 'יב', 'יג'] },
+    { name: 'חולין', chapters: ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ז', 'ח', 'ט', 'י', 'יא', 'יב'] },
+    { name: 'בכורות', chapters: ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ז', 'ח', 'ט'] },
+    { name: 'ערכין', chapters: ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ז', 'ח', 'ט'] },
+    { name: 'תמורה', chapters: ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ז'] },
+    { name: 'כריתות', chapters: ['א', 'ב', 'ג', 'ד', 'ה', 'ו'] },
+    { name: 'מעילה', chapters: ['א', 'ב', 'ג', 'ד', 'ה', 'ו'] },
+    { name: 'תמיד', chapters: ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ז'] },
+    { name: 'מידות', chapters: ['א', 'ב', 'ג', 'ד', 'ה'] },
+    { name: 'קינים', chapters: ['א', 'ב', 'ג'] },
+    { name: 'כלים', chapters: ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ז', 'ח', 'ט', 'י', 'יא', 'יב', 'יג', 'יד', 'טו', 'טז', 'יז', 'יח', 'יט', 'כ', 'כא', 'כב', 'כד', 'כה', 'כו', 'כז', 'כח', 'כט', 'ל'] },
+    { name: 'אוהלות', chapters: ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ז', 'ח', 'ט', 'י', 'יא', 'יב', 'יג', 'יד', 'טו', 'טז', 'יז', 'יח'] },
+    { name: 'נגעים', chapters: ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ז', 'ח', 'ט', 'י', 'יא', 'יב', 'יג', 'יד'] },
+    { name: 'פרה', chapters: ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ז', 'ח', 'ט', 'י', 'יא', 'יב'] },
+    { name: 'טהרות', chapters: ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ז', 'ח', 'ט', 'י'] },
+    { name: 'מקוואות', chapters: ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ז', 'ח', 'ט', 'י'] },
+    { name: 'נידה', chapters: ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ז', 'ח', 'ט', 'י'] },
+    { name: 'מכשירין', chapters: ['א', 'ב', 'ג', 'ד', 'ה', 'ו'] },
+    { name: 'זבים', chapters: ['א', 'ב', 'ג', 'ד', 'ה'] },
+    { name: 'טבול יום', chapters: ['א', 'ב', 'ג', 'ד'] },
+    { name: 'ידיים', chapters: ['א', 'ב', 'ג', 'ד'] },
+    { name: 'עוקצין', chapters: ['א', 'ב', 'ג'] },
+    { name: 'אבות', chapters: ['א', 'ב', 'ג', 'ד', 'ה', 'ו'] }
+  ];
 
   // Load available music files
   useEffect(() => {
@@ -506,6 +606,94 @@ function CreateMemorial() {
                   </div>
                 )}
                 <small>הפרקים שיוצגו בדף הזיכרון לקריאה. ניתן לבחור כמה פרקים שרוצים.</small>
+              </div>
+            </div>
+
+            {/* Mishnayot Section */}
+            <div className="form-group">
+              <label htmlFor="mishnayot">משניות</label>
+              <div className="tehilim-selector-wrapper">
+                <div className="tehilim-input-row">
+                  <input
+                    type="text"
+                    id="mishnayot"
+                    name="mishnayot"
+                    value={formData.mishnayot}
+                    onChange={handleChange}
+                    placeholder="לדוגמה: ברכות א, ברכות ב, שבת א"
+                    readOnly
+                  />
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => setShowMishnayotSelector(!showMishnayotSelector)}
+                  >
+                    {showMishnayotSelector ? 'סגור בחירה' : 'בחר משניות'}
+                  </button>
+                </div>
+                
+                {showMishnayotSelector && (
+                  <div className="tehilim-selector">
+                    <div className="tehilim-popular">
+                      <h4>משניות נפוצות</h4>
+                      <div className="tehilim-popular-grid">
+                        {popularMishnayot.map(mishna => (
+                          <label key={mishna} className="tehilim-checkbox">
+                            <input
+                              type="checkbox"
+                              checked={selectedMishnayot.includes(mishna)}
+                              onChange={() => toggleMishna(mishna)}
+                            />
+                            <span>{mishna}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                    
+                    <div className="tehilim-all">
+                      <h4>כל המסכתות</h4>
+                      <div className="mishnayot-tractates">
+                        {mishnayotTractates.map(tractate => (
+                          <div key={tractate.name} className="tractate-group">
+                            <h5>{tractate.name}</h5>
+                            <div className="tractate-chapters">
+                              {tractate.chapters.map(chapter => {
+                                const mishnaKey = `${tractate.name} ${chapter}`;
+                                return (
+                                  <label key={mishnaKey} className="tehilim-checkbox">
+                                    <input
+                                      type="checkbox"
+                                      checked={selectedMishnayot.includes(mishnaKey)}
+                                      onChange={() => toggleMishna(mishnaKey)}
+                                    />
+                                    <span>{tractate.name} {chapter}</span>
+                                  </label>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    
+                    <div className="tehilim-selected-info">
+                      <p>נבחרו: {selectedMishnayot.length} משניות</p>
+                      {selectedMishnayot.length > 0 && (
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-sm"
+                          onClick={() => {
+                            setSelectedMishnayot([]);
+                            setFormData({ ...formData, mishnayot: '' });
+                          }}
+                        >
+                          נקה הכל
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
+                <small>המשניות שיוצגו בדף הזיכרון לקריאה. ניתן לבחור כמה משניות שרוצים.</small>
               </div>
             </div>
           </div>

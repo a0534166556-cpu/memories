@@ -219,6 +219,7 @@ async function initDatabase() {
       heroSummary TEXT,
       timeline TEXT,
       tehilimChapters TEXT,
+      mishnayot TEXT,
       qrCodePath TEXT,
       status VARCHAR(50) DEFAULT 'temporary',
       expiryDate DATETIME,
@@ -920,6 +921,7 @@ app.post('/api/memorials', checkDbReady, optionalAuth, validateInput, upload.fie
       deathDate,
       biography,
       tehilimChapters,
+      mishnayot,
       heroSummary = '',
       heroImageIndex
     } = req.body;
@@ -943,6 +945,7 @@ app.post('/api/memorials', checkDbReady, optionalAuth, validateInput, upload.fie
         console.warn('Failed to parse timeline payload', error);
       }
     }
+
     
     // Process uploaded files
     const images = [];
@@ -1019,8 +1022,8 @@ app.post('/api/memorials', checkDbReady, optionalAuth, validateInput, upload.fie
       expiryDate.setHours(expiryDate.getHours() + 48); // 48 hours from now
 
       await db.execute(`
-      INSERT INTO memorials (id, userId, name, hebrewName, birthDate, deathDate, biography, images, videos, backgroundMusic, heroImage, heroSummary, timeline, tehilimChapters, qrCodePath, status, expiryDate, canEdit)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO memorials (id, userId, name, hebrewName, birthDate, deathDate, biography, images, videos, backgroundMusic, heroImage, heroSummary, timeline, tehilimChapters, mishnayot, qrCodePath, status, expiryDate, canEdit)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `, [
       id,
       userId,
@@ -1036,6 +1039,7 @@ app.post('/api/memorials', checkDbReady, optionalAuth, validateInput, upload.fie
       heroSummary,
       JSON.stringify(timeline),
       tehilimChapters || '',
+      mishnayot || '',
       `/${qrCodePath}`,
       'temporary',
       expiryDate,
@@ -1058,6 +1062,7 @@ app.post('/api/memorials', checkDbReady, optionalAuth, validateInput, upload.fie
         heroSummary,
         timeline,
         tehilimChapters,
+        mishnayot: mishnayot || '',
         qrCodePath: `/${qrCodePath}`,
         url: memorialUrl,
         status: 'temporary',
@@ -1138,7 +1143,8 @@ app.get('/api/memorials/:id', checkDbReady, async (req, res) => {
         backgroundMusic: row.backgroundMusic || '',
         heroImage: row.heroImage || '',
         heroSummary: row.heroSummary || '',
-        timeline: parseTimeline(row.timeline)
+        timeline: parseTimeline(row.timeline),
+        mishnayot: row.mishnayot || ''
       }
     });
   } catch (err) {

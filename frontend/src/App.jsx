@@ -53,7 +53,6 @@ function App() {
         <div className="app">
           <Routes>
             <Route path="/" element={<Home />} />
-            <Route path="/gallery" element={<Gallery />} />
             <Route path="/gallery/example" element={<MemorialExample />} />
             <Route path="/create" element={<CreateMemorial />} />
             <Route path="/memorial/:id" element={<MemorialPage />} />
