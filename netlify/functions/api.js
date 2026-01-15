@@ -13,8 +13,6 @@ exports.handler = async (event, context) => {
   console.log('Path:', event.path);
   console.log('RawPath:', event.rawPath);
   console.log('Query:', event.queryStringParameters);
-  // Log ALL headers immediately to debug
-  console.log('📋 ALL EVENT HEADERS:', JSON.stringify(event.headers, null, 2));
   
   // Handle OPTIONS (preflight) requests immediately
   if (event.httpMethod === 'OPTIONS') {
@@ -83,23 +81,40 @@ exports.handler = async (event, context) => {
       headers: {}
     };
     
-    // Copy headers - IMPORTANT: preserve Content-Type, Authorization, and other headers
-    if (event.headers['content-type']) {
-      options.headers['Content-Type'] = event.headers['content-type'];
-      console.log('📋 Content-Type:', event.headers['content-type']);
+    // Forward ALL important headers from client to Railway
+    // Netlify Functions normalize headers to lowercase
+    const headerMap = {
+      'content-type': 'Content-Type',
+      'content-length': 'Content-Length',
+      'authorization': 'Authorization'
+    };
+    
+    // Log all incoming headers for debugging
+    console.log('📋 Incoming headers:', Object.keys(event.headers).join(', '));
+    
+    // Forward each header
+    for (const [lowerKey, properKey] of Object.entries(headerMap)) {
+      const value = event.headers[lowerKey];
+      if (value) {
+        options.headers[properKey] = value;
+        if (lowerKey === 'authorization') {
+          console.log('🔑✅ Authorization header FOUND! Length:', value.length);
+        }
+      }
     }
-    if (event.headers['content-length']) {
-      options.headers['Content-Length'] = event.headers['content-length'];
+    
+    // If Authorization not found, try all headers
+    if (!options.headers['Authorization']) {
+      Object.keys(event.headers).forEach(key => {
+        if (key.toLowerCase() === 'authorization') {
+          options.headers['Authorization'] = event.headers[key];
+          console.log('🔑✅ Authorization found via loop!');
+        }
+      });
     }
-    // CRITICAL: Forward Authorization header for authentication
-    if (event.headers['authorization']) {
-      options.headers['Authorization'] = event.headers['authorization'];
-      console.log('🔑 Authorization header found and forwarded');
-    } else if (event.headers['Authorization']) {
-      options.headers['Authorization'] = event.headers['Authorization'];
-      console.log('🔑 Authorization header found (capitalized) and forwarded');
-    } else {
-      console.log('⚠️ No Authorization header in request');
+    
+    if (!options.headers['Authorization']) {
+      console.log('❌❌❌ NO Authorization header in request!');
     }
     
     // Handle body
