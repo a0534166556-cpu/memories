@@ -65,6 +65,12 @@ function Home() {
 
       <footer className="footer">
         <p>© 2025 דפי זיכרון דיגיטליים - שומרים זיכרונות לנצח</p>
+        <div className="footer-links">
+          <Link to="/">דף הבית</Link>
+          <Link to="/about">אודות</Link>
+          <Link to="/gallery">גלריה</Link>
+          <Link to="/login">התחברות</Link>
+        </div>
       </footer>
     </main>
   );

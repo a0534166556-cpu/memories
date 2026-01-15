@@ -5,6 +5,12 @@ import Gallery from './pages/Gallery';
 import MemorialExample from './pages/MemorialExample';
 import CreateMemorial from './pages/CreateMemorial';
 import MemorialPage from './pages/MemorialPage';
+import About from './pages/About';
+import Pricing from './pages/Pricing';
+import Login from './pages/Login';
+import PaymentSuccess from './pages/PaymentSuccess';
+import PaymentCancel from './pages/PaymentCancel';
+import SaveMemorial from './pages/SaveMemorial';
 import './App.css';
 
 class ErrorBoundary extends Component {
@@ -51,6 +57,13 @@ function App() {
             <Route path="/gallery/example" element={<MemorialExample />} />
             <Route path="/create" element={<CreateMemorial />} />
             <Route path="/memorial/:id" element={<MemorialPage />} />
+            <Route path="/about" element={<About />} />
+            <Route path="/pricing" element={<Pricing />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/signup" element={<Login />} />
+            <Route path="/save/:id" element={<SaveMemorial />} />
+            <Route path="/payment/success" element={<PaymentSuccess />} />
+            <Route path="/payment/cancel" element={<PaymentCancel />} />
           </Routes>
         </div>
       </Router>

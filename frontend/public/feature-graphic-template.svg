@@ -1,0 +1,43 @@
+<svg width="1024" height="500" viewBox="0 0 1024 500" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background gradient -->
+  <defs>
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#2c3e50;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#34495e;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="500" fill="url(#bgGradient)"/>
+  
+  <!-- Left side - Icon/Candle -->
+  <g transform="translate(150, 100)">
+    <!-- Candle -->
+    <rect x="206" y="80" width="100" height="220" fill="#8b7355" rx="8"/>
+    
+    <!-- Candle flame -->
+    <path d="M256 20 Q 240 0 240 -20 Q 240 -40 256 -50 Q 272 -40 272 -20 Q 272 0 256 20 Z" fill="#f5a623"/>
+    <path d="M256 10 Q 248 -5 248 -20 Q 248 -35 256 -45 Q 264 -35 264 -20 Q 264 -5 256 10 Z" fill="#ffd700"/>
+    
+    <!-- Wax drips -->
+    <ellipse cx="240" cy="220" rx="12" ry="20" fill="#75614a"/>
+    <ellipse cx="272" cy="240" rx="10" ry="16" fill="#75614a"/>
+  </g>
+  
+  <!-- Right side - Text -->
+  <g transform="translate(400, 150)">
+    <!-- Main title -->
+    <text x="0" y="50" font-family="Arial, sans-serif" font-size="56" font-weight="bold" fill="#ffffff">
+      <tspan x="0" dy="0">��� ������</tspan>
+      <tspan x="0" dy="65" font-size="48">���������</tspan>
+    </text>
+    
+    <!-- Subtitle -->
+    <text x="0" y="180" font-family="Arial, sans-serif" font-size="28" fill="#e8e8e8">
+      <tspan x="0" dy="0">����� �������</tspan>
+      <tspan x="0" dy="40">�� QR Code �����</tspan>
+    </text>
+  </g>
+  
+  <!-- Decorative elements -->
+  <circle cx="950" cy="80" r="60" fill="rgba(255,255,255,0.1)"/>
+  <circle cx="980" cy="420" r="40" fill="rgba(255,255,255,0.08)"/>
+</svg>

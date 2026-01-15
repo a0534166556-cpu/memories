@@ -4,7 +4,7 @@ import axios from 'axios';
 import { getApiEndpoint } from '../config';
 import { Swiper, SwiperSlide } from 'swiper/react';
 import { Navigation, Pagination, Autoplay } from 'swiper/modules';
-import { FaHome, FaDownload, FaBook, FaHeart, FaPlay, FaPause, FaVolumeUp, FaHistory, FaFire, FaComment } from 'react-icons/fa';
+import { FaHome, FaDownload, FaBook, FaHeart, FaPlay, FaPause, FaVolumeUp, FaHistory, FaFire, FaComment, FaExclamationTriangle, FaClock } from 'react-icons/fa';
 import TehilimReader from '../components/TehilimReader';
 import 'swiper/css';
 import 'swiper/css/navigation';
@@ -210,6 +210,12 @@ function MemorialPage() {
     );
   }
 
+  // Check if memorial is temporary and expired
+  const isTemporary = memorial.status === 'temporary';
+  const expiryDate = memorial.expiryDate ? new Date(memorial.expiryDate) : null;
+  const isExpired = expiryDate && expiryDate < new Date();
+  const hoursUntilExpiry = expiryDate ? Math.max(0, Math.floor((expiryDate - new Date()) / (1000 * 60 * 60))) : null;
+
   const allMedia = [
     ...memorial.images.map(url => ({ type: 'image', url })),
     ...memorial.videos.map(url => ({ type: 'video', url }))
@@ -222,6 +228,58 @@ function MemorialPage() {
 
   return (
     <div className="memorial-page">
+      {/* Expiry Warning Banner */}
+      {isTemporary && (isExpired || hoursUntilExpiry !== null) && (
+        <div className={`expiry-warning ${isExpired ? 'expired' : hoursUntilExpiry < 24 ? 'urgent' : ''}`}>
+          <div className="container">
+            <div className="expiry-warning-content">
+              {isExpired ? (
+                <>
+                  <FaExclamationTriangle className="warning-icon" />
+                  <div className="warning-text">
+                    <h3>הדף פג תוקף</h3>
+                    <p>דף הזיכרון הזה לא פעיל יותר. לשמירה קבועה ולגישה לכל החיים, אנא בחר תוכנית שמירה.</p>
+                  </div>
+                  <Link to={`/save/${id}`} className="btn btn-primary">
+                    שמור את הדף
+                  </Link>
+                </>
+              ) : hoursUntilExpiry < 24 ? (
+                <>
+                  <FaExclamationTriangle className="warning-icon urgent" />
+                  <div className="warning-text">
+                    <h3>הדף יפוג בקרוב!</h3>
+                    <p>נשארו {hoursUntilExpiry} שעות עד שהדף יפוג. לשמירה קבועה ולגישה לכל החיים, אנא בחר תוכנית שמירה.</p>
+                  </div>
+                  <Link to={`/save/${id}`} className="btn btn-primary">
+                    שמור עכשיו
+                  </Link>
+                </>
+              ) : (
+                <>
+                  <FaClock className="warning-icon" />
+                  <div className="warning-text">
+                    <h3>דף זמני - שמירה זמנית</h3>
+                    <p>דף זיכרון זה פעיל זמנית. לשמירה קבועה ולגישה לכל החיים, אנא בחר תוכנית שמירה.</p>
+                    {expiryDate && (
+                      <p className="expiry-date">יפוג ב-{expiryDate.toLocaleDateString('he-IL', { 
+                        day: 'numeric', 
+                        month: 'long', 
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}</p>
+                    )}
+                  </div>
+                  <Link to={`/save/${id}`} className="btn btn-secondary">
+                    שמור את הדף
+                  </Link>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
       {/* Background Music Player */}
       {memorial?.backgroundMusic && (
         <>

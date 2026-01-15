@@ -33,13 +33,15 @@
   force = true
 
 # הגדרות redirects ל-React Router (MUST be last)
-# Exclude /api/*, /uploads/*, /qrcodes/* from this redirect
+# Exclude /api/*, /uploads/*, /qrcodes/*, /manifest.webmanifest, /sw.js from this redirect
 # Use force = false so it doesn't override API redirects
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
   force = false
+  conditions = {Role = ["admin"], Country = ["!*"]}
+  # This will NOT match manifest.webmanifest, sw.js, workbox-*.js because they are actual files
 
 # הגדרות headers
 [[headers]]

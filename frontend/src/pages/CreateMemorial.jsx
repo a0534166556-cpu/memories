@@ -198,7 +198,12 @@ function CreateMemorial() {
       const response = await axios.post(getApiEndpoint('/api/memorials'), formDataToSend);
 
       if (response.data.success) {
-        navigate(`/memorial/${response.data.memorial.id}`);
+        // Redirect to save page instead of directly to memorial
+        if (response.data.redirectTo) {
+          navigate(response.data.redirectTo);
+        } else {
+          navigate(`/memorial/${response.data.memorial.id}`);
+        }
       }
     } catch (error) {
       console.error('Error creating memorial:', error);

@@ -8,6 +8,35 @@ const os = require('os');
 const { v4: uuidv4 } = require('uuid');
 const QRCode = require('qrcode');
 const mysql = require('mysql2/promise');
+const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
+
+// PayPal Configuration (optional - only load if available)
+let paypal = null;
+let paypalClient = null;
+try {
+  paypal = require('@paypal/checkout-server-sdk');
+  const PAYPAL_CLIENT_ID = process.env.PAYPAL_CLIENT_ID;
+  const PAYPAL_CLIENT_SECRET = process.env.PAYPAL_CLIENT_SECRET;
+  const PAYPAL_MODE = process.env.PAYPAL_MODE || 'sandbox'; // 'sandbox' or 'live'
+
+  // PayPal SDK Setup
+  if (PAYPAL_CLIENT_ID && PAYPAL_CLIENT_SECRET) {
+    paypalClient = () => {
+      const environment = PAYPAL_MODE === 'live'
+        ? new paypal.core.LiveEnvironment(PAYPAL_CLIENT_ID, PAYPAL_CLIENT_SECRET)
+        : new paypal.core.SandboxEnvironment(PAYPAL_CLIENT_ID, PAYPAL_CLIENT_SECRET);
+      
+      return new paypal.core.PayPalHttpClient(environment);
+    };
+    console.log('✅ PayPal SDK loaded');
+  } else {
+    console.log('⚠️  PayPal not configured - payment features disabled');
+  }
+} catch (err) {
+  console.log('⚠️  PayPal SDK not available - payment features disabled');
+  console.log('⚠️  Install with: npm install @paypal/checkout-server-sdk');
+}
 
 console.log('🚀 SERVER STARTING - VERSION WITH FIXES');
 console.log('🚀 Timestamp:', new Date().toISOString());
@@ -15,6 +44,7 @@ console.log('🚀 Timestamp:', new Date().toISOString());
 const app = express();
 const PORT = process.env.PORT || 8080;
 const NODE_ENV = process.env.NODE_ENV || 'development';
+const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 
 // Middleware
 // CORS configuration - Add headers to ALL responses
@@ -176,22 +206,60 @@ async function initDatabase() {
     // Create memorials table
     await db.execute(`CREATE TABLE IF NOT EXISTS memorials (
       id VARCHAR(255) PRIMARY KEY,
+      userId VARCHAR(255),
       name VARCHAR(255) NOT NULL,
       hebrewName VARCHAR(255),
       birthDate VARCHAR(255),
       deathDate VARCHAR(255),
-    biography TEXT,
-    images TEXT,
-    videos TEXT,
-    backgroundMusic TEXT,
-    heroImage TEXT,
-    heroSummary TEXT,
-    timeline TEXT,
-    tehilimChapters TEXT,
-    qrCodePath TEXT,
-    createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
-  )`);
+      biography TEXT,
+      images TEXT,
+      videos TEXT,
+      backgroundMusic TEXT,
+      heroImage TEXT,
+      heroSummary TEXT,
+      timeline TEXT,
+      tehilimChapters TEXT,
+      qrCodePath TEXT,
+      status VARCHAR(50) DEFAULT 'temporary',
+      expiryDate DATETIME,
+      canEdit BOOLEAN DEFAULT TRUE,
+      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
+    )`);
     console.log('✅ Memorials table ready');
+    
+    // Add status and expiryDate columns if they don't exist (for existing tables)
+    try {
+      await db.execute(`ALTER TABLE memorials ADD COLUMN status VARCHAR(50) DEFAULT 'temporary'`);
+      console.log('✅ Added status column to memorials');
+    } catch (err) {
+      if (err.code === 'ER_DUP_FIELDNAME') {
+        console.log('✅ status column already exists in memorials');
+      } else {
+        throw err;
+      }
+    }
+    
+    try {
+      await db.execute(`ALTER TABLE memorials ADD COLUMN expiryDate DATETIME`);
+      console.log('✅ Added expiryDate column to memorials');
+    } catch (err) {
+      if (err.code === 'ER_DUP_FIELDNAME') {
+        console.log('✅ expiryDate column already exists in memorials');
+      } else {
+        throw err;
+      }
+    }
+    
+    try {
+      await db.execute(`ALTER TABLE memorials ADD COLUMN canEdit BOOLEAN DEFAULT TRUE`);
+      console.log('✅ Added canEdit column to memorials');
+    } catch (err) {
+      if (err.code === 'ER_DUP_FIELDNAME') {
+        console.log('✅ canEdit column already exists in memorials');
+      } else {
+        throw err;
+      }
+    }
     
     // Create condolences table
     await db.execute(`CREATE TABLE IF NOT EXISTS condolences (
@@ -216,7 +284,7 @@ async function initDatabase() {
     )`);
     console.log('✅ Candles table ready');
     
-    // Create index (MySQL doesn't support IF NOT EXISTS for indexes)
+    // Create indexes (MySQL doesn't support IF NOT EXISTS for indexes)
     try {
       await db.execute(`CREATE INDEX idx_candles_memorial_visitor ON candles(memorialId, visitorId)`);
       console.log('✅ Candles index ready');
@@ -226,6 +294,87 @@ async function initDatabase() {
         throw indexErr;
       }
       console.log('✅ Candles index already exists');
+    }
+    
+    // Create index on createdAt for faster sorting
+    try {
+      await db.execute(`CREATE INDEX idx_memorials_createdAt ON memorials(createdAt DESC)`);
+      console.log('✅ Memorials createdAt index ready');
+    } catch (indexErr) {
+      // Index might already exist, that's okay
+      if (indexErr.code !== 'ER_DUP_KEYNAME') {
+        throw indexErr;
+      }
+      console.log('✅ Memorials createdAt index already exists');
+    }
+
+    // Create users table
+    await db.execute(`CREATE TABLE IF NOT EXISTS users (
+      id VARCHAR(255) PRIMARY KEY,
+      name VARCHAR(255) NOT NULL,
+      email VARCHAR(255) UNIQUE NOT NULL,
+      password VARCHAR(255) NOT NULL,
+      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
+    )`);
+    console.log('✅ Users table ready');
+
+    // Add userId column to memorials table if it doesn't exist
+    try {
+      await db.execute(`ALTER TABLE memorials ADD COLUMN userId VARCHAR(255)`);
+      console.log('✅ Added userId column to memorials');
+    } catch (err) {
+      if (err.code === 'ER_DUP_FIELDNAME') {
+        console.log('✅ userId column already exists in memorials');
+      } else {
+        throw err;
+      }
+    }
+
+    // Create payments table
+    await db.execute(`CREATE TABLE IF NOT EXISTS payments (
+      id VARCHAR(255) PRIMARY KEY,
+      userId VARCHAR(255) NOT NULL,
+      memorialId VARCHAR(255),
+      planType VARCHAR(50) NOT NULL,
+      amount DECIMAL(10,2) NOT NULL,
+      status VARCHAR(50) DEFAULT 'pending',
+      paymentMethod VARCHAR(50),
+      transactionId VARCHAR(255),
+      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY (memorialId) REFERENCES memorials(id) ON DELETE SET NULL
+    )`);
+    console.log('✅ Payments table ready');
+
+    // Create subscriptions table
+    await db.execute(`CREATE TABLE IF NOT EXISTS subscriptions (
+      id VARCHAR(255) PRIMARY KEY,
+      userId VARCHAR(255) NOT NULL,
+      memorialId VARCHAR(255),
+      planType VARCHAR(50) NOT NULL,
+      startDate DATETIME NOT NULL,
+      endDate DATETIME NOT NULL,
+      status VARCHAR(50) DEFAULT 'active',
+      autoRenew BOOLEAN DEFAULT TRUE,
+      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY (memorialId) REFERENCES memorials(id) ON DELETE SET NULL
+    )`);
+    console.log('✅ Subscriptions table ready');
+
+    // Create indexes for users, payments, subscriptions
+    try {
+      await db.execute(`CREATE INDEX idx_memorials_userId ON memorials(userId)`);
+      await db.execute(`CREATE INDEX idx_payments_userId ON payments(userId)`);
+      await db.execute(`CREATE INDEX idx_payments_memorialId ON payments(memorialId)`);
+      await db.execute(`CREATE INDEX idx_subscriptions_userId ON subscriptions(userId)`);
+      await db.execute(`CREATE INDEX idx_subscriptions_status ON subscriptions(status)`);
+      console.log('✅ User/payment/subscription indexes ready');
+    } catch (indexErr) {
+      if (indexErr.code !== 'ER_DUP_KEYNAME') {
+        throw indexErr;
+      }
+      console.log('✅ User/payment/subscription indexes already exist');
     }
     
     console.log('✅ Database initialization complete!');
@@ -366,6 +515,52 @@ const validateInput = (req, res, next) => {
   next();
 };
 
+// Authentication middleware
+const authenticateToken = async (req, res, next) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+
+  if (!token) {
+    return res.status(401).json({ success: false, message: 'No token provided' });
+  }
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    // Get user from database
+    await ensureDbConnection();
+    const [users] = await db.execute('SELECT id, name, email FROM users WHERE id = ?', [decoded.userId]);
+    
+    if (users.length === 0) {
+      return res.status(401).json({ success: false, message: 'User not found' });
+    }
+
+    req.user = users[0];
+    next();
+  } catch (err) {
+    return res.status(403).json({ success: false, message: 'Invalid token' });
+  }
+};
+
+// Optional authentication middleware (doesn't fail if no token)
+const optionalAuth = async (req, res, next) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+
+  if (token) {
+    try {
+      const decoded = jwt.verify(token, JWT_SECRET);
+      await ensureDbConnection();
+      const [users] = await db.execute('SELECT id, name, email FROM users WHERE id = ?', [decoded.userId]);
+      if (users.length > 0) {
+        req.user = users[0];
+      }
+    } catch (err) {
+      // Ignore token errors for optional auth
+    }
+  }
+  next();
+};
+
 // Middleware to check if database is ready
 const checkDbReady = (req, res, next) => {
   if (!dbReady) {
@@ -385,6 +580,315 @@ const checkDbReady = (req, res, next) => {
 
 // Routes
 
+// ==================== AUTHENTICATION ENDPOINTS ====================
+
+// Handle OPTIONS preflight for /api/auth
+app.options('/api/auth/*', (req, res) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.sendStatus(200);
+});
+
+// Sign up endpoint
+app.post('/api/auth/signup', checkDbReady, async (req, res) => {
+  try {
+    const { name, email, password } = req.body;
+
+    if (!name || !email || !password) {
+      return res.status(400).json({ success: false, message: 'שם, אימייל וסיסמה נדרשים' });
+    }
+
+    if (password.length < 6) {
+      return res.status(400).json({ success: false, message: 'סיסמה חייבת להיות לפחות 6 תווים' });
+    }
+
+    await ensureDbConnection();
+
+    // Check if user already exists
+    const [existingUsers] = await db.execute('SELECT id FROM users WHERE email = ?', [email]);
+    if (existingUsers.length > 0) {
+      return res.status(400).json({ success: false, message: 'כתובת אימייל זו כבר רשומה' });
+    }
+
+    // Hash password
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Create user
+    const userId = uuidv4();
+    await db.execute(
+      'INSERT INTO users (id, name, email, password) VALUES (?, ?, ?, ?)',
+      [userId, name, email, hashedPassword]
+    );
+
+    // Generate JWT token
+    const token = jwt.sign({ userId }, JWT_SECRET, { expiresIn: '30d' });
+
+    res.json({
+      success: true,
+      token,
+      user: { id: userId, name, email }
+    });
+  } catch (err) {
+    console.error('Signup error:', err);
+    handleDbError(err, res);
+  }
+});
+
+// Login endpoint
+app.post('/api/auth/login', checkDbReady, async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({ success: false, message: 'אימייל וסיסמה נדרשים' });
+    }
+
+    await ensureDbConnection();
+
+    // Find user
+    const [users] = await db.execute('SELECT * FROM users WHERE email = ?', [email]);
+    if (users.length === 0) {
+      return res.status(401).json({ success: false, message: 'אימייל או סיסמה שגויים' });
+    }
+
+    const user = users[0];
+
+    // Check password
+    const validPassword = await bcrypt.compare(password, user.password);
+    if (!validPassword) {
+      return res.status(401).json({ success: false, message: 'אימייל או סיסמה שגויים' });
+    }
+
+    // Generate JWT token
+    const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '30d' });
+
+    res.json({
+      success: true,
+      token,
+      user: { id: user.id, name: user.name, email: user.email }
+    });
+  } catch (err) {
+    console.error('Login error:', err);
+    handleDbError(err, res);
+  }
+});
+
+// Get current user endpoint
+app.get('/api/auth/me', checkDbReady, authenticateToken, async (req, res) => {
+  res.json({
+    success: true,
+    user: req.user
+  });
+});
+
+// ==================== PAYMENT ENDPOINTS ====================
+
+// Handle OPTIONS preflight for /api/payments
+app.options('/api/payments', (req, res) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.sendStatus(200);
+});
+
+// Create payment endpoint with PayPal
+app.post('/api/payments/create', checkDbReady, authenticateToken, async (req, res) => {
+  try {
+    const { memorialId, planType, amount } = req.body;
+
+    if (!planType || !amount) {
+      return res.status(400).json({ success: false, message: 'סוג תוכנית וסכום נדרשים' });
+    }
+
+    await ensureDbConnection();
+
+    const paymentId = uuidv4();
+    
+    // Create payment record in database
+    await db.execute(
+      'INSERT INTO payments (id, userId, memorialId, planType, amount, status) VALUES (?, ?, ?, ?, ?, ?)',
+      [paymentId, req.user.id, memorialId || null, planType, amount, 'pending']
+    );
+
+    // Create PayPal order
+    if (!paypal || !paypalClient) {
+      return res.status(500).json({ 
+        success: false, 
+        message: 'PayPal לא מוגדר. אנא התקן את הספרייה והגדר PAYPAL_CLIENT_ID ו-PAYPAL_CLIENT_SECRET' 
+      });
+    }
+
+    const request = new paypal.orders.OrdersCreateRequest();
+    request.prefer("return=representation");
+    request.requestBody({
+      intent: 'CAPTURE',
+      purchase_units: [{
+        reference_id: paymentId,
+        amount: {
+          currency_code: 'ILS',
+          value: amount.toString()
+        },
+        description: `תשלום עבור ${planType === 'lifetime' ? 'הנצחה לכל החיים (עם עריכה)' : planType === 'lifetime-no-edit' ? 'הנצחה לכל החיים (בלי עריכה)' : planType === 'annual' ? 'שמירה שנתית' : 'דף זיכרון'}`
+      }],
+      application_context: {
+        brand_name: 'דפי זיכרון דיגיטליים',
+        landing_page: 'BILLING',
+        user_action: 'PAY_NOW',
+        return_url: `${process.env.BASE_URL || 'http://localhost:3000'}/payment/success?paymentId=${paymentId}`,
+        cancel_url: `${process.env.BASE_URL || 'http://localhost:3000'}/payment/cancel?paymentId=${paymentId}`
+      }
+    });
+
+    const client = paypalClient();
+    const order = await client.execute(request);
+
+    // Update payment with PayPal order ID
+    await db.execute(
+      'UPDATE payments SET transactionId = ? WHERE id = ?',
+      [order.result.id, paymentId]
+    );
+
+    res.json({
+      success: true,
+      paymentId,
+      orderId: order.result.id,
+      approveUrl: order.result.links.find(link => link.rel === 'approve')?.href,
+      message: 'תשלום נוצר בהצלחה'
+    });
+  } catch (err) {
+    console.error('Payment creation error:', err);
+    handleDbError(err, res);
+  }
+});
+
+// Confirm PayPal payment
+app.post('/api/payments/confirm', checkDbReady, authenticateToken, async (req, res) => {
+  try {
+    const { orderId, paymentId } = req.body;
+
+    if (!orderId || !paymentId) {
+      return res.status(400).json({ success: false, message: 'Order ID ו-Payment ID נדרשים' });
+    }
+
+    await ensureDbConnection();
+
+    // Capture PayPal order
+    if (!paypal || !paypalClient) {
+      return res.status(500).json({ 
+        success: false, 
+        message: 'PayPal לא מוגדר. אנא התקן את הספרייה והגדר PAYPAL_CLIENT_ID ו-PAYPAL_CLIENT_SECRET' 
+      });
+    }
+
+    const request = new paypal.orders.OrdersCaptureRequest(orderId);
+    request.requestBody({});
+
+    const client = paypalClient();
+    const order = await client.execute(request);
+
+    if (order.result.status === 'COMPLETED') {
+      // Update payment status
+      await db.execute(
+        'UPDATE payments SET status = ?, transactionId = ? WHERE id = ?',
+        ['completed', orderId, paymentId]
+      );
+
+      // Get payment details
+      const [payments] = await db.execute(
+        'SELECT * FROM payments WHERE id = ?',
+        [paymentId]
+      );
+
+      if (payments.length > 0) {
+        const payment = payments[0];
+
+        // Update memorial status based on plan type
+        if (payment.memorialId) {
+          if (payment.planType === 'annual') {
+            // Annual subscription - set expiry to 1 year from now
+            const expiryDate = new Date();
+            expiryDate.setFullYear(expiryDate.getFullYear() + 1);
+            
+            await db.execute(
+              'UPDATE memorials SET status = ?, expiryDate = ? WHERE id = ?',
+              ['active', expiryDate, payment.memorialId]
+            );
+
+            // Create subscription record
+            const subscriptionId = uuidv4();
+            await db.execute(
+              'INSERT INTO subscriptions (id, userId, memorialId, planType, startDate, endDate, status) VALUES (?, ?, ?, ?, ?, ?, ?)',
+              [subscriptionId, req.user.id, payment.memorialId, payment.planType, new Date(), expiryDate, 'active']
+            );
+          } else if (payment.planType === 'lifetime') {
+            // Lifetime with editing - no expiry, can edit
+            await db.execute(
+              'UPDATE memorials SET status = ?, expiryDate = NULL, canEdit = TRUE WHERE id = ?',
+              ['active', payment.memorialId]
+            );
+          } else if (payment.planType === 'lifetime-no-edit') {
+            // Lifetime without editing - no expiry, cannot edit
+            await db.execute(
+              'UPDATE memorials SET status = ?, expiryDate = NULL, canEdit = FALSE WHERE id = ?',
+              ['active', payment.memorialId]
+            );
+          }
+        }
+
+        res.json({
+          success: true,
+          paymentId,
+          memorialId: payment.memorialId,
+          message: 'תשלום בוצע בהצלחה',
+          redirectUrl: payment.memorialId ? `/memorial/${payment.memorialId}` : '/'
+        });
+      } else {
+        res.status(404).json({ success: false, message: 'תשלום לא נמצא' });
+      }
+    } else {
+      res.status(400).json({ success: false, message: 'תשלום לא הושלם' });
+    }
+  } catch (err) {
+    console.error('Payment confirmation error:', err);
+    handleDbError(err, res);
+  }
+});
+
+// Get user's payments
+app.get('/api/payments', checkDbReady, authenticateToken, async (req, res) => {
+  try {
+    await ensureDbConnection();
+    const [payments] = await db.execute(
+      'SELECT * FROM payments WHERE userId = ? ORDER BY createdAt DESC',
+      [req.user.id]
+    );
+
+    res.json({ success: true, payments });
+  } catch (err) {
+    console.error('Get payments error:', err);
+    handleDbError(err, res);
+  }
+});
+
+// Get user's subscriptions
+app.get('/api/subscriptions', checkDbReady, authenticateToken, async (req, res) => {
+  try {
+    await ensureDbConnection();
+    const [subscriptions] = await db.execute(
+      'SELECT * FROM subscriptions WHERE userId = ? AND status = ? ORDER BY endDate DESC',
+      [req.user.id, 'active']
+    );
+
+    res.json({ success: true, subscriptions });
+  } catch (err) {
+    console.error('Get subscriptions error:', err);
+    handleDbError(err, res);
+  }
+});
+
+// ==================== MEMORIAL ENDPOINTS ====================
+
 // Handle OPTIONS preflight for /api/memorials
 app.options('/api/memorials', (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -394,7 +898,7 @@ app.options('/api/memorials', (req, res) => {
 });
 
 // Create new memorial
-app.post('/api/memorials', checkDbReady, validateInput, upload.fields([
+app.post('/api/memorials', checkDbReady, optionalAuth, validateInput, upload.fields([
   { name: 'files', maxCount: 20 },
   { name: 'headerImage', maxCount: 1 }
 ]), async (req, res) => {
@@ -506,11 +1010,20 @@ app.post('/api/memorials', checkDbReady, validateInput, upload.fields([
       // Ensure database connection is alive before executing query
       await ensureDbConnection();
       
+      // Get userId from authenticated user (if logged in)
+      const userId = req.user ? req.user.id : null;
+
+      // Set status to 'temporary' by default (48 hours expiry)
+      // User can upgrade later through SaveMemorial page
+      const expiryDate = new Date();
+      expiryDate.setHours(expiryDate.getHours() + 48); // 48 hours from now
+
       await db.execute(`
-      INSERT INTO memorials (id, name, hebrewName, birthDate, deathDate, biography, images, videos, backgroundMusic, heroImage, heroSummary, timeline, tehilimChapters, qrCodePath)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO memorials (id, userId, name, hebrewName, birthDate, deathDate, biography, images, videos, backgroundMusic, heroImage, heroSummary, timeline, tehilimChapters, qrCodePath, status, expiryDate, canEdit)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `, [
       id,
+      userId,
       name,
       hebrewName || '',
       birthDate || '',
@@ -523,7 +1036,10 @@ app.post('/api/memorials', checkDbReady, validateInput, upload.fields([
       heroSummary,
       JSON.stringify(timeline),
       tehilimChapters || '',
-      `/${qrCodePath}`
+      `/${qrCodePath}`,
+      'temporary',
+      expiryDate,
+      true  // canEdit default for new memorials (they can upgrade later)
       ]);
     
     res.json({
@@ -543,8 +1059,11 @@ app.post('/api/memorials', checkDbReady, validateInput, upload.fields([
         timeline,
         tehilimChapters,
         qrCodePath: `/${qrCodePath}`,
-        url: memorialUrl
-      }
+        url: memorialUrl,
+        status: 'temporary',
+        expiryDate: expiryDate.toISOString()
+      },
+      redirectTo: `/save/${id}` // Redirect to save page
     });
     } catch (err) {
       console.error('Error saving memorial:', err);
@@ -586,6 +1105,7 @@ app.get('/api/memorials/:id', checkDbReady, async (req, res) => {
   const { id } = req.params;
   
   try {
+    await ensureDbConnection();
     const [rows] = await db.execute('SELECT * FROM memorials WHERE id = ?', [id]);
     
     if (rows.length === 0) {
@@ -593,6 +1113,22 @@ app.get('/api/memorials/:id', checkDbReady, async (req, res) => {
     }
     
     const row = rows[0];
+    
+    // Check if memorial has expired (for temporary status)
+    if (row.status === 'temporary' && row.expiryDate) {
+      const expiryDate = new Date(row.expiryDate);
+      const now = new Date();
+      
+      if (now > expiryDate) {
+        return res.status(410).json({ 
+          success: false, 
+          error: 'Memorial expired',
+          expired: true,
+          message: 'דף הזיכרון פג. יש לשדרג לשמירה קבועה.'
+        });
+      }
+    }
+    
     res.json({
       success: true,
       memorial: {
@@ -616,7 +1152,7 @@ app.get('/api/memorials/:id', checkDbReady, async (req, res) => {
   }
 });
 
-// Get all memorials
+// Get all memorials (with pagination support)
 app.get('/api/memorials', checkDbReady, async (req, res) => {
   // Explicitly set CORS headers for this endpoint
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -624,7 +1160,38 @@ app.get('/api/memorials', checkDbReady, async (req, res) => {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
   
   try {
-    const [rows] = await db.execute('SELECT * FROM memorials ORDER BY createdAt DESC');
+    // Parse pagination parameters (optional - defaults to all results if not provided)
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || null; // null = no limit (backward compatible)
+    
+    // Validate pagination parameters
+    if (page < 1) {
+      return res.status(400).json({ success: false, error: 'Page must be >= 1' });
+    }
+    if (limit !== null && limit < 1) {
+      return res.status(400).json({ success: false, error: 'Limit must be >= 1' });
+    }
+    if (limit !== null && limit > 100) {
+      return res.status(400).json({ success: false, error: 'Limit cannot exceed 100' });
+    }
+    
+    // Get total count for pagination metadata
+    const [countRows] = await db.execute('SELECT COUNT(*) as total FROM memorials');
+    const total = countRows[0].total;
+    
+    let rows;
+    
+    if (limit !== null) {
+      // Pagination is requested
+      const offset = (page - 1) * limit;
+      [rows] = await db.execute(
+        'SELECT * FROM memorials ORDER BY createdAt DESC LIMIT ? OFFSET ?',
+        [limit, offset]
+      );
+    } else {
+      // No pagination - return all (backward compatible)
+      [rows] = await db.execute('SELECT * FROM memorials ORDER BY createdAt DESC');
+    }
     
     const memorials = rows.map(row => ({
       ...row,
@@ -636,7 +1203,25 @@ app.get('/api/memorials', checkDbReady, async (req, res) => {
       timeline: parseTimeline(row.timeline)
     }));
     
-    res.json({ success: true, memorials });
+    // Build response
+    const response = {
+      success: true,
+      memorials
+    };
+    
+    // Add pagination metadata if pagination is used
+    if (limit !== null) {
+      response.pagination = {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+        hasNextPage: page * limit < total,
+        hasPrevPage: page > 1
+      };
+    }
+    
+    res.json(response);
   } catch (err) {
     // Ensure CORS headers are set on error
     res.setHeader('Access-Control-Allow-Origin', '*');
