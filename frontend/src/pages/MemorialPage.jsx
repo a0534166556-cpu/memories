@@ -26,8 +26,6 @@ function MemorialPage() {
   const [showCondolences, setShowCondolences] = useState(false);
   const [condolenceForm, setCondolenceForm] = useState({ name: '', message: '' });
   const [submittingCondolence, setSubmittingCondolence] = useState(false);
-  const [shortMessage, setShortMessage] = useState('');
-  const [submittingShortMessage, setSubmittingShortMessage] = useState(false);
   const [showMishnayot, setShowMishnayot] = useState(false);
   const audioRef = useRef(null);
 
@@ -155,36 +153,6 @@ function MemorialPage() {
     }
   };
 
-  const submitShortMessage = async (messageText = null) => {
-    const messageToSend = messageText || shortMessage.trim();
-    
-    if (!messageToSend) {
-      alert('אנא כתוב משניה');
-      return;
-    }
-
-    if (messageToSend.length > 200) {
-      alert('משניה יכולה להיות עד 200 תווים');
-      return;
-    }
-
-    setSubmittingShortMessage(true);
-    try {
-      const response = await axios.post(getApiEndpoint(`/api/memorials/${id}/condolences`), {
-        name: 'אוהבים ומשפחה',
-        message: messageToSend
-      });
-      if (response.data.success) {
-        setShortMessage('');
-        fetchCondolences();
-      }
-    } catch (error) {
-      console.error('Error submitting short message:', error);
-      alert('שגיאה בשליחת המשניה. אנא נסה שוב.');
-    } finally {
-      setSubmittingShortMessage(false);
-    }
-  };
 
   const downloadQRCode = () => {
     if (memorial?.qrCodePath) {
@@ -530,40 +498,6 @@ function MemorialPage() {
           )}
         </section>
 
-        {/* Short Messages (משניות) - Always visible */}
-        <section className="short-messages-section">
-          <h2 className="section-title">
-            <FaComment /> משניות קצרות
-          </h2>
-          <p className="short-messages-subtitle">השאר משניה קצרה: זכרונו לברכה, תנוח דעתו, וכו'</p>
-          
-          <div className="short-message-form">
-            <input
-              type="text"
-              className="short-message-input"
-              value={shortMessage}
-              onChange={(e) => setShortMessage(e.target.value)}
-              onKeyPress={(e) => {
-                if (e.key === 'Enter' && shortMessage.trim()) {
-                  e.preventDefault();
-                  submitShortMessage();
-                }
-              }}
-              placeholder="או כתוב משניה קצרה מותאמת אישית (עד 200 תווים)"
-              maxLength={200}
-              disabled={submittingShortMessage}
-            />
-            <button
-              type="button"
-              className="btn btn-primary"
-              onClick={() => submitShortMessage()}
-              disabled={submittingShortMessage || !shortMessage.trim()}
-            >
-              {submittingShortMessage ? 'שולח...' : 'שלח משניה'}
-            </button>
-          </div>
-          <p className="short-message-count">{shortMessage.length}/200</p>
-        </section>
 
         {/* Condolences Section */}
         <section className="condolences-section">
