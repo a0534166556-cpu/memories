@@ -81,13 +81,23 @@ exports.handler = async (event, context) => {
       headers: {}
     };
     
-    // Copy headers - IMPORTANT: preserve Content-Type for FormData
+    // Copy headers - IMPORTANT: preserve Content-Type, Authorization, and other headers
     if (event.headers['content-type']) {
       options.headers['Content-Type'] = event.headers['content-type'];
       console.log('📋 Content-Type:', event.headers['content-type']);
     }
     if (event.headers['content-length']) {
       options.headers['Content-Length'] = event.headers['content-length'];
+    }
+    // CRITICAL: Forward Authorization header for authentication
+    if (event.headers['authorization']) {
+      options.headers['Authorization'] = event.headers['authorization'];
+      console.log('🔑 Authorization header found and forwarded');
+    } else if (event.headers['Authorization']) {
+      options.headers['Authorization'] = event.headers['Authorization'];
+      console.log('🔑 Authorization header found (capitalized) and forwarded');
+    } else {
+      console.log('⚠️ No Authorization header in request');
     }
     
     // Handle body
