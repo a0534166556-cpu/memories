@@ -262,6 +262,18 @@ async function initDatabase() {
       }
     }
     
+    // Add mishnayot column if it doesn't exist (for existing tables)
+    try {
+      await db.execute(`ALTER TABLE memorials ADD COLUMN mishnayot TEXT`);
+      console.log('✅ Added mishnayot column to memorials');
+    } catch (err) {
+      if (err.code === 'ER_DUP_FIELDNAME') {
+        console.log('✅ mishnayot column already exists in memorials');
+      } else {
+        throw err;
+      }
+    }
+    
     // Create condolences table
     await db.execute(`CREATE TABLE IF NOT EXISTS condolences (
       id VARCHAR(255) PRIMARY KEY,
