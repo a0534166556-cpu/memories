@@ -665,7 +665,24 @@ function MemorialPage() {
             <h2 className="section-title">QR Code לדף זיכרון זה</h2>
             <div className="qr-content">
               <div className="qr-image">
-                <img src={memorial.qrCodePath} alt="QR Code" />
+                <img 
+                  src={memorial.qrCodePath} 
+                  alt="QR Code" 
+                  onError={(e) => {
+                    // If QR code image fails to load, show message
+                    e.target.style.display = 'none';
+                    const parent = e.target.parentElement;
+                    if (parent && !parent.querySelector('.qr-error-message')) {
+                      const errorMsg = document.createElement('div');
+                      errorMsg.className = 'qr-error-message';
+                      errorMsg.style.cssText = 'padding: 20px; text-align: center; color: #666; background: #f5f5f5; border-radius: 8px;';
+                      errorMsg.innerHTML = canEdit 
+                        ? '<p>❌ QR Code לא נטען. לחץ על "צור QR Code מחדש" כדי ליצור אותו.</p>'
+                        : '<p>❌ QR Code לא זמין כרגע. אם אתה הבעלים של הדף, התחבר כדי ליצור QR Code מחדש.</p>';
+                      parent.appendChild(errorMsg);
+                    }
+                  }}
+                />
               </div>
               <div className="qr-info">
                 <p>סרוק קוד זה כדי לגשת לדף הזיכרון במהירות</p>
@@ -681,6 +698,11 @@ function MemorialPage() {
                   >
                     {regeneratingQR ? 'יוצר מחדש...' : 'צור QR Code מחדש'}
                   </button>
+                )}
+                {!canEdit && (
+                  <p style={{ marginTop: '10px', fontSize: '0.9rem', color: '#666' }}>
+                    💡 אם אתה הבעלים של דף זה, התחבר כדי ליצור QR Code מחדש
+                  </p>
                 )}
                 <small>ניתן להדפיס ולהצמיד למצבה</small>
               </div>
