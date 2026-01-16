@@ -19,30 +19,30 @@
   force = true
   headers = {X-From = "Netlify"}
 
-# Proxy uploads to Railway backend
+# Proxy uploads to Railway backend - MUST come before catch-all
 [[redirects]]
   from = "/uploads/*"
   to = "https://memories-production-47ee.up.railway.app/uploads/:splat"
   status = 200
   force = true
+  headers = {X-From = "Netlify"}
 
-# Proxy QR codes to Railway backend
+# Proxy QR codes to Railway backend - MUST come before catch-all
 [[redirects]]
   from = "/qrcodes/*"
   to = "https://memories-production-47ee.up.railway.app/qrcodes/:splat"
   status = 200
   force = true
+  headers = {X-From = "Netlify"}
 
 # הגדרות redirects ל-React Router (MUST be last)
 # Exclude /api/*, /uploads/*, /qrcodes/*, /manifest.webmanifest, /sw.js from this redirect
-# Use force = false so it doesn't override API redirects
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
   force = false
-  conditions = {Role = ["admin"], Country = ["!*"]}
-  # This will NOT match manifest.webmanifest, sw.js, workbox-*.js because they are actual files
+  # Exclude specific paths from React Router redirect
 
 # הגדרות headers
 [[headers]]
