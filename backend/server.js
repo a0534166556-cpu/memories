@@ -1048,8 +1048,24 @@ app.post('/api/memorials', checkDbReady, optionalAuth, validateInput, upload.fie
     
     console.log('🔗 BASE_URL env var:', process.env.BASE_URL || 'NOT SET');
     console.log('🔗 Final baseUrl for QR code:', baseUrl);
+    
+    // CRITICAL: Ensure memorial ID is present
+    if (!id) {
+      console.error('❌ ERROR: No memorial ID provided for QR code generation!');
+      throw new Error('Memorial ID is required for QR code generation');
+    }
+    
     const memorialUrl = `${baseUrl}/memorial/${id}`;
+    console.log('🔗 Memorial ID:', id);
     console.log('🔗 Memorial URL for QR:', memorialUrl);
+    console.log('🔗 QR Code will contain URL:', memorialUrl);
+    
+    // Validate URL format
+    if (!memorialUrl.includes('/memorial/')) {
+      console.error('❌ ERROR: Memorial URL does not contain /memorial/ path!');
+      console.error('❌ URL:', memorialUrl);
+      throw new Error('Invalid memorial URL format');
+    }
     const qrCodePath = `qrcodes/${id}.png`;
     
     try {
