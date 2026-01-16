@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 import { getApiEndpoint } from '../config';
-import { FaSpinner, FaEdit, FaEye, FaLock } from 'react-icons/fa';
+import { FaSpinner, FaEdit, FaEye, FaLock, FaTrash } from 'react-icons/fa';
 import './ManageMemorials.css';
 
 function ManageMemorials() {
@@ -10,10 +10,35 @@ function ManageMemorials() {
   const [memorials, setMemorials] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     fetchMemorials();
+    checkAdminStatus();
   }, []);
+
+  const checkAdminStatus = async () => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      setIsAdmin(false);
+      return;
+    }
+
+    try {
+      const response = await axios.get(getApiEndpoint('/api/auth/me'), {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.data.success && response.data.user) {
+        setIsAdmin(response.data.user.email === 'a0534166556@gmal.com');
+      }
+    } catch (err) {
+      console.error('Error checking admin status:', err);
+      setIsAdmin(false);
+    }
+  };
 
   const fetchMemorials = async () => {
     const token = localStorage.getItem('token');
@@ -82,6 +107,50 @@ function ManageMemorials() {
     });
   };
 
+  const handleDelete = async (memorialId) => {
+    if (!window.confirm('האם אתה בטוח שאתה רוצה למחוק את דף הזיכרון הזה? פעולה זו לא ניתנת לביטול.')) {
+      return;
+    }
+
+    const token = localStorage.getItem('token');
+    try {
+      const response = await axios.delete(getApiEndpoint(`/api/memorials/${memorialId}`), {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+      });
+
+      if (response.data.success) {
+        // Refresh the list
+        fetchMemorials();
+      } else {
+        alert('שגיאה במחיקת דף הזיכרון');
+      }
+    } catch (err) {
+      console.error('Error deleting memorial:', err);
+      alert('שגיאה במחיקת דף הזיכרון: ' + (err.response?.data?.message || err.message));
+    }
+  };
+
+  const handleCleanupTestMemorials = async () => {
+    if (!window.confirm('האם אתה בטוח שאתה רוצה למחוק את כל דפי הבדיקה הישנים (ללא משתמש)? פעולה זו לא ניתנת לביטול.')) {
+      return;
+    }
+
+    try {
+      const response = await axios.delete(getApiEndpoint('/api/memorials/cleanup/test'));
+
+      if (response.data.success) {
+        alert(`נמחקו ${response.data.deletedCount} דפי בדיקה ישנים`);
+        // Refresh the list
+        fetchMemorials();
+      } else {
+        alert('שגיאה במחיקת דפי הבדיקה');
+      }
+    } catch (err) {
+      console.error('Error cleaning up test memorials:', err);
+      alert('שגיאה במחיקת דפי הבדיקה: ' + (err.response?.data?.message || err.message));
+    }
+  };
+
   if (loading) {
     return (
       <div className="manage-memorials-page">
@@ -131,9 +200,19 @@ function ManageMemorials() {
         ) : (
           <>
             <div className="actions-bar">
-              <Link to="/create" className="btn btn-primary" style={{ display: 'inline-block', padding: '12px 24px' }}>
+              <Link to="/create" className="btn btn-primary" style={{ display: 'inline-block', padding: '12px 24px', marginLeft: '10px' }}>
                 צור דף זיכרון חדש
               </Link>
+              {isAdmin && (
+                <button 
+                  onClick={handleCleanupTestMemorials}
+                  className="btn btn-outline" 
+                  style={{ display: 'inline-block', padding: '12px 24px', marginRight: '10px', background: '#fff', color: '#dc3545', borderColor: '#dc3545' }}
+                >
+                  <FaTrash style={{ marginLeft: '5px' }} />
+                  מחק דפי בדיקה ישנים
+                </button>
+              )}
             </div>
 
             <div className="memorials-grid">
@@ -188,6 +267,23 @@ function ManageMemorials() {
                         <button className="btn btn-disabled" disabled>
                           <FaLock style={{ marginLeft: '5px' }} />
                           נעול
+                        </button>
+                      )}
+                      {isAdmin && (
+                        <button
+                          onClick={() => handleDelete(memorial.id)}
+                          className="btn btn-outline"
+                          style={{ 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            justifyContent: 'center',
+                            background: '#fff',
+                            color: '#dc3545',
+                            borderColor: '#dc3545'
+                          }}
+                        >
+                          <FaTrash style={{ marginLeft: '5px' }} />
+                          מחק
                         </button>
                       )}
                     </div>

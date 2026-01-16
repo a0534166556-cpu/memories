@@ -1261,6 +1261,32 @@ app.get('/api/memorials', checkDbReady, async (req, res) => {
   }
 });
 
+// Delete all old test memorials (with no userId) - for admin only
+app.delete('/api/memorials/cleanup/test', checkDbReady, authenticateToken, async (req, res) => {
+  try {
+    // Only admin can cleanup test memorials
+    if (!isAdmin(req.user)) {
+      return res.status(403).json({ success: false, message: 'רק מנהל יכול למחוק דפי בדיקה ישנים' });
+    }
+    
+    await ensureDbConnection();
+    
+    // Delete all memorials where userId is NULL (old test memorials)
+    const [result] = await db.execute('DELETE FROM memorials WHERE userId IS NULL OR userId = ""');
+    
+    const deletedCount = result.affectedRows || 0;
+    
+    res.json({ 
+      success: true, 
+      message: `נמחקו ${deletedCount} דפי בדיקה ישנים`,
+      deletedCount: deletedCount
+    });
+  } catch (err) {
+    console.error('Error cleaning up test memorials:', err);
+    handleDbError(err, res);
+  }
+});
+
 // Get all memorials for the authenticated user
 app.get('/api/memorials/user/my', checkDbReady, authenticateToken, async (req, res) => {
   try {
@@ -1285,6 +1311,42 @@ app.get('/api/memorials/user/my', checkDbReady, authenticateToken, async (req, r
     res.json({ success: true, memorials });
   } catch (err) {
     console.error('Error fetching user memorials:', err);
+    handleDbError(err, res);
+  }
+});
+
+// Helper function to check if user is admin
+const isAdmin = (user) => {
+  return user && user.email === 'a0534166556@gmal.com';
+};
+
+// Delete memorial (only for admin)
+app.delete('/api/memorials/:id', checkDbReady, authenticateToken, async (req, res) => {
+  try {
+    // Only admin can delete memorials
+    if (!isAdmin(req.user)) {
+      return res.status(403).json({ success: false, message: 'רק מנהל יכול למחוק דפי זיכרון' });
+    }
+    
+    const { id } = req.params;
+    await ensureDbConnection();
+    
+    // Check if memorial exists
+    const [memorialRows] = await db.execute('SELECT * FROM memorials WHERE id = ?', [id]);
+    
+    if (memorialRows.length === 0) {
+      return res.status(404).json({ success: false, message: 'דף זיכרון לא נמצא' });
+    }
+    
+    // Delete memorial from database
+    await db.execute('DELETE FROM memorials WHERE id = ?', [id]);
+    
+    // TODO: Optionally delete files from disk (images, videos, QR codes)
+    // For now, just delete from database
+    
+    res.json({ success: true, message: 'דף הזיכרון נמחק בהצלחה' });
+  } catch (err) {
+    console.error('Error deleting memorial:', err);
     handleDbError(err, res);
   }
 });
