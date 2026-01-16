@@ -999,9 +999,30 @@ app.post('/api/memorials', checkDbReady, optionalAuth, validateInput, upload.fie
     // Generate QR Code
     // Use BASE_URL from environment if available, otherwise use request host
     // IMPORTANT: BASE_URL should be set to Netlify URL (e.g., https://memoriesman.netlify.app)
-    const baseUrl = process.env.BASE_URL || `${req.protocol}://${req.get('host')}`;
-    console.log('🔗 QR Code baseUrl:', baseUrl);
+    let baseUrl = process.env.BASE_URL;
+    
+    // If BASE_URL not set, try to detect Netlify URL from request
+    if (!baseUrl) {
+      // Check if request came from Netlify (X-Forwarded-Host header)
+      const forwardedHost = req.get('X-Forwarded-Host');
+      if (forwardedHost && forwardedHost.includes('netlify.app')) {
+        baseUrl = `${req.protocol}://${forwardedHost}`;
+        console.log('🔗 Detected Netlify URL from X-Forwarded-Host:', baseUrl);
+      } else {
+        // Fallback to request host (might be Railway URL - not ideal!)
+        baseUrl = `${req.protocol}://${req.get('host')}`;
+        console.log('⚠️ Using request host as baseUrl (might be Railway!):', baseUrl);
+      }
+    }
+    
+    // Default fallback to Netlify URL if nothing else works
+    if (!baseUrl || baseUrl.includes('railway.app')) {
+      baseUrl = 'https://memoriesman.netlify.app';
+      console.log('🔗 Using default Netlify URL:', baseUrl);
+    }
+    
     console.log('🔗 BASE_URL env var:', process.env.BASE_URL || 'NOT SET');
+    console.log('🔗 Final baseUrl for QR code:', baseUrl);
     const memorialUrl = `${baseUrl}/memorial/${id}`;
     console.log('🔗 Memorial URL for QR:', memorialUrl);
     const qrCodePath = `qrcodes/${id}.png`;
@@ -1324,6 +1345,82 @@ app.get('/api/memorials/user/my', checkDbReady, authenticateToken, async (req, r
   } catch (err) {
     console.error('Error fetching user memorials:', err);
     handleDbError(err, res);
+  }
+});
+
+// Regenerate QR code for existing memorial
+app.post('/api/memorials/:id/regenerate-qr', checkDbReady, authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    await ensureDbConnection();
+    
+    // Get memorial
+    const [rows] = await db.execute('SELECT * FROM memorials WHERE id = ?', [id]);
+    if (rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Memorial not found' });
+    }
+    
+    const memorial = rows[0];
+    
+    // Check if user owns this memorial or is admin
+    if (memorial.userId !== req.user.id && !isAdmin(req.user)) {
+      return res.status(403).json({ success: false, error: 'Unauthorized' });
+    }
+    
+    // Generate new QR code with correct URL
+    let baseUrl = process.env.BASE_URL;
+    
+    // If BASE_URL not set, try to detect Netlify URL from request
+    if (!baseUrl) {
+      const forwardedHost = req.get('X-Forwarded-Host');
+      if (forwardedHost && forwardedHost.includes('netlify.app')) {
+        baseUrl = `${req.protocol}://${forwardedHost}`;
+      } else {
+        baseUrl = `${req.protocol}://${req.get('host')}`;
+      }
+    }
+    
+    // Default fallback to Netlify URL if nothing else works
+    if (!baseUrl || baseUrl.includes('railway.app')) {
+      baseUrl = 'https://memoriesman.netlify.app';
+    }
+    
+    const memorialUrl = `${baseUrl}/memorial/${id}`;
+    const qrCodePath = `qrcodes/${id}.png`;
+    
+    try {
+      // Ensure qrcodes directory exists
+      if (!fs.existsSync('qrcodes')) {
+        fs.mkdirSync('qrcodes', { recursive: true });
+      }
+      
+      // Generate new QR code
+      await QRCode.toFile(qrCodePath, memorialUrl);
+      console.log('✅ QR Code regenerated successfully:', qrCodePath);
+      
+      // Update database
+      await db.execute(
+        'UPDATE memorials SET qrCodePath = ? WHERE id = ?',
+        [`/${qrCodePath}`, id]
+      );
+      
+      res.json({
+        success: true,
+        qrCodePath: `/${qrCodePath}`,
+        url: memorialUrl,
+        message: 'QR Code נוצר מחדש בהצלחה'
+      });
+    } catch (qrError) {
+      console.error('❌ Error regenerating QR code:', qrError);
+      return res.status(500).json({ 
+        success: false, 
+        error: 'Failed to regenerate QR code',
+        details: qrError.message 
+      });
+    }
+  } catch (err) {
+    console.error('Error regenerating QR code:', err);
+    return res.status(500).json({ success: false, error: err.message });
   }
 });
 

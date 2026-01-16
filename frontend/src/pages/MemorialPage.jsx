@@ -27,18 +27,109 @@ function MemorialPage() {
   const [condolenceForm, setCondolenceForm] = useState({ name: '', message: '' });
   const [submittingCondolence, setSubmittingCondolence] = useState(false);
   const [showMishnayot, setShowMishnayot] = useState(false);
+  const [canEdit, setCanEdit] = useState(false);
+  const [regeneratingQR, setRegeneratingQR] = useState(false);
   const audioRef = useRef(null);
+
+  // Helper function to normalize image/video paths - ensure they start with /
+  const normalizePath = (path) => {
+    if (!path) return '';
+    // If already a full URL, return as-is
+    if (path.startsWith('http://') || path.startsWith('https://')) {
+      return path;
+    }
+    // Ensure path starts with / so Netlify can proxy it correctly
+    return path.startsWith('/') ? path : `/${path}`;
+  };
 
   const fetchMemorial = async () => {
     try {
       const response = await axios.get(getApiEndpoint(`/api/memorials/${id}`));
       if (response.data.success) {
-        setMemorial(response.data.memorial);
+        const memorialData = response.data.memorial;
+        
+        // Check if user can edit (must be logged in)
+        const token = localStorage.getItem('token');
+        if (token) {
+          try {
+            // Try to get user's memorials to check if they own this one
+            const userResponse = await axios.get(getApiEndpoint('/api/memorials/user/my'), {
+              headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (userResponse.data.success) {
+              const ownedMemorial = userResponse.data.memorials.find(m => m.id === id);
+              setCanEdit(ownedMemorial && (ownedMemorial.canEdit !== false));
+            }
+          } catch (err) {
+            // Silently fail - user might not own this memorial
+            setCanEdit(false);
+          }
+        }
+        
+        // Normalize all image and video paths
+        if (memorialData.images && Array.isArray(memorialData.images)) {
+          memorialData.images = memorialData.images.map(normalizePath);
+        }
+        if (memorialData.videos && Array.isArray(memorialData.videos)) {
+          memorialData.videos = memorialData.videos.map(normalizePath);
+        }
+        if (memorialData.heroImage) {
+          memorialData.heroImage = normalizePath(memorialData.heroImage);
+        }
+        if (memorialData.qrCodePath) {
+          memorialData.qrCodePath = normalizePath(memorialData.qrCodePath);
+        }
+        if (memorialData.backgroundMusic) {
+          memorialData.backgroundMusic = normalizePath(memorialData.backgroundMusic);
+        }
+        
+        setMemorial(memorialData);
       }
     } catch (error) {
       console.error('Error fetching memorial:', error);
     } finally {
       setLoading(false);
+    }
+  };
+  
+  const regenerateQRCode = async () => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      alert('נדרש להתחבר כדי ליצור QR code מחדש');
+      return;
+    }
+    
+    setRegeneratingQR(true);
+    try {
+      const response = await axios.post(
+        getApiEndpoint(`/api/memorials/${id}/regenerate-qr`),
+        {},
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        }
+      );
+      
+      if (response.data.success) {
+        // Update memorial with new QR code path
+        setMemorial(prev => ({
+          ...prev,
+          qrCodePath: normalizePath(response.data.qrCodePath)
+        }));
+        alert('QR Code נוצר מחדש בהצלחה!');
+      }
+    } catch (error) {
+      console.error('Error regenerating QR code:', error);
+      if (error.response?.status === 403) {
+        alert('אין לך הרשאה לערוך את דף הזיכרון הזה');
+      } else if (error.response?.status === 401) {
+        alert('ההתחברות פגה. אנא התחבר שוב.');
+      } else {
+        alert('שגיאה ביצירת QR code מחדש. אנא נסה שוב.');
+      }
+    } finally {
+      setRegeneratingQR(false);
     }
   };
 
@@ -581,6 +672,16 @@ function MemorialPage() {
                 <button className="btn btn-secondary" onClick={downloadQRCode}>
                   <FaDownload /> הורד QR Code
                 </button>
+                {canEdit && (
+                  <button 
+                    className="btn btn-secondary" 
+                    onClick={regenerateQRCode}
+                    disabled={regeneratingQR}
+                    style={{ marginTop: '10px', marginLeft: '0' }}
+                  >
+                    {regeneratingQR ? 'יוצר מחדש...' : 'צור QR Code מחדש'}
+                  </button>
+                )}
                 <small>ניתן להדפיס ולהצמיד למצבה</small>
               </div>
             </div>
