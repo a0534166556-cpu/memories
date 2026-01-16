@@ -997,28 +997,53 @@ app.post('/api/memorials', checkDbReady, optionalAuth, validateInput, upload.fie
     }
     
     // Generate QR Code
-    // Use BASE_URL from environment if available, otherwise use request host
-    // IMPORTANT: BASE_URL should be set to Netlify URL (e.g., https://memoriesman.netlify.app)
+    // IMPORTANT: QR codes MUST always point to Netlify URL, never Railway URL
+    // This is because QR codes are scanned by users who should access the frontend, not the backend API
     let baseUrl = process.env.BASE_URL;
     
-    // If BASE_URL not set, try to detect Netlify URL from request
-    if (!baseUrl) {
-      // Check if request came from Netlify (X-Forwarded-Host header)
-      const forwardedHost = req.get('X-Forwarded-Host');
-      if (forwardedHost && forwardedHost.includes('netlify.app')) {
-        baseUrl = `${req.protocol}://${forwardedHost}`;
-        console.log('🔗 Detected Netlify URL from X-Forwarded-Host:', baseUrl);
-      } else {
-        // Fallback to request host (might be Railway URL - not ideal!)
-        baseUrl = `${req.protocol}://${req.get('host')}`;
-        console.log('⚠️ Using request host as baseUrl (might be Railway!):', baseUrl);
+    // Normalize BASE_URL if it exists
+    if (baseUrl) {
+      baseUrl = baseUrl.trim();
+      // Remove trailing slash
+      if (baseUrl.endsWith('/')) {
+        baseUrl = baseUrl.slice(0, -1);
       }
     }
     
-    // Default fallback to Netlify URL if nothing else works
-    if (!baseUrl || baseUrl.includes('railway.app')) {
+    // Check various headers to detect Netlify URL
+    const forwardedHost = req.get('X-Forwarded-Host') || req.get('host');
+    const referer = req.get('referer') || req.get('origin') || '';
+    
+    // Try to extract Netlify URL from referer/origin if BASE_URL not set
+    if (!baseUrl && referer) {
+      try {
+        const refererUrl = new URL(referer);
+        if (refererUrl.hostname.includes('netlify.app')) {
+          baseUrl = `${refererUrl.protocol}//${refererUrl.hostname}`;
+          console.log('🔗 Detected Netlify URL from referer:', baseUrl);
+        }
+      } catch (e) {
+        // Ignore URL parsing errors
+      }
+    }
+    
+    // Try X-Forwarded-Host header
+    if (!baseUrl && forwardedHost && forwardedHost.includes('netlify.app')) {
+      const protocol = req.get('X-Forwarded-Proto') || req.protocol || 'https';
+      baseUrl = `${protocol}://${forwardedHost}`;
+      console.log('🔗 Detected Netlify URL from X-Forwarded-Host:', baseUrl);
+    }
+    
+    // ALWAYS use Netlify URL as fallback - NEVER use Railway URL for QR codes
+    if (!baseUrl || baseUrl.includes('railway.app') || baseUrl.includes('localhost') || baseUrl.includes('127.0.0.1')) {
       baseUrl = 'https://memoriesman.netlify.app';
-      console.log('🔗 Using default Netlify URL:', baseUrl);
+      console.log('🔗 Using default Netlify URL (fallback):', baseUrl);
+    }
+    
+    // Final validation - ensure it's Netlify URL
+    if (!baseUrl.includes('netlify.app')) {
+      console.log('⚠️ WARNING: baseUrl does not contain netlify.app, forcing to Netlify URL');
+      baseUrl = 'https://memoriesman.netlify.app';
     }
     
     console.log('🔗 BASE_URL env var:', process.env.BASE_URL || 'NOT SET');
@@ -1368,20 +1393,46 @@ app.post('/api/memorials/:id/regenerate-qr', checkDbReady, authenticateToken, as
     }
     
     // Generate new QR code with correct URL
+    // IMPORTANT: QR codes MUST always point to Netlify URL, never Railway URL
     let baseUrl = process.env.BASE_URL;
     
-    // If BASE_URL not set, try to detect Netlify URL from request
-    if (!baseUrl) {
-      const forwardedHost = req.get('X-Forwarded-Host');
-      if (forwardedHost && forwardedHost.includes('netlify.app')) {
-        baseUrl = `${req.protocol}://${forwardedHost}`;
-      } else {
-        baseUrl = `${req.protocol}://${req.get('host')}`;
+    // Normalize BASE_URL if it exists
+    if (baseUrl) {
+      baseUrl = baseUrl.trim();
+      if (baseUrl.endsWith('/')) {
+        baseUrl = baseUrl.slice(0, -1);
       }
     }
     
-    // Default fallback to Netlify URL if nothing else works
-    if (!baseUrl || baseUrl.includes('railway.app')) {
+    // Check various headers to detect Netlify URL
+    const forwardedHost = req.get('X-Forwarded-Host') || req.get('host');
+    const referer = req.get('referer') || req.get('origin') || '';
+    
+    // Try to extract Netlify URL from referer/origin if BASE_URL not set
+    if (!baseUrl && referer) {
+      try {
+        const refererUrl = new URL(referer);
+        if (refererUrl.hostname.includes('netlify.app')) {
+          baseUrl = `${refererUrl.protocol}//${refererUrl.hostname}`;
+        }
+      } catch (e) {
+        // Ignore URL parsing errors
+      }
+    }
+    
+    // Try X-Forwarded-Host header
+    if (!baseUrl && forwardedHost && forwardedHost.includes('netlify.app')) {
+      const protocol = req.get('X-Forwarded-Proto') || req.protocol || 'https';
+      baseUrl = `${protocol}://${forwardedHost}`;
+    }
+    
+    // ALWAYS use Netlify URL as fallback - NEVER use Railway URL for QR codes
+    if (!baseUrl || baseUrl.includes('railway.app') || baseUrl.includes('localhost') || baseUrl.includes('127.0.0.1')) {
+      baseUrl = 'https://memoriesman.netlify.app';
+    }
+    
+    // Final validation - ensure it's Netlify URL
+    if (!baseUrl.includes('netlify.app')) {
       baseUrl = 'https://memoriesman.netlify.app';
     }
     
