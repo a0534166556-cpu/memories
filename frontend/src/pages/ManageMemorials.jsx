@@ -17,6 +17,11 @@ function ManageMemorials() {
     checkAdminStatus();
   }, []);
 
+  // Debug: Log admin status whenever it changes
+  useEffect(() => {
+    console.log('🔍 Admin status changed:', isAdmin);
+  }, [isAdmin]);
+
   const checkAdminStatus = async () => {
     const token = localStorage.getItem('token');
     if (!token) {
@@ -31,8 +36,18 @@ function ManageMemorials() {
         }
       });
 
+      console.log('Admin check - API response:', response.data);
       if (response.data.success && response.data.user) {
-        setIsAdmin(response.data.user.email === 'a0534166556@gmal.com');
+        const userEmail = response.data.user.email;
+        // Normalize email for comparison (lowercase and trim)
+        const normalizedUserEmail = userEmail ? userEmail.toLowerCase().trim() : '';
+        const adminEmail = 'a0534166556@gmal.com';
+        const isAdminUser = normalizedUserEmail === adminEmail;
+        console.log('Admin check - User email:', userEmail, 'Normalized:', normalizedUserEmail, 'Admin email:', adminEmail, 'Is admin:', isAdminUser);
+        setIsAdmin(isAdminUser);
+      } else {
+        console.log('Admin check - No user data in response');
+        setIsAdmin(false);
       }
     } catch (err) {
       console.error('Error checking admin status:', err);

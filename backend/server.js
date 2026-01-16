@@ -1317,7 +1317,16 @@ app.get('/api/memorials/user/my', checkDbReady, authenticateToken, async (req, r
 
 // Helper function to check if user is admin
 const isAdmin = (user) => {
-  return user && user.email === 'a0534166556@gmal.com';
+  if (!user || !user.email) {
+    console.log('❌ isAdmin check: No user or email');
+    return false;
+  }
+  // Normalize email for comparison (lowercase and trim)
+  const normalizedUserEmail = user.email.toLowerCase().trim();
+  const adminEmail = 'a0534166556@gmal.com';
+  const isAdminResult = normalizedUserEmail === adminEmail;
+  console.log('🔍 isAdmin check - User email:', user.email, 'Normalized:', normalizedUserEmail, 'Admin email:', adminEmail, 'Result:', isAdminResult);
+  return isAdminResult;
 };
 
 // Delete memorial (only for admin)
