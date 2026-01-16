@@ -41,7 +41,7 @@ function ManageMemorials() {
         const userEmail = response.data.user.email;
         // Normalize email for comparison (lowercase and trim)
         const normalizedUserEmail = userEmail ? userEmail.toLowerCase().trim() : '';
-        const adminEmail = 'a0534166556@gmal.com';
+        const adminEmail = 'a0534166556@gmail.com';
         const isAdminUser = normalizedUserEmail === adminEmail;
         console.log('Admin check - User email:', userEmail, 'Normalized:', normalizedUserEmail, 'Admin email:', adminEmail, 'Is admin:', isAdminUser);
         setIsAdmin(isAdminUser);

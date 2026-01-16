@@ -1323,7 +1323,7 @@ const isAdmin = (user) => {
   }
   // Normalize email for comparison (lowercase and trim)
   const normalizedUserEmail = user.email.toLowerCase().trim();
-  const adminEmail = 'a0534166556@gmal.com';
+  const adminEmail = 'a0534166556@gmail.com';
   const isAdminResult = normalizedUserEmail === adminEmail;
   console.log('🔍 isAdmin check - User email:', user.email, 'Normalized:', normalizedUserEmail, 'Admin email:', adminEmail, 'Result:', isAdminResult);
   return isAdminResult;
