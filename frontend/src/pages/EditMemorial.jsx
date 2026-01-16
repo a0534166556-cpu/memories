@@ -3,6 +3,8 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useDropzone } from 'react-dropzone';
 import axios from 'axios';
 import { getApiEndpoint } from '../config';
+import { tehilimData } from '../data/tehilim';
+import { mishnayotData } from '../data/mishnayot';
 import { FaUpload, FaTrash, FaArrowRight, FaPlus, FaMusic, FaSpinner } from 'react-icons/fa';
 import './CreateMemorial.css';
 
@@ -79,7 +81,8 @@ function EditMemorial() {
           if (memorial.images) {
             setExistingImages(memorial.images);
             const imagePreviews = memorial.images.map(img => ({
-              url: img.startsWith('http') ? img : getApiEndpoint(img),
+              // Use img path as-is - Netlify handles redirects to Railway
+              url: img.startsWith('http') ? img : img,
               type: 'image/',
               name: 'existing',
               isExisting: true,
@@ -270,20 +273,15 @@ function EditMemorial() {
     });
   };
 
-  const popularChapters = [1, 23, 91, 103, 121, 130, 150];
-  const popularMishnayot = [
-    'ברכות א', 'ברכות ב', 'ברכות ט', 'פאה א', 'שבת א', 'שבת ז',
-    'ראש השנה א', 'יומא ח', 'כתובות א', 'קידושין א', 'מכות א',
-    'אבות א', 'אבות ב', 'אבות ג'
-  ];
+  // Get available chapters from tehilimData - these are all the chapters we have full text for
+  // All these chapters are considered "popular" since they're the only ones available
+  const availableChapters = Object.keys(tehilimData).map(num => parseInt(num)).sort((a, b) => a - b);
+  const popularChapters = availableChapters; // All available chapters are considered popular
 
-  const mishnayotTractates = [
-    // ... (same as CreateMemorial - I'll include a shorter version for brevity)
-    { name: 'ברכות', chapters: ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ז', 'ח', 'ט'] },
-    { name: 'שבת', chapters: ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ז', 'ח', 'ט', 'י'] },
-    { name: 'אבות', chapters: ['א', 'ב', 'ג', 'ד', 'ה', 'ו'] }
-    // ... (add all tractates from CreateMemorial)
-  ];
+  // Get available Mishnayot from mishnayotData - these are all the Mishnayot we have full text for
+  // All these Mishnayot are considered "popular" since they're the only ones available
+  const availableMishnayot = Object.keys(mishnayotData).sort();
+  const popularMishnayot = availableMishnayot; // All available Mishnayot are considered popular
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -389,16 +387,6 @@ function EditMemorial() {
     );
   }
 
-  // Note: EditMemorial uses the same form structure as CreateMemorial
-  // For the full form JSX, see CreateMemorial.jsx - it's identical except for:
-  // 1. Title: "עריכת דף זיכרון" instead of "יצירת דף זיכרון חדש"
-  // 2. Submit button: "שמור שינויים" instead of "צור דף זיכרון"
-  // 3. Uses PUT request instead of POST
-  // 4. Loads existing data on mount
-  
-  // Importing CreateMemorial form structure would be ideal, but for now
-  // we'll redirect to note that EditMemorial needs the full form JSX copied
-  
   return (
     <div className="create-memorial">
       <div className="create-container">
@@ -413,17 +401,498 @@ function EditMemorial() {
           </div>
         )}
 
-        <p style={{ padding: '20px', textAlign: 'center', color: '#666' }}>
-          ⚠️ דף זה זקוק להשלמת הטופס המלא. נא להעתיק את כל ה-JSX של הטופס מ-CreateMemorial.jsx
-          <br />
-          (הכל זהה, רק לשנות את הכותרת וכפתור השליחה)
-        </p>
-        
-        <div className="form-actions">
-          <button type="button" className="btn btn-secondary" onClick={() => navigate('/manage')}>
-            חזרה לניהול דפים
-          </button>
-        </div>
+        <form onSubmit={handleSubmit} className="memorial-form">
+          <div className="form-section">
+            <h2>פרטים אישיים</h2>
+            
+            <div className="form-group">
+              <label htmlFor="name">שם מלא *</label>
+              <input
+                type="text"
+                id="name"
+                name="name"
+                value={formData.name}
+                onChange={handleChange}
+                required
+                placeholder="לדוגמה: יעקב כהן"
+              />
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="hebrewName">שם עברי</label>
+              <input
+                type="text"
+                id="hebrewName"
+                name="hebrewName"
+                value={formData.hebrewName}
+                onChange={handleChange}
+                placeholder="לדוגמה: יעקב בן אברהם ושרה"
+              />
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="headerImage">תמונה לכותרת (אופציונלי)</label>
+              <div className="header-image-upload">
+                <input
+                  type="file"
+                  id="headerImage"
+                  accept="image/*"
+                  onChange={(e) => {
+                    const file = e.target.files[0];
+                    if (file) {
+                      setHeaderImage(file);
+                      const reader = new FileReader();
+                      reader.onload = (e) => {
+                        setHeaderImagePreview(e.target.result);
+                      };
+                      reader.readAsDataURL(file);
+                    }
+                  }}
+                  style={{ display: 'none' }}
+                />
+                {headerImagePreview || existingHeroImage ? (
+                  <div className="header-image-preview">
+                    <img src={headerImagePreview || existingHeroImage} alt="תצוגה מקדימה" />
+                    <button
+                      type="button"
+                      className="btn-remove-header-image"
+                      onClick={() => {
+                        setHeaderImage(null);
+                        setHeaderImagePreview(null);
+                        setExistingHeroImage(null);
+                      }}
+                    >
+                      <FaTrash /> הסר תמונה
+                    </button>
+                  </div>
+                ) : (
+                  <label htmlFor="headerImage" className="header-image-upload-btn">
+                    <FaUpload /> בחר תמונה לכותרת
+                  </label>
+                )}
+              </div>
+              <small>התמונה תוצג ליד השם בחלק העליון של דף הזיכרון</small>
+            </div>
+
+            <div className="form-row">
+              <div className="form-group">
+                <label htmlFor="birthDate">תאריך לידה</label>
+                <input
+                  type="date"
+                  id="birthDate"
+                  name="birthDate"
+                  value={formData.birthDate}
+                  onChange={handleChange}
+                />
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="deathDate">תאריך פטירה</label>
+                <input
+                  type="date"
+                  id="deathDate"
+                  name="deathDate"
+                  value={formData.deathDate}
+                  onChange={handleChange}
+                />
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="biography">היסטוריה ותיאור חיים</label>
+              <textarea
+                id="biography"
+                name="biography"
+                value={formData.biography}
+                onChange={handleChange}
+                rows="6"
+                placeholder="ספר על חייו, משפחתו, הישגיו וזיכרונות מיוחדים..."
+              />
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="heroSummary">תקציר פתיח</label>
+              <textarea
+                id="heroSummary"
+                name="heroSummary"
+                value={formData.heroSummary}
+                onChange={handleChange}
+                rows="3"
+                placeholder="כמה משפטים שיופיעו בפתיח הדף לדוגמה: מחנך, מתנדב ואב מסור..."
+              />
+              <small>הטקסט יופיע לצד התמונה הראשית בחלק העליון של דף הזיכרון.</small>
+            </div>
+
+          <div className="form-group">
+            <div className="timeline-header">
+              <h3>ציר זיכרון (לא חובה)</h3>
+              <p>הוסיפו רגעים משמעותיים כדי להציגם בדף הזיכרון במבנה כרונולוגי.</p>
+            </div>
+
+            <div className="timeline-builder">
+              {timelineEntries.length === 0 && (
+                <div className="timeline-empty">
+                  <p>טרם הוספתם אירועים. לחיצה על הכפתור תאפשר להוסיף רגעים חשובים מחייו.</p>
+                </div>
+              )}
+
+              {timelineEntries.map((entry, index) => (
+                <div key={index} className="timeline-entry">
+                  <div className="timeline-entry-row">
+                    <div className="timeline-field">
+                      <label htmlFor={`timeline-year-${index}`}>שנה</label>
+                      <input
+                        type="text"
+                        id={`timeline-year-${index}`}
+                        value={entry.year}
+                        onChange={(e) => updateTimelineEntry(index, 'year', e.target.value)}
+                        placeholder="לדוגמה: 1976"
+                      />
+                    </div>
+                    <div className="timeline-field">
+                      <label htmlFor={`timeline-title-${index}`}>כותרת קצרה</label>
+                      <input
+                        type="text"
+                        id={`timeline-title-${index}`}
+                        value={entry.title}
+                        onChange={(e) => updateTimelineEntry(index, 'title', e.target.value)}
+                        placeholder="לדוגמה: הקמת המשפחה"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="timeline-field">
+                    <label htmlFor={`timeline-description-${index}`}>תיאור האירוע</label>
+                    <textarea
+                      id={`timeline-description-${index}`}
+                      value={entry.description}
+                      onChange={(e) => updateTimelineEntry(index, 'description', e.target.value)}
+                      rows="3"
+                      placeholder="ספרו בכמה משפטים על הרגע, על האנשים שהיו שם ועל התחושות."
+                    />
+                  </div>
+
+                  <button
+                    type="button"
+                    className="timeline-remove"
+                    onClick={() => removeTimelineEntry(index)}
+                  >
+                    <FaTrash /> הסרת אירוע
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            <button
+              type="button"
+              className="btn btn-secondary timeline-add"
+              onClick={addTimelineEntry}
+            >
+              <FaPlus /> הוסף אירוע לציר
+            </button>
+            <small>אין חובה להוסיף ציר זיכרון – ניתן להשאיר ריק לחלוטין.</small>
+          </div>
+
+            <div className="form-group">
+              <label htmlFor="tehilimChapters">פרקי תהילים</label>
+              <div className="tehilim-selector-wrapper">
+                <div className="tehilim-input-row">
+                  <input
+                    type="text"
+                    id="tehilimChapters"
+                    name="tehilimChapters"
+                    value={formData.tehilimChapters}
+                    onChange={handleChange}
+                    placeholder="לדוגמה: 1,23,121,130"
+                    readOnly
+                  />
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => setShowTehilimSelector(!showTehilimSelector)}
+                  >
+                    {showTehilimSelector ? 'סגור בחירה' : 'בחר פרקים'}
+                  </button>
+                </div>
+                
+                {showTehilimSelector && (
+                  <div className="tehilim-selector">
+                    <div className="tehilim-popular">
+                      <h4>פרקי תהילים זמינים</h4>
+                      <p style={{ fontSize: '0.9rem', color: '#666', marginBottom: '15px' }}>
+                        כל הפרקים הבאים זמינים לקריאה בדף הזיכרון. ניתן לבחור כמה פרקים שרוצים.
+                      </p>
+                      <div className="tehilim-popular-grid">
+                        {availableChapters.map(ch => (
+                          <label key={ch} className="tehilim-checkbox">
+                            <input
+                              type="checkbox"
+                              checked={selectedChapters.includes(ch)}
+                              onChange={() => toggleChapter(ch)}
+                            />
+                            <span>פרק {ch}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                    
+                    <div className="tehilim-selected-info">
+                      <p>נבחרו: {selectedChapters.length} פרקים</p>
+                      {selectedChapters.length > 0 && (
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-sm"
+                          onClick={() => {
+                            setSelectedChapters([]);
+                            setFormData({ ...formData, tehilimChapters: '' });
+                          }}
+                        >
+                          נקה הכל
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
+                <small>הפרקים שיוצגו בדף הזיכרון לקריאה. רק הפרקים שיש להם טקסט מלא זמינים לבחירה.</small>
+              </div>
+            </div>
+
+            {/* Mishnayot Section */}
+            <div className="form-group">
+              <label htmlFor="mishnayot">משניות</label>
+              <div className="tehilim-selector-wrapper">
+                <div className="tehilim-input-row">
+                  <input
+                    type="text"
+                    id="mishnayot"
+                    name="mishnayot"
+                    value={formData.mishnayot}
+                    onChange={handleChange}
+                    placeholder="לדוגמה: ברכות א, ברכות ב, שבת א"
+                    readOnly
+                  />
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => setShowMishnayotSelector(!showMishnayotSelector)}
+                  >
+                    {showMishnayotSelector ? 'סגור בחירה' : 'בחר משניות'}
+                  </button>
+                </div>
+                
+                {showMishnayotSelector && (
+                  <div className="tehilim-selector">
+                    <div className="tehilim-popular">
+                      <h4>משניות זמינות</h4>
+                      <p style={{ fontSize: '0.9rem', color: '#666', marginBottom: '15px' }}>
+                        כל המשניות הבאות זמינות לקריאה בדף הזיכרון. ניתן לבחור כמה משניות שרוצים.
+                      </p>
+                      <div className="tehilim-popular-grid">
+                        {availableMishnayot.map(mishna => (
+                          <label key={mishna} className="tehilim-checkbox">
+                            <input
+                              type="checkbox"
+                              checked={selectedMishnayot.includes(mishna)}
+                              onChange={() => toggleMishna(mishna)}
+                            />
+                            <span>{mishna}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                    
+                    <div className="tehilim-selected-info">
+                      <p>נבחרו: {selectedMishnayot.length} משניות</p>
+                      {selectedMishnayot.length > 0 && (
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-sm"
+                          onClick={() => {
+                            setSelectedMishnayot([]);
+                            setFormData({ ...formData, mishnayot: '' });
+                          }}
+                        >
+                          נקה הכל
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
+                <small>המשניות שיוצגו בדף הזיכרון לקריאה. רק המשניות שיש להן טקסט מלא זמינות לבחירה.</small>
+              </div>
+            </div>
+          </div>
+
+          <div className="form-section">
+            <h2>תמונות וסרטונים</h2>
+            
+            <div {...getRootProps()} className={`dropzone ${isDragActive ? 'active' : ''}`}>
+              <input {...getInputProps()} />
+              <FaUpload className="upload-icon" />
+              {isDragActive ? (
+                <p>שחרר את הקבצים כאן...</p>
+              ) : (
+                <>
+                  <p>גרור ושחרר קבצים כאן, או לחץ לבחירה</p>
+                  <small>תמונות: JPG, PNG, GIF | סרטונים: MP4, MOV, AVI</small>
+                </>
+              )}
+            </div>
+
+            <div className="form-group music-upload">
+              <label>שיר רקע למצגת (אופציונלי)</label>
+              
+              <div className="music-mode-selector">
+                <button
+                  type="button"
+                  className={`music-mode-btn ${musicMode === 'select' ? 'active' : ''}`}
+                  onClick={() => {
+                    setMusicMode('select');
+                    setBackgroundMusic(null);
+                  }}
+                >
+                  <FaMusic /> בחר משירים קיימים
+                </button>
+                <button
+                  type="button"
+                  className={`music-mode-btn ${musicMode === 'upload' ? 'active' : ''}`}
+                  onClick={() => {
+                    setMusicMode('upload');
+                    setSelectedMusicPath(null);
+                  }}
+                >
+                  <FaUpload /> העלה שיר חדש
+                </button>
+              </div>
+
+              {musicMode === 'select' ? (
+                <div className="music-selector">
+                  {availableMusic.length > 0 ? (
+                    <>
+                      <select
+                        className="music-select"
+                        value={selectedMusicPath || ''}
+                        onChange={(e) => {
+                          setSelectedMusicPath(e.target.value || null);
+                        }}
+                      >
+                        <option value="">-- בחר שיר --</option>
+                        {availableMusic.map((music) => (
+                          <option key={music.path} value={music.path}>
+                            {music.displayName}
+                          </option>
+                        ))}
+                      </select>
+                      {selectedMusicPath && (
+                        <button
+                          type="button"
+                          className="btn-remove-music"
+                          onClick={() => setSelectedMusicPath(null)}
+                        >
+                          <FaTrash /> הסר שיר
+                        </button>
+                      )}
+                    </>
+                  ) : (
+                    <p className="no-music-message">
+                      אין שירים זמינים. העלה שיר חדש או הוסף קבצי אודיו לתיקייה backend/uploads/audio
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <div className="music-upload-section">
+                  <input
+                    type="file"
+                    id="backgroundMusic"
+                    accept="audio/*"
+                    onChange={(e) => {
+                      if (e.target.files[0]) {
+                        setBackgroundMusic(e.target.files[0]);
+                      }
+                    }}
+                    style={{ display: 'none' }}
+                  />
+                  <label htmlFor="backgroundMusic" className="music-upload-btn">
+                    <FaUpload /> {backgroundMusic ? backgroundMusic.name : 'בחר קובץ אודיו'}
+                  </label>
+                  {backgroundMusic && (
+                    <button
+                      type="button"
+                      className="btn-remove-music"
+                      onClick={() => setBackgroundMusic(null)}
+                    >
+                      <FaTrash /> הסר שיר
+                    </button>
+                  )}
+                </div>
+              )}
+              
+              <small>MP3, WAV, M4A - ינוגן אוטומטית במצגת</small>
+            </div>
+
+            {previews.length > 0 && (
+              <div className="previews">
+                <h3>קבצים שנבחרו ({previews.length})</h3>
+                <div className="previews-grid">
+                  {previews.map((preview, index) => (
+                    <div key={index} className="preview-item">
+                      {preview.type.startsWith('image/') ? (
+                        <img src={preview.url} alt={preview.name} />
+                      ) : (
+                        <video src={preview.url} controls />
+                      )}
+                      <button
+                        type="button"
+                        className="remove-btn"
+                        onClick={() => removeFile(index)}
+                      >
+                        <FaTrash />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {previews.some((preview) => preview.type.startsWith('image/')) && (
+              <div className="hero-image-select">
+                <h3>בחירת תמונה ראשית (אופציונלי)</h3>
+                <p className="hero-image-hint">התמונה שתבחרו תוצג בפתיח הדף לצד התקציר שהזנתם.</p>
+                <div className="hero-image-grid">
+                  {previews
+                    .filter((preview) => preview.type.startsWith('image/'))
+                    .map((preview, index) => (
+                      <label key={`${preview.name}-${index}`} className="hero-image-option">
+                        <input
+                          type="radio"
+                          name="heroImageIndex"
+                          value={index}
+                          checked={heroImageIndex === index}
+                          onChange={() => setHeroImageIndex(index)}
+                        />
+                        <img src={preview.url} alt={preview.name} />
+                        <span>{heroImageIndex === index ? 'תמונה ראשית' : 'בחרו'}</span>
+                      </label>
+                    ))}
+                </div>
+                <small>אין חובה לבחור תמונה ראשית. אם לא תבחרו, ניתן יהיה לעדכן זאת בהמשך.</small>
+              </div>
+            )}
+          </div>
+
+          <div className="form-actions">
+            <button type="button" className="btn btn-secondary" onClick={() => navigate('/manage')} style={{ marginLeft: '10px' }}>
+              ביטול
+            </button>
+            <button type="submit" className="btn btn-primary" disabled={saving}>
+              {saving ? 'שומר שינויים...' : (
+                <>
+                  שמור שינויים <FaArrowRight />
+                </>
+              )}
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );
