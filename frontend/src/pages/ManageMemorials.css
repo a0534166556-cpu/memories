@@ -1,0 +1,236 @@
+.manage-memorials-page {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 40px 20px;
+  direction: rtl;
+}
+
+.manage-container {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.manage-header {
+  text-align: center;
+  color: white;
+  margin-bottom: 40px;
+}
+
+.manage-header h1 {
+  font-size: 2.5rem;
+  margin-bottom: 10px;
+  font-weight: 700;
+}
+
+.manage-header .subtitle {
+  font-size: 1.1rem;
+  opacity: 0.9;
+}
+
+.actions-bar {
+  margin-bottom: 30px;
+  text-align: center;
+}
+
+.error-message {
+  background: #fee;
+  color: #c33;
+  padding: 15px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.no-memorials {
+  background: white;
+  padding: 60px 40px;
+  border-radius: 12px;
+  text-align: center;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.no-memorials h2 {
+  color: #333;
+  margin-bottom: 15px;
+  font-size: 1.8rem;
+}
+
+.no-memorials p {
+  color: #666;
+  margin-bottom: 30px;
+  font-size: 1.1rem;
+}
+
+.memorials-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 20px;
+  margin-top: 20px;
+}
+
+.memorial-card {
+  background: white;
+  border-radius: 12px;
+  padding: 25px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  transition: transform 0.2s, box-shadow 0.2s;
+  display: flex;
+  flex-direction: column;
+}
+
+.memorial-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 12px rgba(0, 0, 0, 0.15);
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 15px;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.card-header h3 {
+  color: #333;
+  font-size: 1.3rem;
+  margin: 0;
+  flex: 1;
+  min-width: 0;
+}
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.status-badge.status-lifetime {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.status-badge.status-active {
+  background: #e3f2fd;
+  color: #1976d2;
+}
+
+.status-badge.status-temporary {
+  background: #fff3e0;
+  color: #f57c00;
+}
+
+.status-badge.status-expired {
+  background: #ffebee;
+  color: #c62828;
+}
+
+.status-badge.status-default {
+  background: #f5f5f5;
+  color: #666;
+}
+
+.card-body {
+  flex: 1;
+  margin-bottom: 20px;
+}
+
+.memorial-name {
+  color: #666;
+  margin-bottom: 10px;
+  font-size: 1rem;
+}
+
+.created-date {
+  color: #999;
+  font-size: 0.9rem;
+  margin-bottom: 10px;
+}
+
+.no-edit-warning {
+  color: #f57c00;
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 10px;
+}
+
+.card-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: auto;
+}
+
+.card-actions .btn {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 20px;
+  border-radius: 8px;
+  text-decoration: none;
+  font-weight: 600;
+  transition: all 0.2s;
+  border: none;
+  cursor: pointer;
+}
+
+.btn-outline {
+  background: white;
+  color: #667eea;
+  border: 2px solid #667eea;
+}
+
+.btn-outline:hover {
+  background: #f5f5f5;
+}
+
+.btn-primary {
+  background: #667eea;
+  color: white;
+}
+
+.btn-primary:hover {
+  background: #5568d3;
+}
+
+.btn-disabled {
+  background: #e0e0e0;
+  color: #999;
+  cursor: not-allowed;
+}
+
+.spinner-large {
+  font-size: 3rem;
+  color: white;
+  animation: spin 1s linear infinite;
+  display: block;
+  margin: 0 auto 20px;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@media (max-width: 768px) {
+  .memorials-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .card-header {
+    flex-direction: column;
+  }
+  
+  .status-badge {
+    align-self: flex-start;
+  }
+}

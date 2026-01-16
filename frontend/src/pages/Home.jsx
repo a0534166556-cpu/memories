@@ -11,6 +11,24 @@ function Home() {
           <div className="nav-links">
             <Link to="/" className="nav-link">דף הבית</Link>
             <Link to="/about" className="nav-link">אודותינו</Link>
+            {localStorage.getItem('token') && (
+              <Link to="/manage" className="nav-link">ניהול דפי זיכרון</Link>
+            )}
+            {!localStorage.getItem('token') ? (
+              <Link to="/login" className="nav-link">התחברות</Link>
+            ) : (
+              <span 
+                className="nav-link" 
+                onClick={() => {
+                  localStorage.removeItem('token');
+                  localStorage.removeItem('user');
+                  window.location.reload();
+                }}
+                style={{ cursor: 'pointer' }}
+              >
+                התנתק
+              </span>
+            )}
           </div>
         </div>
       </nav>

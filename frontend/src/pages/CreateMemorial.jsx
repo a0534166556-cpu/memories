@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { useDropzone } from 'react-dropzone';
 import axios from 'axios';
 import { getApiEndpoint } from '../config';
+import { tehilimData } from '../data/tehilim';
+import { mishnayotData } from '../data/mishnayot';
 import { FaUpload, FaTrash, FaArrowRight, FaPlus, FaMusic } from 'react-icons/fa';
 import './CreateMemorial.css';
 
@@ -147,92 +149,15 @@ function CreateMemorial() {
     });
   };
 
-  // Popular chapters for quick selection
-  const popularChapters = [1, 23, 91, 103, 121, 130, 150];
+  // Get available chapters from tehilimData - these are all the chapters we have full text for
+  // All these chapters are considered "popular" since they're the only ones available
+  const availableChapters = Object.keys(tehilimData).map(num => parseInt(num)).sort((a, b) => a - b);
+  const popularChapters = availableChapters; // All available chapters are considered popular
 
-  // Popular Mishnayot for quick selection
-  const popularMishnayot = [
-    'ברכות א',
-    'ברכות ב',
-    'ברכות ט',
-    'פאה א',
-    'שבת א',
-    'שבת ז',
-    'ראש השנה א',
-    'יומא ח',
-    'כתובות א',
-    'קידושין א',
-    'מכות א',
-    'אבות א',
-    'אבות ב',
-    'אבות ג'
-  ];
-
-  // Mishnayot tractates structure (simplified - major tractates)
-  const mishnayotTractates = [
-    { name: 'ברכות', chapters: ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ז', 'ח', 'ט'] },
-    { name: 'פאה', chapters: ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ז', 'ח'] },
-    { name: 'דמאי', chapters: ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ז'] },
-    { name: 'כלאים', chapters: ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ז', 'ח', 'ט'] },
-    { name: 'שביעית', chapters: ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ז', 'ח', 'ט', 'י'] },
-    { name: 'תרומות', chapters: ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ז', 'ח', 'ט', 'י', 'יא'] },
-    { name: 'מעשרות', chapters: ['א', 'ב', 'ג', 'ד', 'ה'] },
-    { name: 'מעשר שני', chapters: ['א', 'ב', 'ג', 'ד', 'ה'] },
-    { name: 'חלה', chapters: ['א', 'ב', 'ג', 'ד'] },
-    { name: 'ערלה', chapters: ['א', 'ב', 'ג'] },
-    { name: 'ביכורים', chapters: ['א', 'ב', 'ג', 'ד'] },
-    { name: 'שבת', chapters: ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ז', 'ח', 'ט', 'י', 'יא', 'יב', 'יג', 'יד', 'טו', 'טז', 'יז', 'יח', 'יט', 'כ', 'כא', 'כג', 'כד'] },
-    { name: 'עירובין', chapters: ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ז', 'ח', 'ט', 'י'] },
-    { name: 'פסחים', chapters: ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ז', 'ח', 'ט', 'י'] },
-    { name: 'שקלים', chapters: ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ז', 'ח'] },
-    { name: 'יומא', chapters: ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ז', 'ח'] },
-    { name: 'סוכה', chapters: ['א', 'ב', 'ג', 'ד', 'ה'] },
-    { name: 'ביצה', chapters: ['א', 'ב', 'ג', 'ד', 'ה'] },
-    { name: 'ראש השנה', chapters: ['א', 'ב', 'ג', 'ד'] },
-    { name: 'תענית', chapters: ['א', 'ב', 'ג', 'ד'] },
-    { name: 'מגילה', chapters: ['א', 'ב', 'ג', 'ד'] },
-    { name: 'מועד קטן', chapters: ['א', 'ב', 'ג'] },
-    { name: 'חגיגה', chapters: ['א', 'ב', 'ג'] },
-    { name: 'יבמות', chapters: ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ז', 'ח', 'ט', 'י', 'יא', 'יב', 'יג', 'יד', 'טו', 'טז'] },
-    { name: 'כתובות', chapters: ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ז', 'ח', 'ט', 'י', 'יא', 'יב', 'יג'] },
-    { name: 'נדרים', chapters: ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ז', 'ח', 'ט', 'י', 'יא'] },
-    { name: 'נזיר', chapters: ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ז', 'ח', 'ט'] },
-    { name: 'סוטה', chapters: ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ז', 'ח', 'ט'] },
-    { name: 'גיטין', chapters: ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ז', 'ח', 'ט'] },
-    { name: 'קידושין', chapters: ['א', 'ב', 'ג', 'ד'] },
-    { name: 'בבא קמא', chapters: ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ז', 'ח', 'ט', 'י'] },
-    { name: 'בבא מציעא', chapters: ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ז', 'ח', 'ט', 'י'] },
-    { name: 'בבא בתרא', chapters: ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ז', 'ח', 'ט', 'י'] },
-    { name: 'סנהדרין', chapters: ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ז', 'ח', 'ט', 'י', 'יא'] },
-    { name: 'מכות', chapters: ['א', 'ב', 'ג'] },
-    { name: 'שבועות', chapters: ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ז', 'ח'] },
-    { name: 'עבודה זרה', chapters: ['א', 'ב', 'ג', 'ד', 'ה'] },
-    { name: 'הוריות', chapters: ['א', 'ב', 'ג'] },
-    { name: 'זבחים', chapters: ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ז', 'ח', 'ט', 'י', 'יא', 'יב', 'יג', 'יד'] },
-    { name: 'מנחות', chapters: ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ז', 'ח', 'ט', 'י', 'יא', 'יב', 'יג'] },
-    { name: 'חולין', chapters: ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ז', 'ח', 'ט', 'י', 'יא', 'יב'] },
-    { name: 'בכורות', chapters: ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ז', 'ח', 'ט'] },
-    { name: 'ערכין', chapters: ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ז', 'ח', 'ט'] },
-    { name: 'תמורה', chapters: ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ז'] },
-    { name: 'כריתות', chapters: ['א', 'ב', 'ג', 'ד', 'ה', 'ו'] },
-    { name: 'מעילה', chapters: ['א', 'ב', 'ג', 'ד', 'ה', 'ו'] },
-    { name: 'תמיד', chapters: ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ז'] },
-    { name: 'מידות', chapters: ['א', 'ב', 'ג', 'ד', 'ה'] },
-    { name: 'קינים', chapters: ['א', 'ב', 'ג'] },
-    { name: 'כלים', chapters: ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ז', 'ח', 'ט', 'י', 'יא', 'יב', 'יג', 'יד', 'טו', 'טז', 'יז', 'יח', 'יט', 'כ', 'כא', 'כב', 'כד', 'כה', 'כו', 'כז', 'כח', 'כט', 'ל'] },
-    { name: 'אוהלות', chapters: ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ז', 'ח', 'ט', 'י', 'יא', 'יב', 'יג', 'יד', 'טו', 'טז', 'יז', 'יח'] },
-    { name: 'נגעים', chapters: ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ז', 'ח', 'ט', 'י', 'יא', 'יב', 'יג', 'יד'] },
-    { name: 'פרה', chapters: ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ז', 'ח', 'ט', 'י', 'יא', 'יב'] },
-    { name: 'טהרות', chapters: ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ז', 'ח', 'ט', 'י'] },
-    { name: 'מקוואות', chapters: ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ז', 'ח', 'ט', 'י'] },
-    { name: 'נידה', chapters: ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ז', 'ח', 'ט', 'י'] },
-    { name: 'מכשירין', chapters: ['א', 'ב', 'ג', 'ד', 'ה', 'ו'] },
-    { name: 'זבים', chapters: ['א', 'ב', 'ג', 'ד', 'ה'] },
-    { name: 'טבול יום', chapters: ['א', 'ב', 'ג', 'ד'] },
-    { name: 'ידיים', chapters: ['א', 'ב', 'ג', 'ד'] },
-    { name: 'עוקצין', chapters: ['א', 'ב', 'ג'] },
-    { name: 'אבות', chapters: ['א', 'ב', 'ג', 'ד', 'ה', 'ו'] }
-  ];
+  // Get available Mishnayot from mishnayotData - these are all the Mishnayot we have full text for
+  // All these Mishnayot are considered "popular" since they're the only ones available
+  const availableMishnayot = Object.keys(mishnayotData).sort();
+  const popularMishnayot = availableMishnayot; // All available Mishnayot are considered popular
 
   // Load available music files
   useEffect(() => {
@@ -557,9 +482,12 @@ function CreateMemorial() {
                 {showTehilimSelector && (
                   <div className="tehilim-selector">
                     <div className="tehilim-popular">
-                      <h4>פרקים נפוצים</h4>
+                      <h4>פרקי תהילים זמינים</h4>
+                      <p style={{ fontSize: '0.9rem', color: '#666', marginBottom: '15px' }}>
+                        כל הפרקים הבאים זמינים לקריאה בדף הזיכרון. ניתן לבחור כמה פרקים שרוצים.
+                      </p>
                       <div className="tehilim-popular-grid">
-                        {popularChapters.map(ch => (
+                        {availableChapters.map(ch => (
                           <label key={ch} className="tehilim-checkbox">
                             <input
                               type="checkbox"
@@ -567,22 +495,6 @@ function CreateMemorial() {
                               onChange={() => toggleChapter(ch)}
                             />
                             <span>פרק {ch}</span>
-                          </label>
-                        ))}
-                      </div>
-                    </div>
-                    
-                    <div className="tehilim-all">
-                      <h4>כל הפרקים (1-150)</h4>
-                      <div className="tehilim-all-grid">
-                        {Array.from({ length: 150 }, (_, i) => i + 1).map(ch => (
-                          <label key={ch} className="tehilim-checkbox">
-                            <input
-                              type="checkbox"
-                              checked={selectedChapters.includes(ch)}
-                              onChange={() => toggleChapter(ch)}
-                            />
-                            <span>{ch}</span>
                           </label>
                         ))}
                       </div>
@@ -605,7 +517,7 @@ function CreateMemorial() {
                     </div>
                   </div>
                 )}
-                <small>הפרקים שיוצגו בדף הזיכרון לקריאה. ניתן לבחור כמה פרקים שרוצים.</small>
+                <small>הפרקים שיוצגו בדף הזיכרון לקריאה. רק הפרקים שיש להם טקסט מלא זמינים לבחירה.</small>
               </div>
             </div>
 
@@ -635,9 +547,12 @@ function CreateMemorial() {
                 {showMishnayotSelector && (
                   <div className="tehilim-selector">
                     <div className="tehilim-popular">
-                      <h4>משניות נפוצות</h4>
+                      <h4>משניות זמינות</h4>
+                      <p style={{ fontSize: '0.9rem', color: '#666', marginBottom: '15px' }}>
+                        כל המשניות הבאות זמינות לקריאה בדף הזיכרון. ניתן לבחור כמה משניות שרוצים.
+                      </p>
                       <div className="tehilim-popular-grid">
-                        {popularMishnayot.map(mishna => (
+                        {availableMishnayot.map(mishna => (
                           <label key={mishna} className="tehilim-checkbox">
                             <input
                               type="checkbox"
@@ -646,32 +561,6 @@ function CreateMemorial() {
                             />
                             <span>{mishna}</span>
                           </label>
-                        ))}
-                      </div>
-                    </div>
-                    
-                    <div className="tehilim-all">
-                      <h4>כל המסכתות</h4>
-                      <div className="mishnayot-tractates">
-                        {mishnayotTractates.map(tractate => (
-                          <div key={tractate.name} className="tractate-group">
-                            <h5>{tractate.name}</h5>
-                            <div className="tractate-chapters">
-                              {tractate.chapters.map(chapter => {
-                                const mishnaKey = `${tractate.name} ${chapter}`;
-                                return (
-                                  <label key={mishnaKey} className="tehilim-checkbox">
-                                    <input
-                                      type="checkbox"
-                                      checked={selectedMishnayot.includes(mishnaKey)}
-                                      onChange={() => toggleMishna(mishnaKey)}
-                                    />
-                                    <span>{tractate.name} {chapter}</span>
-                                  </label>
-                                );
-                              })}
-                            </div>
-                          </div>
                         ))}
                       </div>
                     </div>
@@ -693,7 +582,7 @@ function CreateMemorial() {
                     </div>
                   </div>
                 )}
-                <small>המשניות שיוצגו בדף הזיכרון לקריאה. ניתן לבחור כמה משניות שרוצים.</small>
+                <small>המשניות שיוצגו בדף הזיכרון לקריאה. רק המשניות שיש להן טקסט מלא זמינות לבחירה.</small>
               </div>
             </div>
           </div>

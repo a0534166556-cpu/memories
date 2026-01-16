@@ -1261,6 +1261,150 @@ app.get('/api/memorials', checkDbReady, async (req, res) => {
   }
 });
 
+// Get all memorials for the authenticated user
+app.get('/api/memorials/user/my', checkDbReady, authenticateToken, async (req, res) => {
+  try {
+    await ensureDbConnection();
+    
+    const [rows] = await db.execute(
+      'SELECT * FROM memorials WHERE userId = ? ORDER BY createdAt DESC',
+      [req.user.id]
+    );
+    
+    const memorials = rows.map(row => ({
+      id: row.id,
+      name: row.name,
+      hebrewName: row.hebrewName,
+      status: row.status,
+      expiryDate: row.expiryDate,
+      canEdit: row.canEdit,
+      createdAt: row.createdAt,
+      qrCodePath: row.qrCodePath
+    }));
+    
+    res.json({ success: true, memorials });
+  } catch (err) {
+    console.error('Error fetching user memorials:', err);
+    handleDbError(err, res);
+  }
+});
+
+// Update existing memorial
+app.put('/api/memorials/:id', checkDbReady, authenticateToken, validateInput, upload.fields([
+  { name: 'files', maxCount: 20 },
+  { name: 'headerImage', maxCount: 1 }
+]), async (req, res) => {
+  try {
+    const { id } = req.params;
+    await ensureDbConnection();
+    
+    // Verify memorial belongs to user and can be edited
+    const [memorialRows] = await db.execute('SELECT * FROM memorials WHERE id = ? AND userId = ?', [id, req.user.id]);
+    
+    if (memorialRows.length === 0) {
+      return res.status(404).json({ success: false, message: 'דף זיכרון לא נמצא או אין לך הרשאה לערוך אותו' });
+    }
+    
+    const existingMemorial = memorialRows[0];
+    
+    // Check if editing is allowed
+    if (!existingMemorial.canEdit) {
+      return res.status(403).json({ success: false, message: 'אין אפשרות לערוך את דף הזיכרון הזה' });
+    }
+    
+    const {
+      name,
+      hebrewName,
+      birthDate,
+      deathDate,
+      biography,
+      tehilimChapters,
+      mishnayot,
+      heroSummary = '',
+      heroImageIndex
+    } = req.body;
+    
+    let timeline = [];
+    if (req.body.timeline) {
+      try {
+        const parsed = JSON.parse(req.body.timeline);
+        if (Array.isArray(parsed)) {
+          timeline = parsed
+            .slice(0, 20)
+            .map(event => ({
+              year: String(event.year || '').trim(),
+              title: String(event.title || '').trim(),
+              description: String(event.description || '').trim()
+            }))
+            .filter(event => event.year || event.title || event.description);
+        }
+      } catch (error) {
+        console.warn('Failed to parse timeline payload', error);
+      }
+    }
+    
+    // Process uploaded files
+    let images = JSON.parse(existingMemorial.images || '[]');
+    let videos = JSON.parse(existingMemorial.videos || '[]');
+    let backgroundMusic = req.body.backgroundMusicPath || existingMemorial.backgroundMusic || '';
+    let heroImage = existingMemorial.heroImage || '';
+    
+    // Process regular files
+    if (req.files && req.files.files) {
+      req.files.files.forEach(file => {
+        const filePath = `/${file.path.replace(/\\/g, '/')}`;
+        if (file.mimetype.startsWith('video/')) {
+          videos.push(filePath);
+        } else if (file.mimetype.startsWith('audio/')) {
+          backgroundMusic = filePath;
+        } else {
+          images.push(filePath);
+        }
+      });
+    }
+    
+    // Process header image
+    if (req.files && req.files.headerImage && req.files.headerImage.length > 0) {
+      heroImage = `/${req.files.headerImage[0].path.replace(/\\/g, '/')}`;
+    } else if (heroImageIndex !== undefined && heroImageIndex !== null && images[heroImageIndex]) {
+      heroImage = images[parseInt(heroImageIndex)];
+    }
+    
+    // Update database
+    await db.execute(`
+      UPDATE memorials 
+      SET name = ?, hebrewName = ?, birthDate = ?, deathDate = ?, biography = ?, 
+          images = ?, videos = ?, backgroundMusic = ?, heroImage = ?, heroSummary = ?, 
+          timeline = ?, tehilimChapters = ?, mishnayot = ?
+      WHERE id = ? AND userId = ?
+    `, [
+      name,
+      hebrewName || '',
+      birthDate || '',
+      deathDate || '',
+      biography || '',
+      JSON.stringify(images),
+      JSON.stringify(videos),
+      backgroundMusic,
+      heroImage,
+      heroSummary,
+      JSON.stringify(timeline),
+      tehilimChapters || '',
+      mishnayot || '',
+      id,
+      req.user.id
+    ]);
+    
+    res.json({
+      success: true,
+      message: 'דף הזיכרון עודכן בהצלחה'
+    });
+  } catch (err) {
+    console.error('Error updating memorial:', err);
+    handleDbError(err, res);
+  }
+});
+
 // Upload additional files to existing memorial
 app.post('/api/memorials/:id/upload', checkDbReady, validateInput, upload.array('files', 10), async (req, res) => {
   const { id } = req.params;

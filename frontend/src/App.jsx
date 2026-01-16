@@ -4,6 +4,8 @@ import Home from './pages/Home';
 import Gallery from './pages/Gallery';
 import MemorialExample from './pages/MemorialExample';
 import CreateMemorial from './pages/CreateMemorial';
+import EditMemorial from './pages/EditMemorial';
+import ManageMemorials from './pages/ManageMemorials';
 import MemorialPage from './pages/MemorialPage';
 import About from './pages/About';
 import Pricing from './pages/Pricing';
@@ -55,6 +57,8 @@ function App() {
             <Route path="/" element={<Home />} />
             <Route path="/gallery/example" element={<MemorialExample />} />
             <Route path="/create" element={<CreateMemorial />} />
+            <Route path="/edit/:id" element={<EditMemorial />} />
+            <Route path="/manage" element={<ManageMemorials />} />
             <Route path="/memorial/:id" element={<MemorialPage />} />
             <Route path="/about" element={<About />} />
             <Route path="/pricing" element={<Pricing />} />
