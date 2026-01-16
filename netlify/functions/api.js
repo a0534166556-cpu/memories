@@ -35,42 +35,80 @@ exports.handler = async (event, context) => {
   }
   
   // Extract the path from the request
-  // When redirected from "/api/*" to "/.netlify/functions/api/:splat",
-  // event.path should be "/.netlify/functions/api/memorials" (with :splat replaced)
-  let path = event.path || event.rawPath || '';
-  console.log('📍 Original path from event:', path);
-  console.log('📍 All event properties:', Object.keys(event));
+  // According to Netlify docs: when using :splat in redirects, event.path contains
+  // the original client path (e.g., /api/memorials/user/my)
+  // event.path might also be "/.netlify/functions/api/memorials/user/my" in some cases
+  let path = event.path || '';
+  console.log('📍 event.path:', event.path);
+  console.log('📍 event.rawPath:', event.rawPath);
+  console.log('📍 event.rawUrl:', event.rawUrl);
   
-  // Remove function path prefix
+  // Remove function path prefix if present (some Netlify setups include it)
   if (path.startsWith('/.netlify/functions/api')) {
     path = path.replace('/.netlify/functions/api', '');
     console.log('📍 After removing function prefix:', path);
   }
   
   // Ensure path starts with /api
+  // If path doesn't start with /api, it might be the splat value without /api prefix
   if (path && !path.startsWith('/api')) {
-    path = `/api${path}`;
-    console.log('📍 After adding /api:', path);
+    if (path.startsWith('/')) {
+      // Path like "/memorials/user/my" -> "/api/memorials/user/my"
+      path = `/api${path}`;
+      console.log('📍 After adding /api prefix:', path);
+    } else {
+      // Path like "memorials/user/my" -> "/api/memorials/user/my"
+      path = `/api/${path}`;
+      console.log('📍 After adding /api/ prefix:', path);
+    }
   }
   
-  // If path is empty or just /api, try to get from headers
-  if (!path || path === '/api') {
-    // Log all headers for debugging
-    console.log('📍 All headers:', JSON.stringify(event.headers, null, 2));
-    
-    const originalUri = event.headers['x-original-uri'] || event.headers['x-forwarded-uri'] || event.headers['referer'] || '';
-    console.log('📍 Trying headers:', originalUri);
-    
-    if (originalUri && originalUri.includes('/api/')) {
-      const match = originalUri.match(/\/api\/[^?]*/);
-      if (match) {
-        path = match[0];
-        console.log('📍 Found in headers:', path);
+  // Fallback: if path is still empty, try to extract from rawUrl
+  if (!path || path === '/api' || path === '/api/') {
+    if (event.rawUrl) {
+      try {
+        const url = new URL(event.rawUrl);
+        path = url.pathname;
+        console.log('📍 Extracted from rawUrl:', path);
+        // Ensure it starts with /api
+        if (path && !path.startsWith('/api')) {
+          path = path.startsWith('/') ? `/api${path}` : `/api/${path}`;
+        }
+      } catch (e) {
+        console.log('⚠️ Could not parse rawUrl:', e.message);
       }
-    } else {
-      path = '/api/memorials'; // Fallback
-      console.log('⚠️ Using fallback path:', path);
     }
+    
+    // Last resort: try headers
+    if (!path || path === '/api' || path === '/api/') {
+      const originalUri = event.headers['x-original-uri'] || event.headers['x-forwarded-uri'] || '';
+      console.log('📍 Trying headers:', originalUri);
+      
+      if (originalUri && originalUri.includes('/api/')) {
+        const match = originalUri.match(/\/api\/[^?\s]*/);
+        if (match) {
+          path = match[0];
+          console.log('📍 Found in headers:', path);
+        }
+      }
+    }
+    
+    if (!path || path === '/api' || path === '/api/') {
+      console.log('⚠️ No valid path found');
+      return {
+        statusCode: 400,
+        headers: { 
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        },
+        body: JSON.stringify({ error: 'Invalid API path', debug: { eventPath: event.path, rawPath: event.rawPath, rawUrl: event.rawUrl } })
+      };
+    }
+  }
+  
+  // Clean up path - remove trailing slashes (except for /api itself)
+  if (path !== '/api' && path.endsWith('/')) {
+    path = path.slice(0, -1);
   }
   
   const targetUrl = `${RAILWAY_URL}${path}${event.rawQuery ? '?' + event.rawQuery : ''}`;
