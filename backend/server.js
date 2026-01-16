@@ -1287,15 +1287,26 @@ app.delete('/api/memorials/cleanup/test', checkDbReady, authenticateToken, async
   }
 });
 
-// Get all memorials for the authenticated user
+// Get all memorials for the authenticated user (or all for admin)
 app.get('/api/memorials/user/my', checkDbReady, authenticateToken, async (req, res) => {
   try {
     await ensureDbConnection();
     
-    const [rows] = await db.execute(
-      'SELECT * FROM memorials WHERE userId = ? ORDER BY createdAt DESC',
-      [req.user.id]
-    );
+    let rows;
+    
+    // If user is admin, show ALL memorials (including old ones without userId)
+    if (isAdmin(req.user)) {
+      console.log('🔍 Admin requesting memorials - returning ALL memorials');
+      [rows] = await db.execute(
+        'SELECT * FROM memorials ORDER BY createdAt DESC'
+      );
+    } else {
+      // Regular user - only their own memorials
+      [rows] = await db.execute(
+        'SELECT * FROM memorials WHERE userId = ? ORDER BY createdAt DESC',
+        [req.user.id]
+      );
+    }
     
     const memorials = rows.map(row => ({
       id: row.id,
@@ -1305,7 +1316,8 @@ app.get('/api/memorials/user/my', checkDbReady, authenticateToken, async (req, r
       expiryDate: row.expiryDate,
       canEdit: row.canEdit,
       createdAt: row.createdAt,
-      qrCodePath: row.qrCodePath
+      qrCodePath: row.qrCodePath,
+      userId: row.userId // Include userId so we can show which are old test memorials
     }));
     
     res.json({ success: true, memorials });

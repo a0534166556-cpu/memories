@@ -259,6 +259,11 @@ function ManageMemorials() {
                           <span>לא ניתן לערוך דף זה</span>
                         </div>
                       )}
+                      {!memorial.userId && isAdmin && (
+                        <div className="no-edit-warning" style={{ color: '#f57c00' }}>
+                          <span>⚠️ דף בדיקה ישן (ללא משתמש)</span>
+                        </div>
+                      )}
                     </div>
                     <div className="card-actions">
                       <Link
