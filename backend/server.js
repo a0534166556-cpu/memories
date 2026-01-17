@@ -1185,18 +1185,28 @@ app.post('/api/memorials', checkDbReady, optionalAuth, validateInput, upload.fie
 });
 
 // Get memorial by ID
-app.get('/api/memorials/:id', checkDbReady, async (req, res) => {
+app.get('/api/memorials/:id', checkDbReady, optionalAuth, async (req, res) => {
   const { id } = req.params;
+  
+  console.log('🔍 GET /api/memorials/:id - Requested ID:', id);
+  console.log('🔍 User authenticated:', !!req.user);
+  if (req.user) {
+    console.log('🔍 User ID:', req.user.id, 'Email:', req.user.email);
+  }
   
   try {
     await ensureDbConnection();
     const [rows] = await db.execute('SELECT * FROM memorials WHERE id = ?', [id]);
     
+    console.log('🔍 Found rows:', rows.length);
+    
     if (rows.length === 0) {
+      console.log('❌ Memorial not found for ID:', id);
       return res.status(404).json({ success: false, error: 'Memorial not found' });
     }
     
     const row = rows[0];
+    console.log('✅ Memorial found:', row.name, 'Status:', row.status, 'User ID:', row.userId);
     
     // Check if memorial has expired (for temporary status)
     if (row.status === 'temporary' && row.expiryDate) {
