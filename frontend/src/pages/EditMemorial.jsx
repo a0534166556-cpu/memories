@@ -134,9 +134,15 @@ function EditMemorial() {
           localStorage.removeItem('user');
           setError('ההתחברות פגה. אנא התחבר שוב.');
         } else if (err.response?.status === 404) {
-          setError('דף הזיכרון לא נמצא');
+          setError('דף הזיכרון לא נמצא. ייתכן שהוא נמחק או שאין לך הרשאה לערוך אותו.');
+        } else if (err.response?.status === 410) {
+          setError('דף הזיכרון פג תוקף. יש לשדרג לשמירה קבועה לפני עריכה.');
+        } else if (err.response?.status === 503 || err.response?.status === 502 || err.response?.status === 504) {
+          setError('השרת זמנית לא זמין. אנא נסה שוב בעוד כמה רגעים.');
+        } else if (err.request) {
+          setError('לא ניתן להתחבר לשרת. בדוק את חיבור האינטרנט ונסה שוב.');
         } else {
-          setError('אירעה שגיאה בטעינת דף הזיכרון');
+          setError('אירעה שגיאה בטעינת דף הזיכרון. אנא נסה שוב.');
         }
       } finally {
         setLoading(false);
@@ -332,12 +338,16 @@ function EditMemorial() {
         formDataToSend.append('files', backgroundMusic);
       }
 
+      // Get memorial IDs from localStorage to verify ownership for temporary memorials
+      const myMemorialIds = JSON.parse(localStorage.getItem('myMemorialIds') || '[]');
+      
       const response = await axios.put(
         getApiEndpoint(`/api/memorials/${id}`),
         formDataToSend,
         {
           headers: {
-            'Authorization': `Bearer ${token}`
+            'Authorization': `Bearer ${token}`,
+            'X-Memorial-Ids': JSON.stringify(myMemorialIds)
           }
         }
       );
@@ -382,6 +392,54 @@ function EditMemorial() {
           <button onClick={() => navigate('/login?redirect=/edit/' + id)} className="btn btn-primary">
             התחבר עכשיו
           </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error state if memorial failed to load
+  if (error && !formData.name && !loading) {
+    return (
+      <div className="create-memorial">
+        <div className="create-container">
+          <div className="error-message" style={{ padding: '40px', textAlign: 'center', background: '#fff', borderRadius: '8px', marginTop: '40px' }}>
+            <h2>{error || 'דף הזיכרון לא נמצא'}</h2>
+            
+            {error && error.includes('לא נמצא') && (
+              <div style={{ marginTop: '20px', padding: '20px', background: '#d1ecf1', borderRadius: '8px', color: '#0c5460' }}>
+                <p>🔍 דף הזיכרון לא נמצא או נמחק.</p>
+                <p style={{ marginTop: '10px' }}>אפשרויות:</p>
+                <ul style={{ textAlign: 'right', marginTop: '10px' }}>
+                  <li>הדף נמחק או לא קיים</li>
+                  <li>אין לך הרשאה לערוך את הדף הזה</li>
+                  <li>הכתובת שגויה</li>
+                </ul>
+              </div>
+            )}
+            
+            {error && error.includes('פג תוקף') && (
+              <div style={{ marginTop: '20px', padding: '20px', background: '#f8d7da', borderRadius: '8px', color: '#721c24' }}>
+                <p>⏰ דף הזיכרון פג תוקף.</p>
+                <p style={{ marginTop: '10px' }}>💡 כדי לערוך את הדף, יש לשדרג לשמירה קבועה קודם.</p>
+              </div>
+            )}
+            
+            {error && error.includes('זמנית לא זמין') && (
+              <div style={{ marginTop: '20px', padding: '20px', background: '#fff3cd', borderRadius: '8px', color: '#856404' }}>
+                <p>🚧 השרת זמנית לא זמין. זה בדרך כלל תיקון מהיר.</p>
+                <p style={{ marginTop: '10px' }}>💡 נסה לרענן את הדף בעוד דקה-שתיים.</p>
+              </div>
+            )}
+            
+            <div style={{ marginTop: '30px' }}>
+              <button onClick={() => navigate('/manage')} className="btn btn-primary" style={{ marginRight: '10px' }}>
+                ← חזרה לניהול דפים
+              </button>
+              <button onClick={() => window.location.reload()} className="btn btn-secondary" style={{ marginLeft: '10px' }}>
+                🔄 רענן דף
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     );

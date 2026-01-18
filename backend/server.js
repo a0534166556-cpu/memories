@@ -1,3 +1,7 @@
+// Load environment variables from .env file (for local development)
+// This must be at the very top, before any other imports
+require('dotenv').config();
+
 const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
@@ -148,6 +152,13 @@ async function ensureDbConnection() {
 async function initDatabaseConnection() {
   try {
     console.log('Connecting to MySQL database...');
+    console.log('Database config:', {
+      host: dbConfig.host,
+      port: dbConfig.port,
+      database: dbConfig.database,
+      user: dbConfig.user,
+      password: dbConfig.password ? '***' : '(empty)'
+    });
     db = await mysql.createConnection(dbConfig);
     console.log('✅ Connected to MySQL database');
     
@@ -1373,11 +1384,32 @@ app.get('/api/memorials/user/my', checkDbReady, authenticateToken, async (req, r
         'SELECT * FROM memorials ORDER BY createdAt DESC'
       );
     } else {
-      // Regular user - only their own memorials
-      [rows] = await db.execute(
-        'SELECT * FROM memorials WHERE userId = ? ORDER BY createdAt DESC',
-        [req.user.id]
-      );
+      // Regular user - get memorials linked to their userId
+      // Also include memorials from localStorage IDs if provided
+      let memorialIds = [];
+      try {
+        if (req.query.ids) {
+          memorialIds = JSON.parse(decodeURIComponent(req.query.ids));
+        }
+      } catch (parseErr) {
+        console.warn('Failed to parse memorial IDs from query:', parseErr);
+      }
+      
+      let query;
+      let params;
+      
+      if (memorialIds && Array.isArray(memorialIds) && memorialIds.length > 0) {
+        // Include both userId-linked memorials AND memorials from localStorage IDs
+        const placeholders = memorialIds.map(() => '?').join(',');
+        query = `SELECT * FROM memorials WHERE userId = ? OR id IN (${placeholders}) ORDER BY createdAt DESC`;
+        params = [req.user.id, ...memorialIds];
+      } else {
+        // Only userId-linked memorials
+        query = 'SELECT * FROM memorials WHERE userId = ? ORDER BY createdAt DESC';
+        params = [req.user.id];
+      }
+      
+      [rows] = await db.execute(query, params);
     }
     
     const memorials = rows.map(row => ({
@@ -1395,6 +1427,38 @@ app.get('/api/memorials/user/my', checkDbReady, authenticateToken, async (req, r
     res.json({ success: true, memorials });
   } catch (err) {
     console.error('Error fetching user memorials:', err);
+    handleDbError(err, res);
+  }
+});
+
+// Link memorials to current user account (for temporary memorials created before login)
+app.post('/api/memorials/link-to-user', checkDbReady, authenticateToken, async (req, res) => {
+  try {
+    const { memorialIds } = req.body;
+    
+    if (!memorialIds || !Array.isArray(memorialIds) || memorialIds.length === 0) {
+      return res.status(400).json({ success: false, error: 'memorialIds array required' });
+    }
+    
+    await ensureDbConnection();
+    
+    // Update memorials to link them to current user
+    // Only update if they don't already have a userId (temporary memorials)
+    const placeholders = memorialIds.map(() => '?').join(',');
+    const [result] = await db.execute(
+      `UPDATE memorials SET userId = ? WHERE id IN (${placeholders}) AND (userId IS NULL OR userId = '')`,
+      [req.user.id, ...memorialIds]
+    );
+    
+    console.log(`✅ Linked ${result.affectedRows} memorial(s) to user ${req.user.id}`);
+    
+    res.json({ 
+      success: true, 
+      linkedCount: result.affectedRows,
+      message: `Linked ${result.affectedRows} memorial(s) to your account`
+    });
+  } catch (err) {
+    console.error('Error linking memorials to user:', err);
     handleDbError(err, res);
   }
 });
@@ -1515,14 +1579,9 @@ const isAdmin = (user) => {
   return isAdminResult;
 };
 
-// Delete memorial (only for admin)
+// Delete memorial (users can delete their own, admin can delete any)
 app.delete('/api/memorials/:id', checkDbReady, authenticateToken, async (req, res) => {
   try {
-    // Only admin can delete memorials
-    if (!isAdmin(req.user)) {
-      return res.status(403).json({ success: false, message: 'רק מנהל יכול למחוק דפי זיכרון' });
-    }
-    
     const { id } = req.params;
     await ensureDbConnection();
     
@@ -1533,8 +1592,29 @@ app.delete('/api/memorials/:id', checkDbReady, authenticateToken, async (req, re
       return res.status(404).json({ success: false, message: 'דף זיכרון לא נמצא' });
     }
     
+    const memorial = memorialRows[0];
+    
+    // Admin can delete any memorial, regular users can only delete their own
+    if (!isAdmin(req.user)) {
+      // Regular user - check if memorial belongs to them
+      // Also check localStorage IDs for temporary memorials created before login
+      const myMemorialIds = JSON.parse(req.headers['x-memorial-ids'] || '[]');
+      const isOwnMemorial = memorial.userId === req.user.id || myMemorialIds.includes(id);
+      
+      if (!isOwnMemorial) {
+        return res.status(403).json({ 
+          success: false, 
+          message: 'אין לך הרשאה למחוק את דף הזיכרון הזה. אתה יכול למחוק רק את הדפים שיצרת.' 
+        });
+      }
+    }
+    
     // Delete memorial from database
     await db.execute('DELETE FROM memorials WHERE id = ?', [id]);
+    
+    // Remove from localStorage if it's there
+    // This will be handled on frontend, but we log it here for debugging
+    console.log(`✅ Deleted memorial ${id} by user ${req.user.id} (admin: ${isAdmin(req.user)})`);
     
     // TODO: Optionally delete files from disk (images, videos, QR codes)
     // For now, just delete from database
@@ -1556,10 +1636,27 @@ app.put('/api/memorials/:id', checkDbReady, authenticateToken, validateInput, up
     await ensureDbConnection();
     
     // Verify memorial belongs to user and can be edited
-    const [memorialRows] = await db.execute('SELECT * FROM memorials WHERE id = ? AND userId = ?', [id, req.user.id]);
+    // Also check localStorage IDs for temporary memorials created before login
+    const myMemorialIds = req.headers['x-memorial-ids'] ? JSON.parse(req.headers['x-memorial-ids']) : [];
+    const [memorialRows] = await db.execute('SELECT * FROM memorials WHERE id = ?', [id]);
     
     if (memorialRows.length === 0) {
-      return res.status(404).json({ success: false, message: 'דף זיכרון לא נמצא או אין לך הרשאה לערוך אותו' });
+      return res.status(404).json({ success: false, message: 'דף זיכרון לא נמצא' });
+    }
+    
+    const memorial = memorialRows[0];
+    
+    // Check if user owns this memorial (either by userId or localStorage ID)
+    // Admin can edit any memorial
+    if (!isAdmin(req.user)) {
+      const isOwnMemorial = memorial.userId === req.user.id || myMemorialIds.includes(id);
+      
+      if (!isOwnMemorial) {
+        return res.status(403).json({ 
+          success: false, 
+          message: 'אין לך הרשאה לערוך את דף הזיכרון הזה. אתה יכול לערוך רק את הדפים שיצרת.' 
+        });
+      }
     }
     
     const existingMemorial = memorialRows[0];
@@ -1567,6 +1664,12 @@ app.put('/api/memorials/:id', checkDbReady, authenticateToken, validateInput, up
     // Check if editing is allowed
     if (!existingMemorial.canEdit) {
       return res.status(403).json({ success: false, message: 'אין אפשרות לערוך את דף הזיכרון הזה' });
+    }
+    
+    // Link temporary memorial to user account if it's not already linked
+    if (!existingMemorial.userId && !isAdmin(req.user)) {
+      await db.execute('UPDATE memorials SET userId = ? WHERE id = ?', [req.user.id, id]);
+      console.log(`✅ Auto-linked temporary memorial ${id} to user ${req.user.id}`);
     }
     
     const {

@@ -67,14 +67,60 @@ function ManageMemorials() {
     setError('');
 
     try {
-      const response = await axios.get(getApiEndpoint('/api/memorials/user/my'), {
+      // Get memorial IDs from localStorage (created before login or without login)
+      const myMemorialIds = JSON.parse(localStorage.getItem('myMemorialIds') || '[]');
+      
+      // Build query with localStorage IDs if any
+      let url = getApiEndpoint('/api/memorials/user/my');
+      if (myMemorialIds && myMemorialIds.length > 0) {
+        url += `?ids=${encodeURIComponent(JSON.stringify(myMemorialIds))}`;
+      }
+      
+      const response = await axios.get(url, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
       });
 
       if (response.data.success) {
-        setMemorials(response.data.memorials || []);
+        const fetchedMemorials = response.data.memorials || [];
+        
+        // Link memorials to user account if they don't have userId yet
+        // This ensures temporary memorials created before login are linked to the account
+        const unlinkedMemorials = fetchedMemorials.filter(m => !m.userId && m.status === 'temporary');
+        if (unlinkedMemorials.length > 0) {
+          // Try to link them (silent, no error if fails)
+          try {
+            const linkResponse = await axios.post(
+              getApiEndpoint('/api/memorials/link-to-user'),
+              { memorialIds: unlinkedMemorials.map(m => m.id) },
+              {
+                headers: {
+                  'Authorization': `Bearer ${token}`
+                }
+              }
+            );
+            
+            if (linkResponse.data.success && linkResponse.data.linkedCount > 0) {
+              console.log(`✅ Linked ${linkResponse.data.linkedCount} temporary memorial(s) to user account`);
+              // Re-fetch to get updated list with userId linked
+              const refreshedResponse = await axios.get(url, {
+                headers: {
+                  'Authorization': `Bearer ${token}`
+                }
+              });
+              if (refreshedResponse.data.success) {
+                setMemorials(refreshedResponse.data.memorials || []);
+                return;
+              }
+            }
+          } catch (linkErr) {
+            console.warn('Could not link memorials to user account:', linkErr);
+            // Continue with unlinked memorials - they'll still show up
+          }
+        }
+        
+        setMemorials(fetchedMemorials);
       } else {
         setError('שגיאה בטעינת דפי הזיכרון');
       }
@@ -128,20 +174,36 @@ function ManageMemorials() {
     }
 
     const token = localStorage.getItem('token');
+    if (!token) {
+      alert('נדרש להתחבר כדי למחוק דף זיכרון');
+      return;
+    }
+
     try {
+      // Get memorial IDs from localStorage to verify ownership for temporary memorials
+      const myMemorialIds = JSON.parse(localStorage.getItem('myMemorialIds') || '[]');
+      
       const response = await axios.delete(getApiEndpoint(`/api/memorials/${memorialId}`), {
-        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'X-Memorial-Ids': JSON.stringify(myMemorialIds)
+        }
       });
 
       if (response.data.success) {
+        // Remove from localStorage if it was there
+        const updatedIds = myMemorialIds.filter(id => id !== memorialId);
+        localStorage.setItem('myMemorialIds', JSON.stringify(updatedIds));
+        
         // Refresh the list
         fetchMemorials();
       } else {
-        alert('שגיאה במחיקת דף הזיכרון');
+        alert('שגיאה במחיקת דף הזיכרון: ' + (response.data.message || 'שגיאה לא ידועה'));
       }
     } catch (err) {
       console.error('Error deleting memorial:', err);
-      alert('שגיאה במחיקת דף הזיכרון: ' + (err.response?.data?.message || err.message));
+      const errorMessage = err.response?.data?.message || err.message || 'שגיאה לא ידועה';
+      alert('שגיאה במחיקת דף הזיכרון: ' + errorMessage);
     }
   };
 
@@ -253,13 +315,18 @@ function ManageMemorials() {
                           תפוגה: {formatDate(memorial.expiryDate)}
                         </div>
                       )}
+                      {memorial.status === 'temporary' && !memorial.userId && (
+                        <div className="no-edit-warning" style={{ color: '#2196F3', background: '#e3f2fd', padding: '5px 10px', borderRadius: '4px', fontSize: '0.85rem' }}>
+                          <span>📌 דף זמני - יקושר לחשבונך אוטומטית</span>
+                        </div>
+                      )}
                       {memorial.canEdit === 0 && (
                         <div className="no-edit-warning">
                           <FaLock style={{ fontSize: '0.8rem' }} />
                           <span>לא ניתן לערוך דף זה</span>
                         </div>
                       )}
-                      {!memorial.userId && isAdmin && (
+                      {!memorial.userId && isAdmin && memorial.status !== 'temporary' && (
                         <div className="no-edit-warning" style={{ color: '#f57c00' }}>
                           <span>⚠️ דף בדיקה ישן (ללא משתמש)</span>
                         </div>
@@ -289,23 +356,22 @@ function ManageMemorials() {
                           נעול
                         </button>
                       )}
-                      {isAdmin && (
-                        <button
-                          onClick={() => handleDelete(memorial.id)}
-                          className="btn btn-outline"
-                          style={{ 
-                            display: 'flex', 
-                            alignItems: 'center', 
-                            justifyContent: 'center',
-                            background: '#fff',
-                            color: '#dc3545',
-                            borderColor: '#dc3545'
-                          }}
-                        >
-                          <FaTrash style={{ marginLeft: '5px' }} />
-                          מחק
-                        </button>
-                      )}
+                      {/* Users can delete their own memorials, admins can delete any */}
+                      <button
+                        onClick={() => handleDelete(memorial.id)}
+                        className="btn btn-outline"
+                        style={{ 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          justifyContent: 'center',
+                          background: '#fff',
+                          color: '#dc3545',
+                          borderColor: '#dc3545'
+                        }}
+                      >
+                        <FaTrash style={{ marginLeft: '5px' }} />
+                        מחק
+                      </button>
                     </div>
                   </div>
                 );

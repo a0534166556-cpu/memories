@@ -220,9 +220,27 @@ function CreateMemorial() {
       }
 
       // Don't set Content-Type header - axios will set it automatically with boundary for FormData
-      const response = await axios.post(getApiEndpoint('/api/memorials'), formDataToSend);
+      // But include Authorization header if user is logged in, so userId is saved with the memorial
+      const token = localStorage.getItem('token');
+      const headers = {};
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      
+      const response = await axios.post(getApiEndpoint('/api/memorials'), formDataToSend, {
+        headers: headers
+      });
 
       if (response.data.success) {
+        // Save memorial ID to localStorage so user can see it in manage page later
+        // even if they log out and log back in
+        const memorialId = response.data.memorial.id;
+        const myMemorials = JSON.parse(localStorage.getItem('myMemorialIds') || '[]');
+        if (!myMemorials.includes(memorialId)) {
+          myMemorials.push(memorialId);
+          localStorage.setItem('myMemorialIds', JSON.stringify(myMemorials));
+        }
+        
         // Redirect to save page instead of directly to memorial
         if (response.data.redirectTo) {
           navigate(response.data.redirectTo);

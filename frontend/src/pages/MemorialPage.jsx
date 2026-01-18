@@ -29,6 +29,7 @@ function MemorialPage() {
   const [showMishnayot, setShowMishnayot] = useState(false);
   const [canEdit, setCanEdit] = useState(false);
   const [regeneratingQR, setRegeneratingQR] = useState(false);
+  const [error, setError] = useState('');
   const audioRef = useRef(null);
 
   // Helper function to normalize image/video paths - ensure they start with /
@@ -43,6 +44,7 @@ function MemorialPage() {
   };
 
   const fetchMemorial = async () => {
+    setError('');
     try {
       const response = await axios.get(getApiEndpoint(`/api/memorials/${id}`));
       if (response.data.success) {
@@ -87,6 +89,26 @@ function MemorialPage() {
       }
     } catch (error) {
       console.error('Error fetching memorial:', error);
+      
+      // Handle different error types with user-friendly messages
+      if (error.response?.status === 503 || error.response?.status === 502 || error.response?.status === 504) {
+        setError('השרת זמנית לא זמין. אנא נסה שוב בעוד כמה רגעים. 📡');
+      } else if (error.response?.status === 404) {
+        setError('דף הזיכרון לא נמצא. אנא בדוק את הכתובת.');
+      } else if (error.response?.status === 410) {
+        // Memorial expired - show helpful message
+        const expiredMessage = error.response?.data?.message || 'דף הזיכרון פג תוקף. יש לשדרג לשמירה קבועה.';
+        setError(expiredMessage);
+        // Still show the memorial if we have cached data, but with warning
+        if (error.response?.data?.expired) {
+          console.log('⚠️ Memorial expired, but allowing view with warning');
+        }
+      } else if (error.request) {
+        // Request was made but no response received
+        setError('לא ניתן להתחבר לשרת. בדוק את חיבור האינטרנט ונסה שוב.');
+      } else {
+        setError('אירעה שגיאה בטעינת דף הזיכרון. אנא נסה שוב.');
+      }
     } finally {
       setLoading(false);
     }
@@ -289,15 +311,48 @@ function MemorialPage() {
     );
   }
 
-  if (!memorial) {
+  if (!memorial && !loading) {
     return (
       <div className="memorial-page">
         <div className="container">
-          <div className="error-message">
-            <h2>דף זיכרון לא נמצא</h2>
-            <Link to="/" className="btn btn-primary">
-              <FaHome /> חזרה לדף הבית
-            </Link>
+          <div className="error-message" style={{ padding: '40px', textAlign: 'center', background: '#fff', borderRadius: '8px', marginTop: '40px' }}>
+            <h2>{error || 'דף זיכרון לא נמצא'}</h2>
+            
+            {error && error.includes('זמנית לא זמין') && (
+              <div style={{ marginTop: '20px', padding: '20px', background: '#fff3cd', borderRadius: '8px', color: '#856404' }}>
+                <p>🚧 השרת זמנית לא זמין. זה בדרך כלל תיקון מהיר.</p>
+                <p style={{ marginTop: '10px' }}>💡 נסה לרענן את הדף בעוד דקה-שתיים.</p>
+              </div>
+            )}
+            
+            {error && error.includes('פג תוקף') && (
+              <div style={{ marginTop: '20px', padding: '20px', background: '#f8d7da', borderRadius: '8px', color: '#721c24', border: '1px solid #f5c6cb' }}>
+                <p>⏰ דף הזיכרון פג תוקף.</p>
+                <p style={{ marginTop: '10px' }}>💡 כדי לשמור את הדף לכל החיים, יש לשדרג לשמירה קבועה.</p>
+                <p style={{ marginTop: '10px' }}>אם אתה הבעלים של הדף, התחבר כדי לשדרג.</p>
+              </div>
+            )}
+            
+            {error && error.includes('לא נמצא') && (
+              <div style={{ marginTop: '20px', padding: '20px', background: '#d1ecf1', borderRadius: '8px', color: '#0c5460' }}>
+                <p>🔍 דף הזיכרון לא נמצא או נמחק.</p>
+                <p style={{ marginTop: '10px' }}>אם זה קרה בטעות, נסה ליצור דף זיכרון חדש.</p>
+              </div>
+            )}
+            
+            <div style={{ marginTop: '30px' }}>
+              <Link to="/" className="btn btn-primary" style={{ marginRight: '10px' }}>
+                <FaHome /> חזרה לדף הבית
+              </Link>
+              <button onClick={() => window.location.reload()} className="btn btn-secondary" style={{ marginLeft: '10px' }}>
+                🔄 רענן דף
+              </button>
+              {error && error.includes('פג תוקף') && (
+                <Link to="/login" className="btn btn-secondary" style={{ marginLeft: '10px' }}>
+                  🔐 התחבר לשדרג
+                </Link>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -675,11 +730,21 @@ function MemorialPage() {
                     if (parent && !parent.querySelector('.qr-error-message')) {
                       const errorMsg = document.createElement('div');
                       errorMsg.className = 'qr-error-message';
-                      errorMsg.style.cssText = 'padding: 20px; text-align: center; color: #666; background: #f5f5f5; border-radius: 8px;';
+                      errorMsg.style.cssText = 'padding: 20px; text-align: center; color: #856404; background: #fff3cd; border: 1px solid #ffc107; border-radius: 8px;';
                       errorMsg.innerHTML = canEdit 
-                        ? '<p>❌ QR Code לא נטען. לחץ על "צור QR Code מחדש" כדי ליצור אותו.</p>'
-                        : '<p>❌ QR Code לא זמין כרגע. אם אתה הבעלים של הדף, התחבר כדי ליצור QR Code מחדש.</p>';
+                        ? '<p>⚠️ QR Code לא נטען. לחץ על "צור QR Code מחדש" כדי ליצור אותו.</p>'
+                        : '<p>⚠️ QR Code לא זמין כרגע. אם אתה הבעלים של הדף, התחבר כדי ליצור QR Code מחדש.</p>';
                       parent.appendChild(errorMsg);
+                    }
+                  }}
+                  onLoad={() => {
+                    // If QR code loads successfully, remove any error messages
+                    const parent = document.querySelector('.qr-image');
+                    if (parent) {
+                      const errorMsg = parent.querySelector('.qr-error-message');
+                      if (errorMsg) {
+                        errorMsg.remove();
+                      }
                     }
                   }}
                 />
