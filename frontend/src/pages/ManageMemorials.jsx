@@ -11,6 +11,7 @@ function ManageMemorials() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [isAdmin, setIsAdmin] = useState(false);
+  const [grantingId, setGrantingId] = useState(null);
 
   useEffect(() => {
     fetchMemorials();

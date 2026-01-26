@@ -150,8 +150,17 @@ async function ensureDbConnection() {
     await db.execute('SELECT 1');
     return; // Connection is alive
   } catch (err) {
-    if (err.message && (err.message.includes('closed state') || err.message.includes('PROTOCOL_CONNECTION_LOST'))) {
-      console.error('❌ Database connection is closed, reconnecting...');
+    const errMsg = err.message || '';
+    const shouldReconnect = 
+      errMsg.includes('closed state') || 
+      errMsg.includes('PROTOCOL_CONNECTION_LOST') ||
+      errMsg.includes('disconnected by the server') ||
+      errMsg.includes('inactivity') ||
+      err.code === 'PROTOCOL_CONNECTION_LOST' ||
+      err.code === 'ECONNRESET';
+    
+    if (shouldReconnect) {
+      console.error('❌ Database connection is closed/lost, reconnecting...', err.message);
       db = null;
       dbReady = false;
       retryCount = 0; // Reset retry count for reconnection
@@ -182,8 +191,15 @@ async function initDatabaseConnection() {
     // Handle connection errors and reconnection
     db.on('error', async (err) => {
       console.error('❌ MySQL connection error:', err.message);
-      if (err.code === 'PROTOCOL_CONNECTION_LOST' || err.code === 'ECONNRESET') {
-        console.log('🔄 Connection lost, will reconnect on next query...');
+      const errMsg = err.message || '';
+      const shouldReconnect = 
+        err.code === 'PROTOCOL_CONNECTION_LOST' || 
+        err.code === 'ECONNRESET' ||
+        errMsg.includes('disconnected by the server') ||
+        errMsg.includes('inactivity');
+      
+      if (shouldReconnect) {
+        console.log('🔄 Connection lost (timeout/inactivity), will reconnect on next query...');
         db = null;
         dbReady = false;
       }
@@ -485,7 +501,12 @@ function startServer() {
   app.listen(PORT, () => {
     console.log(`✅ Server running on port ${PORT}`);
     console.log(`✅ Environment: ${NODE_ENV}`);
-    if (NODE_ENV === 'production') {
+    if (NODE_ENV === 'development') {
+      console.log(`\n🌐 Local Development URLs:`);
+      console.log(`   Backend API: http://localhost:${PORT}`);
+      console.log(`   Frontend: http://localhost:3000`);
+      console.log(`   → Open http://localhost:3000 in your browser\n`);
+    } else if (NODE_ENV === 'production') {
       console.log(`✅ Frontend URL: ${process.env.FRONTEND_URL || 'Not set'}`);
       console.log(`✅ Base URL: ${process.env.BASE_URL || 'NOT SET - Using request host (will be Railway URL!)'}`);
       if (!process.env.BASE_URL) {
@@ -803,7 +824,13 @@ app.post('/api/auth/login', checkDbReady, async (req, res) => {
       user: { id: user.id, name: user.name, email: user.email }
     });
   } catch (err) {
-    console.error('Login error:', err);
+    console.error('❌ Login error:', err);
+    console.error('❌ Login error stack:', err.stack);
+    console.error('❌ Login error details:', {
+      message: err.message,
+      code: err.code,
+      name: err.name
+    });
     // Provide more helpful error messages
     if (err.message && err.message.includes('Database connection failed')) {
       return res.status(503).json({ 
