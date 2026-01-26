@@ -80,7 +80,7 @@ function Login() {
         }
       }
     } catch (err) {
-      setError(err.response?.data?.message || 'אירעה שגיאה. נסה שוב.');
+      setError(err.response?.data?.message || err.response?.data?.error || 'אירעה שגיאה. נסה שוב.');
     } finally {
       setLoading(false);
     }

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 import { getApiEndpoint } from '../config';
-import { FaSpinner, FaEdit, FaEye, FaLock, FaTrash } from 'react-icons/fa';
+import { FaSpinner, FaEdit, FaEye, FaLock, FaTrash, FaInfinity } from 'react-icons/fa';
 import './ManageMemorials.css';
 
 function ManageMemorials() {
@@ -207,6 +207,31 @@ function ManageMemorials() {
     }
   };
 
+  const handleGrantLifetime = async (memorialId) => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    if (!window.confirm('להעניק שמירה לכל החיים לדף הזיכרון הזה?')) return;
+
+    setGrantingId(memorialId);
+    try {
+      const response = await axios.patch(
+        getApiEndpoint(`/api/memorials/${memorialId}/grant-lifetime`),
+        {},
+        { headers: { 'Authorization': `Bearer ${token}` } }
+      );
+      if (response.data.success) {
+        await fetchMemorials();
+      } else {
+        alert('שגיאה: ' + (response.data.message || 'לא ניתן להעניק שמירה לצמיתות'));
+      }
+    } catch (err) {
+      const msg = err.response?.data?.message || err.message || 'שגיאה לא ידועה';
+      alert('שגיאה בהענקת שמירה לצמיתות: ' + msg);
+    } finally {
+      setGrantingId(null);
+    }
+  };
+
   const handleCleanupTestMemorials = async () => {
     if (!window.confirm('האם אתה בטוח שאתה רוצה למחוק את כל דפי הבדיקה הישנים (ללא משתמש)? פעולה זו לא ניתנת לביטול.')) {
       return;
@@ -354,6 +379,31 @@ function ManageMemorials() {
                         <button className="btn btn-disabled" disabled>
                           <FaLock style={{ marginLeft: '5px' }} />
                           נעול
+                        </button>
+                      )}
+                      {isAdmin && memorial.status !== 'lifetime' && (
+                        <button
+                          onClick={() => handleGrantLifetime(memorial.id)}
+                          disabled={grantingId === memorial.id}
+                          className="btn btn-outline"
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            background: '#e8f5e9',
+                            color: '#2e7d32',
+                            borderColor: '#2e7d32'
+                          }}
+                          title="הענק שמירה לכל החיים"
+                        >
+                          {grantingId === memorial.id ? (
+                            <>מעניק…</>
+                          ) : (
+                            <>
+                              <FaInfinity style={{ marginLeft: '5px' }} />
+                              לכל החיים
+                            </>
+                          )}
                         </button>
                       )}
                       {/* Users can delete their own memorials, admins can delete any */}

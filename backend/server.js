@@ -1,6 +1,15 @@
-// Load environment variables from .env file (for local development)
+// Load environment variables from .env file (for local development only)
 // This must be at the very top, before any other imports
-require('dotenv').config();
+// Only load .env in development mode - Railway has its own environment variables
+if (process.env.NODE_ENV !== 'production') {
+  try {
+    require('dotenv').config();
+    console.log('📁 Loaded .env file for local development');
+  } catch (err) {
+    // dotenv not available or .env file not found - that's OK
+    console.log('ℹ️  No .env file found (this is OK in production)');
+  }
+}
 
 const express = require('express');
 const cors = require('cors');
@@ -53,8 +62,8 @@ const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-producti
 // Middleware
 // CORS configuration - Add headers to ALL responses
 app.use((req, res, next) => {
-  // Log all API requests for debugging
-  if (req.path.startsWith('/api')) {
+  // Log all API requests for debugging (only in development)
+  if (req.path.startsWith('/api') && process.env.NODE_ENV === 'development') {
     console.log(`🌐 API Request: ${req.method} ${req.path}`);
   }
   
@@ -129,6 +138,10 @@ async function ensureDbConnection() {
   if (!db) {
     console.log('🔄 No database connection, attempting to connect...');
     await initDatabaseConnection();
+    // If still no connection after retry, throw error
+    if (!db) {
+      throw new Error('Database connection failed. Please check your MySQL settings and make sure MySQL is running.');
+    }
     return;
   }
   
@@ -143,6 +156,10 @@ async function ensureDbConnection() {
       dbReady = false;
       retryCount = 0; // Reset retry count for reconnection
       await initDatabaseConnection();
+      // If still no connection after retry, throw error
+      if (!db) {
+        throw new Error('Database reconnection failed. Please check your MySQL settings and make sure MySQL is running.');
+      }
     } else {
       throw err; // Re-throw other errors
     }
@@ -280,6 +297,51 @@ async function initDatabase() {
     } catch (err) {
       if (err.code === 'ER_DUP_FIELDNAME') {
         console.log('✅ mishnayot column already exists in memorials');
+      } else {
+        throw err;
+      }
+    }
+    
+    // Add location columns if they don't exist (for existing tables)
+    try {
+      await db.execute(`ALTER TABLE memorials ADD COLUMN cemeteryName VARCHAR(255)`);
+      console.log('✅ Added cemeteryName column to memorials');
+    } catch (err) {
+      if (err.code === 'ER_DUP_FIELDNAME') {
+        console.log('✅ cemeteryName column already exists in memorials');
+      } else {
+        throw err;
+      }
+    }
+    
+    try {
+      await db.execute(`ALTER TABLE memorials ADD COLUMN cemeteryAddress VARCHAR(500)`);
+      console.log('✅ Added cemeteryAddress column to memorials');
+    } catch (err) {
+      if (err.code === 'ER_DUP_FIELDNAME') {
+        console.log('✅ cemeteryAddress column already exists in memorials');
+      } else {
+        throw err;
+      }
+    }
+    
+    try {
+      await db.execute(`ALTER TABLE memorials ADD COLUMN latitude DECIMAL(10, 8)`);
+      console.log('✅ Added latitude column to memorials');
+    } catch (err) {
+      if (err.code === 'ER_DUP_FIELDNAME') {
+        console.log('✅ latitude column already exists in memorials');
+      } else {
+        throw err;
+      }
+    }
+    
+    try {
+      await db.execute(`ALTER TABLE memorials ADD COLUMN longitude DECIMAL(11, 8)`);
+      console.log('✅ Added longitude column to memorials');
+    } catch (err) {
+      if (err.code === 'ER_DUP_FIELDNAME') {
+        console.log('✅ longitude column already exists in memorials');
       } else {
         throw err;
       }
@@ -472,18 +534,41 @@ function parseTimeline(rawValue) {
 
 // Helper function to handle database errors
 function handleDbError(err, res) {
-  // Ensure CORS headers are set even on errors
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
-  
-  if (err && (err.code === 'ER_NO_SUCH_TABLE' || err.code === 'SQLITE_ERROR') && err.message && (err.message.includes('doesn\'t exist') || err.message.includes('no such table'))) {
-    return res.status(503).json({ 
-      success: false, 
-      error: 'Database is initializing. Please try again in a moment.' 
+
+  if (!err) {
+    return res.status(500).json({ success: false, error: 'Database error' });
+  }
+
+  const code = err.code || '';
+  const msg = (err.message || '').toLowerCase();
+
+  const dbUnavailable = [
+    'ECONNREFUSED', 'ECONNRESET', 'ENOTFOUND', 'ETIMEDOUT', 'EAI_AGAIN',
+    'PROTOCOL_CONNECTION_LOST', 'ER_ACCESS_DENIED_ERROR', 'ER_BAD_DB_ERROR',
+    'ER_DBACCESS_DENIED_ERROR', 'ER_CON_COUNT_ERROR'
+  ].includes(code) || msg.includes('connection') || msg.includes('connect econnrefused');
+
+  if (err.code === 'ER_NO_SUCH_TABLE' || err.code === 'SQLITE_ERROR' ||
+      (msg.includes('doesn\'t exist') || msg.includes('no such table'))) {
+    return res.status(503).json({
+      success: false,
+      error: 'Database is initializing. Please try again in a moment.',
+      message: 'מסד הנתונים מאותחל. נסה שוב בעוד רגע.'
     });
   }
-  return res.status(500).json({ success: false, error: err ? err.message : 'Database error' });
+
+  if (dbUnavailable) {
+    return res.status(503).json({
+      success: false,
+      error: 'Database unavailable.',
+      message: 'מסד הנתונים לא זמין. בדוק ש-MySQL רץ והגדרות ב-.env נכונות (או השתמש במסד של Railway – ראה env.example).'
+    });
+  }
+
+  return res.status(500).json({ success: false, error: err.message || 'Database error' });
 }
 
 // MySQL doesn't need ensureColumn - all columns are created with the table
@@ -542,8 +627,11 @@ const validateInput = (req, res, next) => {
 // Authentication middleware
 const authenticateToken = async (req, res, next) => {
   const authHeader = req.headers['authorization'];
-  console.log('🔍 Auth header received:', authHeader ? 'Yes' : 'No');
-  console.log('🔍 All headers:', JSON.stringify(req.headers, null, 2));
+  // Only log headers in development to avoid too much logging in production
+  if (process.env.NODE_ENV === 'development') {
+    console.log('🔍 Auth header received:', authHeader ? 'Yes' : 'No');
+    console.log('🔍 All headers:', JSON.stringify(req.headers, null, 2));
+  }
   const token = authHeader && authHeader.split(' ')[1];
 
   if (!token) {
@@ -673,7 +761,24 @@ app.post('/api/auth/login', checkDbReady, async (req, res) => {
       return res.status(400).json({ success: false, message: 'אימייל וסיסמה נדרשים' });
     }
 
+    // Check if database is ready
+    if (!db || !dbReady) {
+      console.error('❌ Login attempted but database is not connected');
+      return res.status(503).json({ 
+        success: false, 
+        message: 'מסד הנתונים לא זמין. אנא בדוק ש-MySQL רץ והגדרות ההתחברות נכונות.' 
+      });
+    }
+
     await ensureDbConnection();
+
+    // Double check db is available
+    if (!db) {
+      return res.status(503).json({ 
+        success: false, 
+        message: 'לא ניתן להתחבר למסד הנתונים. אנא בדוק את הגדרות MySQL ב-.env וודא ש-MySQL רץ.' 
+      });
+    }
 
     // Find user
     const [users] = await db.execute('SELECT * FROM users WHERE email = ?', [email]);
@@ -699,6 +804,13 @@ app.post('/api/auth/login', checkDbReady, async (req, res) => {
     });
   } catch (err) {
     console.error('Login error:', err);
+    // Provide more helpful error messages
+    if (err.message && err.message.includes('Database connection failed')) {
+      return res.status(503).json({ 
+        success: false, 
+        message: 'לא ניתן להתחבר למסד הנתונים. אנא בדוק ש-MySQL רץ ושההגדרות ב-.env נכונות.' 
+      });
+    }
     handleDbError(err, res);
   }
 });
@@ -951,7 +1063,11 @@ app.post('/api/memorials', checkDbReady, optionalAuth, validateInput, upload.fie
       tehilimChapters,
       mishnayot,
       heroSummary = '',
-      heroImageIndex
+      heroImageIndex,
+      cemeteryName,
+      cemeteryAddress,
+      latitude,
+      longitude
     } = req.body;
     const id = uuidv4();
     let timeline = [];
@@ -1112,8 +1228,8 @@ app.post('/api/memorials', checkDbReady, optionalAuth, validateInput, upload.fie
       expiryDate.setHours(expiryDate.getHours() + 48); // 48 hours from now
 
       await db.execute(`
-      INSERT INTO memorials (id, userId, name, hebrewName, birthDate, deathDate, biography, images, videos, backgroundMusic, heroImage, heroSummary, timeline, tehilimChapters, mishnayot, qrCodePath, status, expiryDate, canEdit)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO memorials (id, userId, name, hebrewName, birthDate, deathDate, biography, images, videos, backgroundMusic, heroImage, heroSummary, timeline, tehilimChapters, mishnayot, qrCodePath, status, expiryDate, canEdit, cemeteryName, cemeteryAddress, latitude, longitude)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `, [
       id,
       userId,
@@ -1133,7 +1249,11 @@ app.post('/api/memorials', checkDbReady, optionalAuth, validateInput, upload.fie
       `/${qrCodePath}`,
       'temporary',
       expiryDate,
-      true  // canEdit default for new memorials (they can upgrade later)
+      true,  // canEdit default for new memorials (they can upgrade later)
+      cemeteryName || null,
+      cemeteryAddress || null,
+      latitude ? parseFloat(latitude) : null,
+      longitude ? parseFloat(longitude) : null
       ]);
     
     res.json({
@@ -1156,7 +1276,11 @@ app.post('/api/memorials', checkDbReady, optionalAuth, validateInput, upload.fie
         qrCodePath: `/${qrCodePath}`,
         url: memorialUrl,
         status: 'temporary',
-        expiryDate: expiryDate.toISOString()
+        expiryDate: expiryDate.toISOString(),
+        cemeteryName: cemeteryName || null,
+        cemeteryAddress: cemeteryAddress || null,
+        latitude: latitude ? parseFloat(latitude) : null,
+        longitude: longitude ? parseFloat(longitude) : null
       },
       redirectTo: `/save/${id}` // Redirect to save page
     });
@@ -1209,15 +1333,21 @@ app.get('/api/memorials/:id', checkDbReady, optionalAuth, async (req, res) => {
     await ensureDbConnection();
     const [rows] = await db.execute('SELECT * FROM memorials WHERE id = ?', [id]);
     
-    console.log('🔍 Found rows:', rows.length);
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🔍 Found rows:', rows.length);
+    }
     
     if (rows.length === 0) {
-      console.log('❌ Memorial not found for ID:', id);
+      if (process.env.NODE_ENV === 'development') {
+        console.log('❌ Memorial not found for ID:', id);
+      }
       return res.status(404).json({ success: false, error: 'Memorial not found' });
     }
     
     const row = rows[0];
-    console.log('✅ Memorial found:', row.name, 'Status:', row.status, 'User ID:', row.userId);
+    if (process.env.NODE_ENV === 'development') {
+      console.log('✅ Memorial found:', row.name, 'Status:', row.status, 'User ID:', row.userId);
+    }
     
     // Check if memorial has expired (for temporary status)
     if (row.status === 'temporary' && row.expiryDate) {
@@ -1568,14 +1698,19 @@ app.post('/api/memorials/:id/regenerate-qr', checkDbReady, authenticateToken, as
 // Helper function to check if user is admin
 const isAdmin = (user) => {
   if (!user || !user.email) {
-    console.log('❌ isAdmin check: No user or email');
+    if (process.env.NODE_ENV === 'development') {
+      console.log('❌ isAdmin check: No user or email');
+    }
     return false;
   }
   // Normalize email for comparison (lowercase and trim)
   const normalizedUserEmail = user.email.toLowerCase().trim();
   const adminEmail = 'a0534166556@gmail.com';
   const isAdminResult = normalizedUserEmail === adminEmail;
-  console.log('🔍 isAdmin check - User email:', user.email, 'Normalized:', normalizedUserEmail, 'Admin email:', adminEmail, 'Result:', isAdminResult);
+  // Only log in development to avoid too much logging in production
+  if (process.env.NODE_ENV === 'development') {
+    console.log('🔍 isAdmin check - User email:', user.email, 'Normalized:', normalizedUserEmail, 'Admin email:', adminEmail, 'Result:', isAdminResult);
+  }
   return isAdminResult;
 };
 
@@ -1614,7 +1749,9 @@ app.delete('/api/memorials/:id', checkDbReady, authenticateToken, async (req, re
     
     // Remove from localStorage if it's there
     // This will be handled on frontend, but we log it here for debugging
-    console.log(`✅ Deleted memorial ${id} by user ${req.user.id} (admin: ${isAdmin(req.user)})`);
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`✅ Deleted memorial ${id} by user ${req.user.id} (admin: ${isAdmin(req.user)})`);
+    }
     
     // TODO: Optionally delete files from disk (images, videos, QR codes)
     // For now, just delete from database
@@ -1622,6 +1759,35 @@ app.delete('/api/memorials/:id', checkDbReady, authenticateToken, async (req, re
     res.json({ success: true, message: 'דף הזיכרון נמחק בהצלחה' });
   } catch (err) {
     console.error('Error deleting memorial:', err);
+    handleDbError(err, res);
+  }
+});
+
+// Grant lifetime storage to a memorial (admin only)
+app.patch('/api/memorials/:id/grant-lifetime', checkDbReady, authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!isAdmin(req.user)) {
+      return res.status(403).json({ success: false, message: 'רק מנהל יכול להעניק שמירה לכל החיים' });
+    }
+    await ensureDbConnection();
+
+    const [rows] = await db.execute('SELECT * FROM memorials WHERE id = ?', [id]);
+    if (rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'דף זיכרון לא נמצא' });
+    }
+
+    await db.execute(
+      'UPDATE memorials SET status = ?, expiryDate = NULL, canEdit = 1 WHERE id = ?',
+      ['lifetime', id]
+    );
+
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`✅ Admin granted lifetime to memorial ${id}`);
+    }
+    res.json({ success: true, message: 'הוענקה שמירה לכל החיים לדף הזיכרון' });
+  } catch (err) {
+    console.error('Error granting lifetime:', err);
     handleDbError(err, res);
   }
 });
@@ -1681,7 +1847,11 @@ app.put('/api/memorials/:id', checkDbReady, authenticateToken, validateInput, up
       tehilimChapters,
       mishnayot,
       heroSummary = '',
-      heroImageIndex
+      heroImageIndex,
+      cemeteryName,
+      cemeteryAddress,
+      latitude,
+      longitude
     } = req.body;
     
     let timeline = [];
@@ -1735,7 +1905,8 @@ app.put('/api/memorials/:id', checkDbReady, authenticateToken, validateInput, up
       UPDATE memorials 
       SET name = ?, hebrewName = ?, birthDate = ?, deathDate = ?, biography = ?, 
           images = ?, videos = ?, backgroundMusic = ?, heroImage = ?, heroSummary = ?, 
-          timeline = ?, tehilimChapters = ?, mishnayot = ?
+          timeline = ?, tehilimChapters = ?, mishnayot = ?,
+          cemeteryName = ?, cemeteryAddress = ?, latitude = ?, longitude = ?
       WHERE id = ? AND userId = ?
     `, [
       name,
@@ -1751,6 +1922,10 @@ app.put('/api/memorials/:id', checkDbReady, authenticateToken, validateInput, up
       JSON.stringify(timeline),
       tehilimChapters || '',
       mishnayot || '',
+      cemeteryName || null,
+      cemeteryAddress || null,
+      latitude ? parseFloat(latitude) : null,
+      longitude ? parseFloat(longitude) : null,
       id,
       req.user.id
     ]);

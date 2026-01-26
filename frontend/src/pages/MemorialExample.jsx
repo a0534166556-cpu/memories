@@ -1,9 +1,10 @@
 import { useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { FaHome, FaPlay, FaPause, FaVolumeUp, FaHeart, FaBook, FaHistory, FaFire, FaComment } from 'react-icons/fa';
+import { FaHome, FaPlay, FaPause, FaVolumeUp, FaHeart, FaBook, FaHistory, FaFire, FaComment, FaMapMarkerAlt } from 'react-icons/fa';
 import { Swiper, SwiperSlide } from 'swiper/react';
 import { Navigation, Pagination, Autoplay } from 'swiper/modules';
 import TehilimReader from '../components/TehilimReader';
+import MishnayotReader from '../components/MishnayotReader';
 import 'swiper/css';
 import 'swiper/css/navigation';
 import 'swiper/css/pagination';
@@ -48,7 +49,12 @@ const exampleMemorial = {
     }
   ],
   tehilimChapters: '23,103,130',
-  backgroundMusic: '/audio/sad-vibes.mp3'
+  mishnayot: 'ברכות א, ברכות ב, שבת א',
+  backgroundMusic: '/audio/sad-vibes.mp3',
+  cemeteryName: 'בית הקברות הר הזיתים',
+  cemeteryAddress: 'רחוב הר הזיתים, ירושלים',
+  latitude: '31.7784',
+  longitude: '35.2434'
 };
 
 function MemorialExample() {
@@ -67,6 +73,18 @@ function MemorialExample() {
     if (!dateStr) return '';
     const date = new Date(dateStr);
     return date.toLocaleDateString('he-IL');
+  };
+
+  const calculateAge = (birthDate, deathDate) => {
+    if (!birthDate || !deathDate) return null;
+    const birth = new Date(birthDate);
+    const death = new Date(deathDate);
+    let age = death.getFullYear() - birth.getFullYear();
+    const monthDiff = death.getMonth() - birth.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && death.getDate() < birth.getDate())) {
+      age--;
+    }
+    return age;
   };
 
   const toggleMusic = () => {
@@ -173,6 +191,11 @@ function MemorialExample() {
                 {memorial.deathDate && (
                   <span>{formatDate(memorial.deathDate)}</span>
                 )}
+                {memorial.birthDate && memorial.deathDate && (
+                  <span className="age-info">
+                    {' '}(בן {calculateAge(memorial.birthDate, memorial.deathDate)} שנים)
+                  </span>
+                )}
               </div>
               {(memorial.heroImage || memorial.heroSummary) && (
                 <div className="memorial-hero-intro">
@@ -277,6 +300,60 @@ function MemorialExample() {
             {showTehilim && (
               <TehilimReader chapters={memorial.tehilimChapters} />
             )}
+          </section>
+        )}
+
+        {/* Mishnayot Section */}
+        {memorial.mishnayot && memorial.mishnayot.trim() && (
+          <section className="mishnayot-section">
+            <div className="tehilim-header">
+              <h2 className="section-title">
+                <FaBook /> משניות
+              </h2>
+              <button
+                className="btn btn-primary"
+                onClick={() => setShowMishnayot(!showMishnayot)}
+              >
+                {showMishnayot ? 'סגור משניות' : 'קרא משניות'}
+              </button>
+            </div>
+            {showMishnayot && (
+              <MishnayotReader mishnayot={memorial.mishnayot} />
+            )}
+          </section>
+        )}
+
+        {/* Location Section */}
+        {(memorial.cemeteryName || memorial.cemeteryAddress || (memorial.latitude && memorial.longitude)) && (
+          <section className="location-section">
+            <h2 className="section-title">
+              <FaMapMarkerAlt /> מיקום הקבר
+            </h2>
+            <div className="location-content">
+              {memorial.cemeteryName && (
+                <div className="location-item">
+                  <strong>בית קברות:</strong> {memorial.cemeteryName}
+                </div>
+              )}
+              {memorial.cemeteryAddress && (
+                <div className="location-item">
+                  <strong>כתובת:</strong> {memorial.cemeteryAddress}
+                </div>
+              )}
+              {memorial.latitude && memorial.longitude && (
+                <div className="location-item">
+                  <a
+                    href={`https://www.google.com/maps?q=${memorial.latitude},${memorial.longitude}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="btn btn-primary"
+                    style={{ marginTop: '10px' }}
+                  >
+                    <FaMapMarkerAlt /> פתח ב-Google Maps
+                  </a>
+                </div>
+              )}
+            </div>
           </section>
         )}
 

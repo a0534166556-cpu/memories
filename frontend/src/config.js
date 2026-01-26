@@ -1,17 +1,14 @@
 // API Configuration
-// תמיד משתמש ב-relative path כדי שהבקשות יעברו דרך Netlify proxy
-// ב-development: זה יעבוד עם ה-proxy ב-vite.config.js
-// ב-production: זה יעבוד עם ה-proxy ב-netlify.toml
+// Default: relative path → requests go through Vite proxy (dev) or Netlify proxy (prod).
+// If VITE_API_URL is set (e.g. your published Netlify URL): use it so local frontend talks to production API.
 
 const getApiUrl = () => {
-  // תמיד השתמש ב-relative path (ריק) כדי שהבקשות יעברו דרך proxy
-  // זה יעבוד גם ב-development (Vite proxy) וגם ב-production (Netlify proxy)
-  // IGNORE VITE_API_URL - תמיד השתמש ב-relative path
-  // eslint-disable-next-line no-undef
-  if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_URL) {
-    console.warn('⚠️ VITE_API_URL is set but ignored - using relative path for proxy');
+  const u = typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_URL;
+  const url = (typeof u === 'string' && u.trim()) ? u.trim().replace(/\/$/, '') : '';
+  if (url && import.meta.env?.DEV) {
+    console.warn('📍 Using VITE_API_URL (production API):', url);
   }
-  return '';
+  return url;
 };
 
 export const API_URL = getApiUrl();

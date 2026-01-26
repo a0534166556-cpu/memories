@@ -21,7 +21,11 @@ function EditMemorial() {
     biography: '',
     tehilimChapters: '',
     mishnayot: '',
-    heroSummary: ''
+    heroSummary: '',
+    cemeteryName: '',
+    cemeteryAddress: '',
+    latitude: '',
+    longitude: ''
   });
   const [files, setFiles] = useState([]);
   const [previews, setPreviews] = useState([]);
@@ -74,7 +78,11 @@ function EditMemorial() {
             biography: memorial.biography || '',
             tehilimChapters: memorial.tehilimChapters || '',
             mishnayot: memorial.mishnayot || '',
-            heroSummary: memorial.heroSummary || ''
+            heroSummary: memorial.heroSummary || '',
+            cemeteryName: memorial.cemeteryName || '',
+            cemeteryAddress: memorial.cemeteryAddress || '',
+            latitude: memorial.latitude ? String(memorial.latitude) : '',
+            longitude: memorial.longitude ? String(memorial.longitude) : ''
           });
 
           // Set existing media
@@ -579,6 +587,67 @@ function EditMemorial() {
                 placeholder="כמה משפטים שיופיעו בפתיח הדף לדוגמה: מחנך, מתנדב ואב מסור..."
               />
               <small>הטקסט יופיע לצד התמונה הראשית בחלק העליון של דף הזיכרון.</small>
+            </div>
+
+            <div className="form-group">
+              <h3>מיקום הקבר (אופציונלי)</h3>
+              <p style={{ fontSize: '0.9rem', color: '#666', marginBottom: '15px' }}>
+                ניתן להוסיף מיקום הקבר כדי לאפשר למבקרים למצוא את הקבר
+              </p>
+              
+              <div className="form-group">
+                <label htmlFor="cemeteryName">שם בית הקברות</label>
+                <input
+                  type="text"
+                  id="cemeteryName"
+                  name="cemeteryName"
+                  value={formData.cemeteryName}
+                  onChange={handleChange}
+                  placeholder="לדוגמה: בית הקברות הר הזיתים"
+                />
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="cemeteryAddress">כתובת בית הקברות</label>
+                <input
+                  type="text"
+                  id="cemeteryAddress"
+                  name="cemeteryAddress"
+                  value={formData.cemeteryAddress}
+                  onChange={handleChange}
+                  placeholder="לדוגמה: רחוב הר הזיתים, ירושלים"
+                />
+              </div>
+
+              <div className="form-row">
+                <div className="form-group">
+                  <label htmlFor="latitude">קו רוחב (Latitude)</label>
+                  <input
+                    type="number"
+                    id="latitude"
+                    name="latitude"
+                    value={formData.latitude}
+                    onChange={handleChange}
+                    step="any"
+                    placeholder="לדוגמה: 31.7784"
+                  />
+                  <small>קואורדינטות GPS למיקום מדויק (אופציונלי)</small>
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="longitude">קו אורך (Longitude)</label>
+                  <input
+                    type="number"
+                    id="longitude"
+                    name="longitude"
+                    value={formData.longitude}
+                    onChange={handleChange}
+                    step="any"
+                    placeholder="לדוגמה: 35.2434"
+                  />
+                  <small>קואורדינטות GPS למיקום מדויק (אופציונלי)</small>
+                </div>
+              </div>
             </div>
 
           <div className="form-group">
