@@ -162,7 +162,7 @@ async function ensureDbConnection() {
     if (shouldReconnect) {
       console.error('❌ Database connection is closed/lost, reconnecting...', err.message);
       db = null;
-      dbReady = false;
+      // אל תגדיר dbReady = false – כדי שהבקשה הבאה או ה־keep-alive יוכלו לנסות שוב
       retryCount = 0; // Reset retry count for reconnection
       await initDatabaseConnection();
       // If still no connection after retry, throw error
@@ -188,6 +188,15 @@ async function initDatabaseConnection() {
     db = await mysql.createConnection(dbConfig);
     console.log('✅ Connected to MySQL database');
     
+    // נסה להגדיל טיימאאוט של הסשן כדי לצמצם ניתוקים מחוסר פעילות
+    try {
+      await db.execute('SET SESSION wait_timeout = 28800');
+      await db.execute('SET SESSION interactive_timeout = 28800');
+      console.log('✅ MySQL session timeouts set to 8 hours');
+    } catch (e) {
+      console.log('⚠️ Could not set MySQL timeouts:', e.message);
+    }
+    
     // Handle connection errors and reconnection
     db.on('error', async (err) => {
       console.error('❌ MySQL connection error:', err.message);
@@ -201,7 +210,7 @@ async function initDatabaseConnection() {
       if (shouldReconnect) {
         console.log('🔄 Connection lost (timeout/inactivity), will reconnect on next query...');
         db = null;
-        dbReady = false;
+        // אל תגדיר dbReady = false – אחרת כל הבקשות מקבלות 503 ואף אחת לא מגיעה ל־ensureDbConnection שמתחבר מחדש
       }
     });
     
@@ -242,6 +251,15 @@ startServer();
 
 // Start database connection (will retry in background)
 initDatabaseConnection();
+
+// Keep-alive: כל 5 דקות – אם יש חיבור שולחים SELECT 1; אם אין (db null) מנסים להתחבר מחדש
+setInterval(async () => {
+  try {
+    await ensureDbConnection();
+  } catch (err) {
+    console.error('❌ DB keep-alive failed:', err.message);
+  }
+}, 5 * 60 * 1000);
 
 async function initDatabase() {
   console.log('Starting database initialization...');
