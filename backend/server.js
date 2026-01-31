@@ -18,6 +18,16 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
+
+// אחסון קבוע: ב-Railway הוסף Volume למשאב memories, Mount Path: /app/data. משתמש ב-RAILWAY_VOLUME_MOUNT_PATH (אוטומטי) או STORAGE_PATH
+const STORAGE_PATH = (process.env.RAILWAY_VOLUME_MOUNT_PATH || process.env.STORAGE_PATH || '').trim();
+if (STORAGE_PATH) {
+  console.log('📁 Persistent storage enabled:', STORAGE_PATH);
+}
+function storageDir(...segments) {
+  return path.join(STORAGE_PATH, ...segments);
+}
+const crypto = require('crypto');
 const { v4: uuidv4 } = require('uuid');
 const QRCode = require('qrcode');
 const mysql = require('mysql2/promise');
@@ -58,6 +68,12 @@ const app = express();
 const PORT = process.env.PORT || 8080;
 const NODE_ENV = process.env.NODE_ENV || 'development';
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
+
+// כתובת דף הזיכרון (הפרונט) – תמיד Netlify, כדי שסריקת ה-QR תפתח תמיד את הדף
+const MEMORIAL_PAGE_BASE_URL = 'https://memoriesman.netlify.app';
+function getMemorialPageUrl(memorialId) {
+  return `${MEMORIAL_PAGE_BASE_URL}/memorial/${memorialId}`;
+}
 
 // Middleware
 // CORS configuration - Add headers to ALL responses
@@ -102,14 +118,38 @@ const staticOptions = {
   }
 };
 
-app.use('/uploads', express.static('uploads', staticOptions));
-app.use('/qrcodes', express.static('qrcodes', staticOptions));
+app.use('/uploads', express.static(storageDir('uploads') || path.join(__dirname, 'uploads'), staticOptions));
+
+// QR codes: אם הקובץ לא קיים (למשל אחרי deploy ב-Railway), יוצרים את ה-QR דינמית
+app.get('/qrcodes/:filename', async (req, res) => {
+  const filename = req.params.filename;
+  if (!filename || !filename.endsWith('.png')) {
+    return res.status(404).end();
+  }
+  const id = filename.replace(/\.png$/, '');
+  const filePath = storageDir('qrcodes', filename);
+  if (fs.existsSync(filePath)) {
+    return res.sendFile(path.resolve(filePath));
+  }
+  try {
+    const memorialUrl = getMemorialPageUrl(id);
+    const buffer = await QRCode.toBuffer(memorialUrl, { type: 'png' });
+    const qrDir = storageDir('qrcodes');
+    if (!fs.existsSync(qrDir)) fs.mkdirSync(qrDir, { recursive: true });
+    fs.writeFileSync(filePath, buffer);
+    res.contentType('image/png').send(buffer);
+  } catch (err) {
+    console.error('QR generate on-demand error:', err.message);
+    res.status(500).end();
+  }
+});
+app.use('/qrcodes', express.static(storageDir('qrcodes') || path.join(__dirname, 'qrcodes'), staticOptions));
 
 // Note: Frontend static files will be served at the end, after all API routes
 
-// Create directories if they don't exist
-['uploads/images', 'uploads/videos', 'uploads/audio', 'qrcodes'].forEach(dir => {
-  if (!fs.existsSync(dir)) {
+// Create directories if they don't exist (תומך ב-STORAGE_PATH לאחסון קבוע)
+[storageDir('uploads', 'images'), storageDir('uploads', 'videos'), storageDir('uploads', 'audio'), storageDir('qrcodes')].forEach(dir => {
+  if (dir && !fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
   }
 });
@@ -496,6 +536,16 @@ async function initDatabase() {
       }
       console.log('✅ User/payment/subscription indexes already exist');
     }
+
+    // Create password_reset_tokens table for forgot-password flow
+    await db.execute(`CREATE TABLE IF NOT EXISTS password_reset_tokens (
+      token VARCHAR(255) PRIMARY KEY,
+      userId VARCHAR(255) NOT NULL,
+      expiresAt DATETIME NOT NULL,
+      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
+    )`);
+    console.log('✅ Password reset tokens table ready');
     
     console.log('✅ Database initialization complete!');
   } catch (err) {
@@ -612,14 +662,14 @@ function handleDbError(err, res) {
 
 // MySQL doesn't need ensureColumn - all columns are created with the table
 
-// Configure multer for file uploads
+// Configure multer for file uploads (תומך ב-STORAGE_PATH לאחסון קבוע)
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    let uploadPath = 'uploads/images';
+    let uploadPath = storageDir('uploads', 'images');
     if (file.mimetype.startsWith('video/')) {
-      uploadPath = 'uploads/videos';
+      uploadPath = storageDir('uploads', 'videos');
     } else if (file.mimetype.startsWith('audio/')) {
-      uploadPath = 'uploads/audio';
+      uploadPath = storageDir('uploads', 'audio');
     }
     cb(null, uploadPath);
   },
@@ -856,6 +906,145 @@ app.post('/api/auth/login', checkDbReady, async (req, res) => {
         message: 'לא ניתן להתחבר למסד הנתונים. אנא בדוק ש-MySQL רץ ושההגדרות ב-.env נכונות.' 
       });
     }
+    handleDbError(err, res);
+  }
+});
+
+// Forgot password: send reset link by email (nodemailer/SMTP or SendGrid)
+let mailTransport = null;
+const SENDGRID_API_KEY = process.env.SENDGRID_API_KEY;
+try {
+  const nodemailer = require('nodemailer');
+  const smtpUser = process.env.SMTP_USER || process.env.MAIL_USER;
+  const smtpPass = process.env.SMTP_PASS || process.env.MAIL_PASS;
+  if (smtpUser && smtpPass) {
+    mailTransport = nodemailer.createTransport({
+      host: process.env.SMTP_HOST || 'smtp.gmail.com',
+      port: parseInt(process.env.SMTP_PORT || '587', 10),
+      secure: false,
+      auth: { user: smtpUser, pass: smtpPass }
+    });
+    console.log('✅ Email (nodemailer) configured for password reset');
+  }
+} catch (e) {
+  console.log('ℹ️  Nodemailer not installed – will use SendGrid if SENDGRID_API_KEY is set');
+}
+if (SENDGRID_API_KEY && !mailTransport) {
+  console.log('✅ Email (SendGrid) configured for password reset');
+}
+
+async function sendPasswordResetEmail(toEmail, resetLink) {
+  const fromEmail = process.env.RESET_EMAIL_FROM || process.env.SMTP_USER || 'noreply@memoriesman.netlify.app';
+  const subject = 'איפוס סיסמה – דפי זיכרון דיגיטליים';
+  const textBody = `שלום,\n\nביקשת לאפס את הסיסמה. לחץ על הקישור הבא (תקף לשעה):\n${resetLink}\n\nאם לא ביקשת איפוס, התעלם מהאימייל.\n\nדפי זיכרון דיגיטליים`;
+  const htmlBody = `<p>שלום,</p><p>ביקשת לאפס את הסיסמה. <a href="${resetLink}">לחץ כאן לאיפוס סיסמה</a> (הקישור תקף לשעה).</p><p>אם לא ביקשת איפוס, התעלם מהאימייל.</p><p>דפי זיכרון דיגיטליים</p>`;
+
+  if (mailTransport) {
+    await mailTransport.sendMail({
+      from: fromEmail,
+      to: toEmail,
+      subject,
+      text: textBody,
+      html: htmlBody
+    });
+    return true;
+  }
+  if (SENDGRID_API_KEY) {
+    try {
+      const axios = require('axios');
+      await axios.post(
+        'https://api.sendgrid.com/v3/mail/send',
+        {
+          personalizations: [{ to: [{ email: toEmail }] }],
+          from: { email: fromEmail, name: 'דפי זיכרון דיגיטליים' },
+          subject,
+          content: [
+            { type: 'text/plain', value: textBody },
+            { type: 'text/html', value: htmlBody }
+          ]
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${SENDGRID_API_KEY}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+      return true;
+    } catch (err) {
+      console.error('SendGrid error:', err.response?.data || err.message);
+      throw err;
+    }
+  }
+  return false;
+}
+
+app.post('/api/auth/forgot-password', checkDbReady, async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email || typeof email !== 'string') {
+      return res.status(400).json({ success: false, message: 'נא להזין כתובת אימייל' });
+    }
+    const trimmedEmail = email.trim().toLowerCase();
+    await ensureDbConnection();
+
+    const [users] = await db.execute('SELECT id, name FROM users WHERE email = ?', [trimmedEmail]);
+    if (users.length === 0) {
+      return res.json({ success: true, message: 'אם החשבון קיים במערכת, נשלח אליך אימייל עם קישור לאיפוס סיסמה.' });
+    }
+    const user = users[0];
+
+    const token = crypto.randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
+    await db.execute(
+      'INSERT INTO password_reset_tokens (token, userId, expiresAt) VALUES (?, ?, ?)',
+      [token, user.id, expiresAt]
+    );
+
+    const baseUrl = (process.env.BASE_URL || process.env.FRONTEND_URL || 'https://memoriesman.netlify.app').replace(/\/$/, '');
+    const resetLink = `${baseUrl}/reset-password?token=${token}`;
+
+    const emailSent = await sendPasswordResetEmail(trimmedEmail, resetLink);
+    if (!emailSent && process.env.NODE_ENV === 'development') {
+      console.log('📧 [Dev] Reset link (email not configured):', resetLink);
+    }
+
+    const message = emailSent
+      ? 'אם החשבון קיים במערכת, נשלח אליך אימייל עם קישור לאיפוס סיסמה.'
+      : 'שירות שליחת אימייל לא מוגדר. לאיפוס סיסמה פנה ל־a0534166556@gmail.com עם האימייל שלך.';
+    return res.json({ success: true, message });
+  } catch (err) {
+    console.error('Forgot password error:', err);
+    handleDbError(err, res);
+  }
+});
+
+app.post('/api/auth/reset-password', checkDbReady, async (req, res) => {
+  try {
+    const { token, newPassword } = req.body;
+    if (!token || !newPassword) {
+      return res.status(400).json({ success: false, message: 'נדרשים קישור איפוס וסיסמה חדשה' });
+    }
+    if (newPassword.length < 6) {
+      return res.status(400).json({ success: false, message: 'סיסמה חייבת להיות לפחות 6 תווים' });
+    }
+    await ensureDbConnection();
+
+    const [rows] = await db.execute(
+      'SELECT userId FROM password_reset_tokens WHERE token = ? AND expiresAt > NOW()',
+      [token]
+    );
+    if (rows.length === 0) {
+      return res.status(400).json({ success: false, message: 'קישור איפוס לא תקף או שפג תוקפו. נא לבקש קישור חדש.' });
+    }
+    const userId = rows[0].userId;
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    await db.execute('UPDATE users SET password = ? WHERE id = ?', [hashedPassword, userId]);
+    await db.execute('DELETE FROM password_reset_tokens WHERE token = ?', [token]);
+
+    return res.json({ success: true, message: 'הסיסמה עודכנה. אפשר להתחבר עם הסיסמה החדשה.' });
+  } catch (err) {
+    console.error('Reset password error:', err);
     handleDbError(err, res);
   }
 });
@@ -1168,85 +1357,24 @@ app.post('/api/memorials', checkDbReady, optionalAuth, validateInput, upload.fie
       }
     }
     
-    // Generate QR Code
-    // IMPORTANT: QR codes MUST always point to Netlify URL, never Railway URL
-    // This is because QR codes are scanned by users who should access the frontend, not the backend API
-    let baseUrl = process.env.BASE_URL;
-    
-    // Normalize BASE_URL if it exists
-    if (baseUrl) {
-      baseUrl = baseUrl.trim();
-      // Remove trailing slash
-      if (baseUrl.endsWith('/')) {
-        baseUrl = baseUrl.slice(0, -1);
-      }
-    }
-    
-    // Check various headers to detect Netlify URL
-    const forwardedHost = req.get('X-Forwarded-Host') || req.get('host');
-    const referer = req.get('referer') || req.get('origin') || '';
-    
-    // Try to extract Netlify URL from referer/origin if BASE_URL not set
-    if (!baseUrl && referer) {
-      try {
-        const refererUrl = new URL(referer);
-        if (refererUrl.hostname.includes('netlify.app')) {
-          baseUrl = `${refererUrl.protocol}//${refererUrl.hostname}`;
-          console.log('🔗 Detected Netlify URL from referer:', baseUrl);
-        }
-      } catch (e) {
-        // Ignore URL parsing errors
-      }
-    }
-    
-    // Try X-Forwarded-Host header
-    if (!baseUrl && forwardedHost && forwardedHost.includes('netlify.app')) {
-      const protocol = req.get('X-Forwarded-Proto') || req.protocol || 'https';
-      baseUrl = `${protocol}://${forwardedHost}`;
-      console.log('🔗 Detected Netlify URL from X-Forwarded-Host:', baseUrl);
-    }
-    
-    // ALWAYS use Netlify URL as fallback - NEVER use Railway URL for QR codes
-    if (!baseUrl || baseUrl.includes('railway.app') || baseUrl.includes('localhost') || baseUrl.includes('127.0.0.1')) {
-      baseUrl = 'https://memoriesman.netlify.app';
-      console.log('🔗 Using default Netlify URL (fallback):', baseUrl);
-    }
-    
-    // Final validation - ensure it's Netlify URL
-    if (!baseUrl.includes('netlify.app')) {
-      console.log('⚠️ WARNING: baseUrl does not contain netlify.app, forcing to Netlify URL');
-      baseUrl = 'https://memoriesman.netlify.app';
-    }
-    
-    console.log('🔗 BASE_URL env var:', process.env.BASE_URL || 'NOT SET');
-    console.log('🔗 Final baseUrl for QR code:', baseUrl);
-    
-    // CRITICAL: Ensure memorial ID is present
+    // Generate QR Code – תמיד אותו URL (Netlify) כדי שסריקת ה-QR תפתח תמיד את הדף
     if (!id) {
       console.error('❌ ERROR: No memorial ID provided for QR code generation!');
       throw new Error('Memorial ID is required for QR code generation');
     }
-    
-    const memorialUrl = `${baseUrl}/memorial/${id}`;
+    const memorialUrl = getMemorialPageUrl(id);
     console.log('🔗 Memorial ID:', id);
     console.log('🔗 Memorial URL for QR:', memorialUrl);
-    console.log('🔗 QR Code will contain URL:', memorialUrl);
-    
-    // Validate URL format
-    if (!memorialUrl.includes('/memorial/')) {
-      console.error('❌ ERROR: Memorial URL does not contain /memorial/ path!');
-      console.error('❌ URL:', memorialUrl);
-      throw new Error('Invalid memorial URL format');
-    }
+    const qrCodeFsPath = storageDir('qrcodes', `${id}.png`);
     const qrCodePath = `qrcodes/${id}.png`;
     
     try {
-      // Ensure qrcodes directory exists
-      if (!fs.existsSync('qrcodes')) {
-        fs.mkdirSync('qrcodes', { recursive: true });
+      const qrDir = storageDir('qrcodes');
+      if (!fs.existsSync(qrDir)) {
+        fs.mkdirSync(qrDir, { recursive: true });
         console.log('✅ Created qrcodes directory');
       }
-    await QRCode.toFile(qrCodePath, memorialUrl);
+    await QRCode.toFile(qrCodeFsPath, memorialUrl);
       console.log('✅ QR Code generated successfully:', qrCodePath);
     } catch (qrError) {
       console.error('❌ Error generating QR code:', qrError);
@@ -1657,61 +1785,18 @@ app.post('/api/memorials/:id/regenerate-qr', checkDbReady, authenticateToken, as
       return res.status(403).json({ success: false, error: 'Unauthorized' });
     }
     
-    // Generate new QR code with correct URL
-    // IMPORTANT: QR codes MUST always point to Netlify URL, never Railway URL
-    let baseUrl = process.env.BASE_URL;
-    
-    // Normalize BASE_URL if it exists
-    if (baseUrl) {
-      baseUrl = baseUrl.trim();
-      if (baseUrl.endsWith('/')) {
-        baseUrl = baseUrl.slice(0, -1);
-      }
-    }
-    
-    // Check various headers to detect Netlify URL
-    const forwardedHost = req.get('X-Forwarded-Host') || req.get('host');
-    const referer = req.get('referer') || req.get('origin') || '';
-    
-    // Try to extract Netlify URL from referer/origin if BASE_URL not set
-    if (!baseUrl && referer) {
-      try {
-        const refererUrl = new URL(referer);
-        if (refererUrl.hostname.includes('netlify.app')) {
-          baseUrl = `${refererUrl.protocol}//${refererUrl.hostname}`;
-        }
-      } catch (e) {
-        // Ignore URL parsing errors
-      }
-    }
-    
-    // Try X-Forwarded-Host header
-    if (!baseUrl && forwardedHost && forwardedHost.includes('netlify.app')) {
-      const protocol = req.get('X-Forwarded-Proto') || req.protocol || 'https';
-      baseUrl = `${protocol}://${forwardedHost}`;
-    }
-    
-    // ALWAYS use Netlify URL as fallback - NEVER use Railway URL for QR codes
-    if (!baseUrl || baseUrl.includes('railway.app') || baseUrl.includes('localhost') || baseUrl.includes('127.0.0.1')) {
-      baseUrl = 'https://memoriesman.netlify.app';
-    }
-    
-    // Final validation - ensure it's Netlify URL
-    if (!baseUrl.includes('netlify.app')) {
-      baseUrl = 'https://memoriesman.netlify.app';
-    }
-    
-    const memorialUrl = `${baseUrl}/memorial/${id}`;
+    // Generate new QR code – תמיד אותו URL (Netlify) כדי שסריקת ה-QR תפתח תמיד את הדף
+    const memorialUrl = getMemorialPageUrl(id);
+    const qrCodeFsPath = storageDir('qrcodes', `${id}.png`);
     const qrCodePath = `qrcodes/${id}.png`;
     
     try {
-      // Ensure qrcodes directory exists
-      if (!fs.existsSync('qrcodes')) {
-        fs.mkdirSync('qrcodes', { recursive: true });
+      const qrDir = storageDir('qrcodes');
+      if (!fs.existsSync(qrDir)) {
+        fs.mkdirSync(qrDir, { recursive: true });
       }
       
-      // Generate new QR code
-      await QRCode.toFile(qrCodePath, memorialUrl);
+      await QRCode.toFile(qrCodeFsPath, memorialUrl);
       console.log('✅ QR Code regenerated successfully:', qrCodePath);
       
       // Update database
@@ -2182,7 +2267,7 @@ app.get('/api/music', (req, res) => {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
   
   try {
-    const audioDir = path.join(__dirname, 'uploads', 'audio');
+    const audioDir = storageDir('uploads', 'audio') || path.join(__dirname, 'uploads', 'audio');
     console.log('📁 Audio directory:', audioDir);
     if (!fs.existsSync(audioDir)) {
       console.log('📁 Audio directory does not exist, returning empty array');

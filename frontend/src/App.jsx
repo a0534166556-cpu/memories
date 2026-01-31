@@ -13,6 +13,9 @@ import Login from './pages/Login';
 import PaymentSuccess from './pages/PaymentSuccess';
 import PaymentCancel from './pages/PaymentCancel';
 import SaveMemorial from './pages/SaveMemorial';
+import DeleteAccount from './pages/DeleteAccount';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 import './App.css';
 
 class ErrorBoundary extends Component {
@@ -67,6 +70,9 @@ function App() {
             <Route path="/save/:id" element={<SaveMemorial />} />
             <Route path="/payment/success" element={<PaymentSuccess />} />
             <Route path="/payment/cancel" element={<PaymentCancel />} />
+            <Route path="/delete-account" element={<DeleteAccount />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
           </Routes>
         </div>
       </Router>

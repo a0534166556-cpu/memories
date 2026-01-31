@@ -211,7 +211,7 @@ function ManageMemorials() {
   const handleGrantLifetime = async (memorialId) => {
     const token = localStorage.getItem('token');
     if (!token) return;
-    if (!window.confirm('להעניק שמירה לכל החיים לדף הזיכרון הזה?')) return;
+    if (!window.confirm('להעניק שמירה חד פעמית לדף הזיכרון הזה?')) return;
 
     setGrantingId(memorialId);
     try {
@@ -395,14 +395,14 @@ function ManageMemorials() {
                             color: '#2e7d32',
                             borderColor: '#2e7d32'
                           }}
-                          title="הענק שמירה לכל החיים"
+                          title="הענק שמירה חד פעמית"
                         >
                           {grantingId === memorial.id ? (
                             <>מעניק…</>
                           ) : (
                             <>
                               <FaInfinity style={{ marginLeft: '5px' }} />
-                              לכל החיים
+                              חד פעמי
                             </>
                           )}
                         </button>

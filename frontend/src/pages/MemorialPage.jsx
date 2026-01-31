@@ -340,7 +340,7 @@ function MemorialPage() {
             {error && error.includes('פג תוקף') && (
               <div style={{ marginTop: '20px', padding: '20px', background: '#f8d7da', borderRadius: '8px', color: '#721c24', border: '1px solid #f5c6cb' }}>
                 <p>⏰ דף הזיכרון פג תוקף.</p>
-                <p style={{ marginTop: '10px' }}>💡 כדי לשמור את הדף לכל החיים, יש לשדרג לשמירה קבועה.</p>
+                <p style={{ marginTop: '10px' }}>💡 כדי לשמור את הדף (חד פעמי), יש לשדרג לשמירה קבועה.</p>
                 <p style={{ marginTop: '10px' }}>אם אתה הבעלים של הדף, התחבר כדי לשדרג.</p>
               </div>
             )}
@@ -399,7 +399,7 @@ function MemorialPage() {
                   <FaExclamationTriangle className="warning-icon" />
                   <div className="warning-text">
                     <h3>הדף פג תוקף</h3>
-                    <p>דף הזיכרון הזה לא פעיל יותר. לשמירה קבועה ולגישה לכל החיים, אנא בחר תוכנית שמירה.</p>
+                    <p>דף הזיכרון הזה לא פעיל יותר. לשמירה חד פעמית, אנא בחר תוכנית שמירה.</p>
                   </div>
                   <Link to={`/save/${id}`} className="btn btn-primary">
                     שמור את הדף
@@ -410,7 +410,7 @@ function MemorialPage() {
                   <FaExclamationTriangle className="warning-icon urgent" />
                   <div className="warning-text">
                     <h3>הדף יפוג בקרוב!</h3>
-                    <p>נשארו {hoursUntilExpiry} שעות עד שהדף יפוג. לשמירה קבועה ולגישה לכל החיים, אנא בחר תוכנית שמירה.</p>
+                    <p>נשארו {hoursUntilExpiry} שעות עד שהדף יפוג. לשמירה חד פעמית, אנא בחר תוכנית שמירה.</p>
                   </div>
                   <Link to={`/save/${id}`} className="btn btn-primary">
                     שמור עכשיו
@@ -421,7 +421,7 @@ function MemorialPage() {
                   <FaClock className="warning-icon" />
                   <div className="warning-text">
                     <h3>דף זמני - שמירה זמנית</h3>
-                    <p>דף זיכרון זה פעיל זמנית. לשמירה קבועה ולגישה לכל החיים, אנא בחר תוכנית שמירה.</p>
+                    <p>דף זיכרון זה פעיל זמנית. לשמירה חד פעמית, אנא בחר תוכנית שמירה.</p>
                     {expiryDate && (
                       <p className="expiry-date">יפוג ב-{expiryDate.toLocaleDateString('he-IL', { 
                         day: 'numeric', 
