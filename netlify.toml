@@ -35,16 +35,13 @@
   force = true
   headers = {X-From = "Netlify"}
 
-# הגדרות redirects ל-React Router (MUST be last)
-# Exclude /api/*, /uploads/*, /qrcodes/*, /manifest.webmanifest, /sw.js from this redirect
-# Use force = false so it doesn't override API redirects
+# SPA fallback: כל מסלול שלא תופס redirect קודם (api, uploads, qrcodes) מקבל index.html
+# כך ש-React Router יטפל ב-/delete-account, /forgot-password וכו'
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
   force = false
-  conditions = {Role = ["admin"], Country = ["!*"]}
-  # This will NOT match manifest.webmanifest, sw.js, workbox-*.js because they are actual files
 
 # הגדרות headers
 [[headers]]

@@ -59,6 +59,7 @@ const exampleMemorial = {
 
 function MemorialExample() {
   const [showTehilim, setShowTehilim] = useState(false);
+  const [showMishnayot, setShowMishnayot] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [candles, setCandles] = useState([]);
   const [hasLitCandle, setHasLitCandle] = useState(false);
