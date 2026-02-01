@@ -5,7 +5,7 @@ import './TehilimReader.css';
 function TehilimReader({ chapters }) {
   const [currentChapter, setCurrentChapter] = useState(0);
   
-  const chapterNumbers = chapters
+  const chapterNumbers = (typeof chapters === 'string' ? chapters : String(chapters || ''))
     .split(',')
     .map(ch => parseInt(ch.trim()))
     .filter(ch => ch >= 1 && ch <= 150);

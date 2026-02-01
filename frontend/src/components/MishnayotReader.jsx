@@ -6,7 +6,7 @@ function MishnayotReader({ mishnayot }) {
   const [currentMishnaIndex, setCurrentMishnaIndex] = useState(0);
   
   // Parse mishnayot string (comma-separated)
-  const mishnaKeys = mishnayot
+  const mishnaKeys = (typeof mishnayot === 'string' ? mishnayot : String(mishnayot || ''))
     .split(',')
     .map(m => m.trim())
     .filter(m => m.length > 0);

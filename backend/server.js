@@ -262,6 +262,7 @@ async function initDatabaseConnection() {
     await initDatabase();
     console.log('✅ Database initialization successful');
     dbReady = true;
+    console.log('✅ Database ready - all endpoints available');
     startServer();
   } catch (err) {
     retryCount++;

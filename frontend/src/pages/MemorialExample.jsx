@@ -142,9 +142,11 @@ function MemorialExample() {
   };
 
   const memorial = exampleMemorial;
+  const images = Array.isArray(memorial.images) ? memorial.images : [];
+  const videos = Array.isArray(memorial.videos) ? memorial.videos : [];
   const allMedia = [
-    ...memorial.images.map(url => ({ type: 'image', url })),
-    ...memorial.videos.map(url => ({ type: 'video', url }))
+    ...images.map(url => ({ type: 'image', url })),
+    ...videos.map(url => ({ type: 'video', url }))
   ];
   const timelineEvents = Array.isArray(memorial.timeline) ? memorial.timeline.filter(event =>
     (event.year && event.year.trim()) ||
