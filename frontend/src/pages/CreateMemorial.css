@@ -65,6 +65,60 @@
   font-size: 0.9rem;
 }
 
+/* תזכורת ביום הפטירה – דף יצירה */
+.reminder-section-create {
+  background: #f8f9fa;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 24px;
+  margin-top: 20px;
+}
+
+.reminder-section-create .reminder-section-title {
+  font-size: 1.2rem;
+  color: var(--primary-color);
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.reminder-section-create .reminder-description {
+  color: #555;
+  margin-bottom: 16px;
+  line-height: 1.6;
+  font-size: 0.95rem;
+}
+
+.reminder-section-create .reminder-checkboxes {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.reminder-section-create .reminder-checkboxes label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.reminder-section-create .reminder-form {
+  margin-bottom: 8px;
+}
+
+.reminder-section-create .reminder-email-input {
+  width: 100%;
+  max-width: 320px;
+  padding: 12px 16px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 1rem;
+  direction: ltr;
+  text-align: left;
+}
+
 .timeline-header h3 {
   font-size: 1.2rem;
   color: var(--secondary-color);

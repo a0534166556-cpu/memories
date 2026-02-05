@@ -1,16 +1,19 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
 import axios from 'axios';
 import { getApiEndpoint } from '../config';
 import { Swiper, SwiperSlide } from 'swiper/react';
 import { Navigation, Pagination, Autoplay } from 'swiper/modules';
-import { FaHome, FaDownload, FaBook, FaHeart, FaPlay, FaPause, FaVolumeUp, FaHistory, FaFire, FaComment, FaExclamationTriangle, FaClock, FaMapMarkerAlt } from 'react-icons/fa';
+import { FaHome, FaDownload, FaBook, FaHeart, FaPlay, FaPause, FaVolumeUp, FaHistory, FaFire, FaComment, FaExclamationTriangle, FaClock, FaMapMarkerAlt, FaShareAlt, FaEnvelope, FaBell } from 'react-icons/fa';
 import TehilimReader from '../components/TehilimReader';
 import MishnayotReader from '../components/MishnayotReader';
 import 'swiper/css';
 import 'swiper/css/navigation';
 import 'swiper/css/pagination';
 import './MemorialPage.css';
+
+const SITE_URL = 'https://memoriesman.netlify.app';
 
 function MemorialPage() {
   const { id } = useParams();
@@ -30,6 +33,11 @@ function MemorialPage() {
   const [canEdit, setCanEdit] = useState(false);
   const [regeneratingQR, setRegeneratingQR] = useState(false);
   const [error, setError] = useState('');
+  const [reminderEmail, setReminderEmail] = useState('');
+  const [remindOnDay, setRemindOnDay] = useState(true);
+  const [remind10DaysBefore, setRemind10DaysBefore] = useState(false);
+  const [reminderSubmitting, setReminderSubmitting] = useState(false);
+  const [reminderSubmitted, setReminderSubmitted] = useState(false);
   const audioRef = useRef(null);
 
   // Helper function to normalize image/video paths - ensure they start with /
@@ -276,6 +284,30 @@ function MemorialPage() {
     }
   };
 
+  const shareMemorial = async () => {
+    const url = `${SITE_URL}/memorial/${id}`;
+    const title = `דף זיכרון - ${memorial?.name || 'זיכרון'}`;
+    const text = memorial?.heroSummary ? `${memorial.name}: ${memorial.heroSummary.slice(0, 100)}...` : `דף זיכרון להנצחת ${memorial?.name || 'יקירנו'}`;
+    try {
+      if (navigator.share) {
+        await navigator.share({ title, text, url });
+        alert('הקישור שותף בהצלחה.');
+      } else {
+        await navigator.clipboard.writeText(url);
+        alert('הקישור הועתק ללוח.');
+      }
+    } catch (err) {
+      if (err.name !== 'AbortError') {
+        try {
+          await navigator.clipboard.writeText(url);
+          alert('הקישור הועתק ללוח.');
+        } catch {
+          alert('לא ניתן לשתף. העתק את הכתובת מהדפדפן.');
+        }
+      }
+    }
+  };
+
   const formatDate = (dateStr) => {
     if (!dateStr) return '';
     const date = new Date(dateStr);
@@ -302,6 +334,37 @@ function MemorialPage() {
         audioRef.current.play();
       }
       setIsPlaying(!isPlaying);
+    }
+  };
+
+  const submitReminder = async (e) => {
+    e.preventDefault();
+    const email = reminderEmail.trim();
+    if (!email) {
+      alert('נא להזין כתובת אימייל');
+      return;
+    }
+    if (!remindOnDay && !remind10DaysBefore) {
+      alert('נא לבחור לפחות תזכורת אחת');
+      return;
+    }
+    setReminderSubmitting(true);
+    try {
+      const response = await axios.post(getApiEndpoint(`/api/memorials/${id}/remind`), {
+        email,
+        remindOnDay,
+        remind10DaysBefore
+      });
+      if (response.data.success) {
+        setReminderSubmitted(true);
+        setReminderEmail('');
+      } else {
+        alert(response.data.message || 'שגיאה בהרשמה לתזכורת');
+      }
+    } catch (err) {
+      alert(err.response?.data?.message || 'שגיאה בהרשמה לתזכורת. נסה שוב.');
+    } finally {
+      setReminderSubmitting(false);
     }
   };
 
@@ -387,8 +450,26 @@ function MemorialPage() {
     (event.description && event.description.trim())
   ) : [];
 
+  const pageUrl = `${SITE_URL}/memorial/${id}`;
+  const ogImage = memorial.heroImage
+    ? (memorial.heroImage.startsWith('http') ? memorial.heroImage : `${SITE_URL}${memorial.heroImage.startsWith('/') ? '' : '/'}${memorial.heroImage}`)
+    : null;
+
   return (
     <div className="memorial-page">
+      <Helmet>
+        <title>דף זיכרון - {memorial.name} | דפי זיכרון דיגיטליים</title>
+        <meta name="description" content={memorial.heroSummary || `דף זיכרון להנצחת ${memorial.name}. תהא נשמתו צרורה בצרור החיים.`} />
+        <link rel="canonical" href={pageUrl} />
+        <meta property="og:title" content={`דף זיכרון - ${memorial.name}`} />
+        <meta property="og:description" content={memorial.heroSummary || `דף זיכרון להנצחת ${memorial.name}`} />
+        <meta property="og:url" content={pageUrl} />
+        <meta property="og:type" content="website" />
+        <meta property="og:locale" content="he_IL" />
+        {ogImage && <meta property="og:image" content={ogImage} />}
+        <meta name="twitter:card" content={ogImage ? 'summary_large_image' : 'summary'} />
+        <meta name="twitter:title" content={`דף זיכרון - ${memorial.name}`} />
+      </Helmet>
       {/* Expiry Warning Banner */}
       {isTemporary && (isExpired || hoursUntilExpiry !== null) && (
         <div className={`expiry-warning ${isExpired ? 'expired' : hoursUntilExpiry < 24 ? 'urgent' : ''}`}>
@@ -462,9 +543,14 @@ function MemorialPage() {
       <div className="memorial-header">
         <div className="header-overlay">
           <div className="container">
-            <Link to="/" className="home-link">
-              <FaHome /> דף הבית
-            </Link>
+            <div className="header-links">
+              <Link to="/" className="home-link">
+                <FaHome /> דף הבית
+              </Link>
+              <button type="button" className="btn-share" onClick={shareMemorial} title="שתף דף זיכרון">
+                <FaShareAlt /> שתף
+              </button>
+            </div>
             <div className="memorial-title-section">
               <h1 className="memorial-name">{memorial.name}</h1>
               {memorial.hebrewName && (
@@ -488,7 +574,7 @@ function MemorialPage() {
                 <div className="memorial-hero-intro">
                   {memorial.heroImage && (
                     <figure className="memorial-hero-portrait">
-                      <img src={memorial.heroImage} alt={`דיוקן של ${memorial.name}`} />
+                      <img src={memorial.heroImage} alt={`דיוקן של ${memorial.name}`} loading="lazy" />
                     </figure>
                   )}
                   {memorial.heroSummary && (
@@ -522,7 +608,7 @@ function MemorialPage() {
                   <SwiperSlide key={index}>
                     <div className="media-slide">
                       {media.type === 'image' ? (
-                        <img src={media.url} alt={`זיכרון ${index + 1}`} />
+                        <img src={media.url} alt={`זיכרון ${index + 1}`} loading="lazy" />
                       ) : (
                         <video src={media.url} controls />
                       )}
@@ -765,6 +851,49 @@ function MemorialPage() {
           </section>
         )}
 
+        {/* Yahrzeit reminder – תזכורת ביום הפטירה */}
+        {memorial.deathDate && memorial.deathDate.trim() !== '' && (
+          <section className="reminder-section">
+            <h2 className="section-title">
+              <FaBell /> תזכורת ביום הפטירה
+            </h2>
+            <div className="reminder-content">
+              <p className="reminder-description">
+                הרשם לכתובת האימייל שלך ונשלח אליך תזכורת בכל שנה (אפשר לבחור ביום הפטירה ו/או 10 ימים לפני).
+              </p>
+              {reminderSubmitted ? (
+                <p className="reminder-success">נרשמת בהצלחה. נשלח אליך אימייל בכל שנה לפי הבחירה שלך.</p>
+              ) : (
+                <form onSubmit={submitReminder} className="reminder-form-inner">
+                  <div className="reminder-checkboxes">
+                    <label>
+                      <input type="checkbox" checked={remindOnDay} onChange={(e) => setRemindOnDay(e.target.checked)} />
+                      תזכורת ביום הפטירה
+                    </label>
+                    <label>
+                      <input type="checkbox" checked={remind10DaysBefore} onChange={(e) => setRemind10DaysBefore(e.target.checked)} />
+                      תזכורת 10 ימים לפני
+                    </label>
+                  </div>
+                  <div className="reminder-form">
+                    <input
+                      type="email"
+                      value={reminderEmail}
+                      onChange={(e) => setReminderEmail(e.target.value)}
+                      placeholder="האימייל שלך"
+                      className="reminder-email-input"
+                      disabled={reminderSubmitting}
+                    />
+                    <button type="submit" className="btn btn-primary" disabled={reminderSubmitting}>
+                      <FaEnvelope /> {reminderSubmitting ? 'נרשם...' : 'הרשם לתזכורת'}
+                    </button>
+                  </div>
+                </form>
+              )}
+            </div>
+          </section>
+        )}
+
         {/* QR Code Section */}
         {memorial.qrCodePath && (
           <section className="qr-section">
@@ -773,7 +902,8 @@ function MemorialPage() {
               <div className="qr-image">
                 <img 
                   src={memorial.qrCodePath} 
-                  alt="QR Code" 
+                  alt="QR Code"
+                  loading="lazy" 
                   onError={(e) => {
                     // If QR code image fails to load, show message
                     e.target.style.display = 'none';

@@ -109,6 +109,26 @@ app.use(cors({
 app.use(bodyParser.json({ limit: '50mb' }));
 app.use(bodyParser.urlencoded({ extended: true, limit: '50mb' }));
 
+// Rate limiting for auth and sensitive endpoints (per IP)
+const rateLimit = require('express-rate-limit');
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 25,
+  message: { success: false, message: 'יותר מדי ניסיונות. נסה שוב בעוד 15 דקות.' },
+  standardHeaders: true,
+  legacyHeaders: false
+});
+
+// Health check for Railway/monitoring (no DB required)
+app.get('/api/health', (req, res) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.json({
+    ok: true,
+    timestamp: new Date().toISOString(),
+    db: dbReady ? 'connected' : 'not_ready'
+  });
+});
+
 // Serve static files with CORS headers
 const staticOptions = {
   setHeaders: (res, path) => {
@@ -547,6 +567,24 @@ async function initDatabase() {
       FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
     )`);
     console.log('✅ Password reset tokens table ready');
+
+    // Memorial reminders (yahrzeit – תזכורת ביום הפטירה + 10 ימים לפני)
+    await db.execute(`CREATE TABLE IF NOT EXISTS memorial_reminders (
+      id VARCHAR(36) PRIMARY KEY,
+      memorialId VARCHAR(255) NOT NULL,
+      email VARCHAR(255) NOT NULL,
+      remindOnDay INT DEFAULT 1,
+      remind10DaysBefore INT DEFAULT 0,
+      lastSentYear INT NULL,
+      lastSentYear10 INT NULL,
+      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE KEY unique_memorial_email (memorialId, email),
+      FOREIGN KEY (memorialId) REFERENCES memorials(id) ON DELETE CASCADE
+    )`);
+    try { await db.execute('ALTER TABLE memorial_reminders ADD COLUMN remindOnDay INT DEFAULT 1'); } catch (e) { if (e.code !== 'ER_DUP_FIELDNAME' && e.errno !== 1060) throw e; }
+    try { await db.execute('ALTER TABLE memorial_reminders ADD COLUMN remind10DaysBefore INT DEFAULT 0'); } catch (e) { if (e.code !== 'ER_DUP_FIELDNAME' && e.errno !== 1060) throw e; }
+    try { await db.execute('ALTER TABLE memorial_reminders ADD COLUMN lastSentYear10 INT NULL'); } catch (e) { if (e.code !== 'ER_DUP_FIELDNAME' && e.errno !== 1060) throw e; }
+    console.log('✅ Memorial reminders table ready');
     
     console.log('✅ Database initialization complete!');
   } catch (err) {
@@ -798,7 +836,7 @@ app.options('/api/auth/*', (req, res) => {
 });
 
 // Sign up endpoint
-app.post('/api/auth/signup', checkDbReady, async (req, res) => {
+app.post('/api/auth/signup', authLimiter, checkDbReady, async (req, res) => {
   try {
     const { name, email, password } = req.body;
 
@@ -843,7 +881,7 @@ app.post('/api/auth/signup', checkDbReady, async (req, res) => {
 });
 
 // Login endpoint
-app.post('/api/auth/login', checkDbReady, async (req, res) => {
+app.post('/api/auth/login', authLimiter, checkDbReady, async (req, res) => {
   try {
     const { email, password } = req.body;
 
@@ -911,9 +949,10 @@ app.post('/api/auth/login', checkDbReady, async (req, res) => {
   }
 });
 
-// Forgot password: send reset link by email (nodemailer/SMTP or SendGrid)
+// Forgot password: nodemailer/SMTP, Resend, or SendGrid
 let mailTransport = null;
 const SENDGRID_API_KEY = process.env.SENDGRID_API_KEY;
+const RESEND_API_KEY = process.env.RESEND_API_KEY;
 try {
   const nodemailer = require('nodemailer');
   const smtpUser = process.env.SMTP_USER || process.env.MAIL_USER;
@@ -928,9 +967,11 @@ try {
     console.log('✅ Email (nodemailer) configured for password reset');
   }
 } catch (e) {
-  console.log('ℹ️  Nodemailer not installed – will use SendGrid if SENDGRID_API_KEY is set');
+  console.log('ℹ️  Nodemailer not installed');
 }
-if (SENDGRID_API_KEY && !mailTransport) {
+if (RESEND_API_KEY && !mailTransport) {
+  console.log('✅ Email (Resend) configured for password reset');
+} else if (SENDGRID_API_KEY && !mailTransport) {
   console.log('✅ Email (SendGrid) configured for password reset');
 }
 
@@ -949,6 +990,31 @@ async function sendPasswordResetEmail(toEmail, resetLink) {
       html: htmlBody
     });
     return true;
+  }
+  if (RESEND_API_KEY) {
+    try {
+      const axios = require('axios');
+      const resendFrom = process.env.RESEND_FROM || 'onboarding@resend.dev';
+      await axios.post(
+        'https://api.resend.com/emails',
+        {
+          from: resendFrom,
+          to: [toEmail],
+          subject,
+          html: htmlBody
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${RESEND_API_KEY}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+      return true;
+    } catch (err) {
+      console.error('Resend error:', err.response?.data || err.message);
+      return false;
+    }
   }
   if (SENDGRID_API_KEY) {
     try {
@@ -974,13 +1040,58 @@ async function sendPasswordResetEmail(toEmail, resetLink) {
       return true;
     } catch (err) {
       console.error('SendGrid error:', err.response?.data || err.message);
-      throw err;
+      return false;
     }
   }
   return false;
 }
 
-app.post('/api/auth/forgot-password', checkDbReady, async (req, res) => {
+async function sendYahrzeitReminderEmail(toEmail, memorialName, memorialUrl, deathDateDisplay, is10DaysBefore) {
+  const fromEmail = process.env.RESET_EMAIL_FROM || process.env.SMTP_USER || process.env.RESEND_FROM || 'onboarding@resend.dev';
+  const subject = is10DaysBefore
+    ? `תזכורת – בעוד 10 ימים יום הפטירה של ${memorialName} | דפי זיכרון דיגיטליים`
+    : `תזכורת – יום הפטירה של ${memorialName} | דפי זיכרון דיגיטליים`;
+  const intro = is10DaysBefore
+    ? `בעוד 10 ימים יחול יום הפטירה של ${memorialName}${deathDateDisplay ? ' (' + deathDateDisplay + ')' : ''}.`
+    : `היום הוא יום הפטירה של ${memorialName}${deathDateDisplay ? ' (' + deathDateDisplay + ')' : ''}.`;
+  const textBody = `שלום,\n\n${intro}\n\nלחץ כאן כדי להיכנס לדף הזיכרון:\n${memorialUrl}\n\nתהא נשמתו/ה צרורה בצרור החיים.\n\nדפי זיכרון דיגיטליים`;
+  const htmlBody = `<p>שלום,</p><p>${intro}</p><p><a href="${memorialUrl}">לחץ כאן כדי להיכנס לדף הזיכרון</a></p><p>תהא נשמתו/ה צרורה בצרור החיים.</p><p>דפי זיכרון דיגיטליים</p>`;
+
+  if (mailTransport) {
+    await mailTransport.sendMail({ from: fromEmail, to: toEmail, subject, text: textBody, html: htmlBody });
+    return true;
+  }
+  if (RESEND_API_KEY) {
+    try {
+      const axios = require('axios');
+      const resendFrom = process.env.RESEND_FROM || 'onboarding@resend.dev';
+      await axios.post('https://api.resend.com/emails', { from: resendFrom, to: [toEmail], subject, html: htmlBody }, { headers: { 'Authorization': `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' } });
+      return true;
+    } catch (err) {
+      console.error('Resend yahrzeit error:', err.response?.data || err.message);
+      return false;
+    }
+  }
+  if (SENDGRID_API_KEY) {
+    try {
+      const axios = require('axios');
+      await axios.post('https://api.sendgrid.com/v3/mail/send', {
+        personalizations: [{ to: [{ email: toEmail }] }],
+        from: { email: fromEmail, name: 'דפי זיכרון דיגיטליים' },
+        subject,
+        content: [{ type: 'text/plain', value: textBody }, { type: 'text/html', value: htmlBody }]
+      }, { headers: { 'Authorization': `Bearer ${SENDGRID_API_KEY}`, 'Content-Type': 'application/json' } });
+      return true;
+    } catch (err) {
+      console.error('SendGrid yahrzeit error:', err.response?.data || err.message);
+      return false;
+    }
+  }
+  return false;
+}
+
+app.post('/api/auth/forgot-password', authLimiter, checkDbReady, async (req, res) => {
+  console.log('📧 POST /api/auth/forgot-password – request received');
   try {
     const { email } = req.body;
     if (!email || typeof email !== 'string') {
@@ -1016,11 +1127,18 @@ app.post('/api/auth/forgot-password', checkDbReady, async (req, res) => {
     return res.json({ success: true, message });
   } catch (err) {
     console.error('Forgot password error:', err);
+    const code = err.code || '';
+    if (code === 'ER_NO_SUCH_TABLE' || (err.message && err.message.includes('password_reset_tokens'))) {
+      return res.status(503).json({
+        success: false,
+        message: 'מסד הנתונים מאותחל. נסה שוב בעוד רגע.'
+      });
+    }
     handleDbError(err, res);
   }
 });
 
-app.post('/api/auth/reset-password', checkDbReady, async (req, res) => {
+app.post('/api/auth/reset-password', authLimiter, checkDbReady, async (req, res) => {
   try {
     const { token, newPassword } = req.body;
     if (!token || !newPassword) {
@@ -2246,6 +2364,140 @@ app.get('/api/memorials/:id/candles', checkDbReady, async (req, res) => {
   } catch (err) {
     return handleDbError(err, res);
   }
+});
+
+// Subscribe to yahrzeit reminder (email on death anniversary, optional 10 days before)
+app.post('/api/memorials/:id/remind', checkDbReady, async (req, res) => {
+  const { id } = req.params;
+  const { email, remindOnDay, remind10DaysBefore } = req.body || {};
+  const trimmedEmail = typeof email === 'string' ? email.trim().toLowerCase() : '';
+  if (!trimmedEmail) {
+    return res.status(400).json({ success: false, message: 'נא להזין כתובת אימייל' });
+  }
+  const onDay = remindOnDay !== false && remindOnDay !== 0;
+  const tenDays = !!remind10DaysBefore;
+  if (!onDay && !tenDays) {
+    return res.status(400).json({ success: false, message: 'נא לבחור לפחות תזכורת אחת.' });
+  }
+  try {
+    await ensureDbConnection();
+    const [memorials] = await db.execute(
+      'SELECT id, name, deathDate FROM memorials WHERE id = ?',
+      [id]
+    );
+    if (memorials.length === 0) {
+      return res.status(404).json({ success: false, message: 'דף זיכרון לא נמצא' });
+    }
+    const memorial = memorials[0];
+    if (!memorial.deathDate || memorial.deathDate.trim() === '') {
+      return res.status(400).json({ success: false, message: 'לדף זיכרון זה לא מוגדר תאריך פטירה – לא ניתן להפעיל תזכורת.' });
+    }
+    const reminderId = uuidv4();
+    try {
+      await db.execute(
+        'INSERT INTO memorial_reminders (id, memorialId, email, remindOnDay, remind10DaysBefore) VALUES (?, ?, ?, ?, ?)',
+        [reminderId, id, trimmedEmail, onDay ? 1 : 0, tenDays ? 1 : 0]
+      );
+    } catch (insErr) {
+      if (insErr.code === 'ER_DUP_ENTRY' || insErr.errno === 1062) {
+        await db.execute(
+          'UPDATE memorial_reminders SET remindOnDay = ?, remind10DaysBefore = ? WHERE memorialId = ? AND email = ?',
+          [onDay ? 1 : 0, tenDays ? 1 : 0, id, trimmedEmail]
+        );
+      } else {
+        throw insErr;
+      }
+    }
+  } catch (err) {
+    console.error('Remind subscribe error:', err);
+    handleDbError(err, res);
+    return;
+  }
+  const parts = [];
+  if (onDay) parts.push('ביום הפטירה');
+  if (tenDays) parts.push('10 ימים לפני');
+  res.json({
+    success: true,
+    message: 'נרשמת לתזכורת במייל (' + parts.join(' ו־') + '). נשלח אליך אימייל בכל שנה.'
+  });
+});
+
+// Cron: send yahrzeit reminders (call daily with ?token=CRON_SECRET)
+app.get('/api/cron/send-yahrzeit-reminders', (req, res) => {
+  const secret = process.env.CRON_SECRET || process.env.YAHRZEIT_CRON_SECRET;
+  if (secret && req.query.token !== secret) {
+    return res.status(401).json({ success: false, error: 'Unauthorized' });
+  }
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  (async () => {
+    try {
+      await ensureDbConnection();
+      const today = new Date();
+      const todayMonth = today.getMonth() + 1;
+      const todayDay = today.getDate();
+      const year = today.getFullYear();
+      const [allWithDeath] = await db.execute(
+        'SELECT id, name, deathDate FROM memorials WHERE deathDate IS NOT NULL AND deathDate != ""'
+      );
+      const baseUrl = (process.env.BASE_URL || process.env.FRONTEND_URL || 'https://memoriesman.netlify.app').replace(/\/$/, '');
+      let sent = 0;
+
+      const memorialsToday = (allWithDeath || []).filter((m) => {
+        const d = m.deathDate;
+        if (!d) return false;
+        const parsed = new Date(d);
+        if (isNaN(parsed.getTime())) return false;
+        return (parsed.getMonth() + 1) === todayMonth && parsed.getDate() === todayDay;
+      });
+      for (const m of memorialsToday) {
+        const [subs] = await db.execute(
+          'SELECT id, email FROM memorial_reminders WHERE memorialId = ? AND remindOnDay = 1 AND (lastSentYear IS NULL OR lastSentYear < ?)',
+          [m.id, year]
+        );
+        const deathD = m.deathDate ? new Date(m.deathDate).toLocaleDateString('he-IL', { day: 'numeric', month: 'long', year: 'numeric' }) : '';
+        const memorialUrl = `${baseUrl}/memorial/${m.id}`;
+        for (const sub of subs) {
+          const ok = await sendYahrzeitReminderEmail(sub.email, m.name, memorialUrl, deathD, false);
+          if (ok) {
+            await db.execute('UPDATE memorial_reminders SET lastSentYear = ? WHERE id = ?', [year, sub.id]);
+            sent++;
+          }
+        }
+      }
+
+      const in10Days = new Date(today);
+      in10Days.setDate(in10Days.getDate() + 10);
+      const month10 = in10Days.getMonth() + 1;
+      const day10 = in10Days.getDate();
+      const memorials10Days = (allWithDeath || []).filter((m) => {
+        const d = m.deathDate;
+        if (!d) return false;
+        const parsed = new Date(d);
+        if (isNaN(parsed.getTime())) return false;
+        return (parsed.getMonth() + 1) === month10 && parsed.getDate() === day10;
+      });
+      for (const m of memorials10Days) {
+        const [subs] = await db.execute(
+          'SELECT id, email FROM memorial_reminders WHERE memorialId = ? AND remind10DaysBefore = 1 AND (lastSentYear10 IS NULL OR lastSentYear10 < ?)',
+          [m.id, year]
+        );
+        const deathD = m.deathDate ? new Date(m.deathDate).toLocaleDateString('he-IL', { day: 'numeric', month: 'long', year: 'numeric' }) : '';
+        const memorialUrl = `${baseUrl}/memorial/${m.id}`;
+        for (const sub of subs) {
+          const ok = await sendYahrzeitReminderEmail(sub.email, m.name, memorialUrl, deathD, true);
+          if (ok) {
+            await db.execute('UPDATE memorial_reminders SET lastSentYear10 = ? WHERE id = ?', [year, sub.id]);
+            sent++;
+          }
+        }
+      }
+
+      res.json({ success: true, sent, memorialsToday: memorialsToday.length, memorials10Days: memorials10Days.length });
+    } catch (err) {
+      console.error('Yahrzeit cron error:', err);
+      res.status(500).json({ success: false, error: err.message });
+    }
+  })();
 });
 
 // Handle OPTIONS preflight for /api/music

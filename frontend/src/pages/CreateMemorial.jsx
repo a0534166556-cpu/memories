@@ -5,7 +5,7 @@ import axios from 'axios';
 import { getApiEndpoint } from '../config';
 import { tehilimData } from '../data/tehilim';
 import { mishnayotData } from '../data/mishnayot';
-import { FaUpload, FaTrash, FaArrowRight, FaPlus, FaMusic } from 'react-icons/fa';
+import { FaUpload, FaTrash, FaArrowRight, FaPlus, FaMusic, FaBell, FaEnvelope } from 'react-icons/fa';
 import './CreateMemorial.css';
 
 function CreateMemorial() {
@@ -38,6 +38,9 @@ function CreateMemorial() {
   const [selectedChapters, setSelectedChapters] = useState([1, 23, 121]);
   const [showMishnayotSelector, setShowMishnayotSelector] = useState(false);
   const [selectedMishnayot, setSelectedMishnayot] = useState([]);
+  const [reminderEmail, setReminderEmail] = useState('');
+  const [remindOnDay, setRemindOnDay] = useState(true);
+  const [remind10DaysBefore, setRemind10DaysBefore] = useState(false);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     accept: {
@@ -244,6 +247,21 @@ function CreateMemorial() {
           myMemorials.push(memorialId);
           localStorage.setItem('myMemorialIds', JSON.stringify(myMemorials));
         }
+
+        // אם מילוי תזכורת – רישום ל־API תזכורות
+        const email = (reminderEmail || '').trim();
+        if (email && (remindOnDay || remind10DaysBefore)) {
+          try {
+            await axios.post(getApiEndpoint(`/api/memorials/${memorialId}/remind`), {
+              email,
+              remindOnDay,
+              remind10DaysBefore
+            });
+          } catch (remindErr) {
+            console.warn('Reminder subscription failed:', remindErr);
+            // לא לעצור – הדף נוצר בהצלחה
+          }
+        }
         
         // Redirect to save page instead of directly to memorial
         if (response.data.redirectTo) {
@@ -383,6 +401,38 @@ function CreateMemorial() {
                 />
               </div>
             </div>
+
+            {/* תזכורת ביום הפטירה – מוצג רק אם יש תאריך פטירה */}
+            {formData.deathDate && formData.deathDate.trim() !== '' && (
+              <div className="form-group reminder-section-create">
+                <h3 className="reminder-section-title">
+                  <FaBell /> תזכורת ביום הפטירה
+                </h3>
+                <p className="reminder-description">
+                  ניתן להזין אימייל ולבחור תזכורת – נשלח אליך אימייל בכל שנה (ביום הפטירה ו/או 10 ימים לפני).
+                </p>
+                <div className="reminder-checkboxes">
+                  <label>
+                    <input type="checkbox" checked={remindOnDay} onChange={(e) => setRemindOnDay(e.target.checked)} />
+                    תזכורת ביום הפטירה
+                  </label>
+                  <label>
+                    <input type="checkbox" checked={remind10DaysBefore} onChange={(e) => setRemind10DaysBefore(e.target.checked)} />
+                    תזכורת 10 ימים לפני
+                  </label>
+                </div>
+                <div className="reminder-form">
+                  <input
+                    type="email"
+                    value={reminderEmail}
+                    onChange={(e) => setReminderEmail(e.target.value)}
+                    placeholder="האימייל שלך (אופציונלי)"
+                    className="reminder-email-input"
+                  />
+                </div>
+                <small>אם תמלא אימייל ותבחר לפחות תזכורת אחת – נרשום אותך אוטומטית אחרי יצירת הדף.</small>
+              </div>
+            )}
 
             <div className="form-group">
               <label htmlFor="biography">היסטוריה ותיאור חיים</label>
