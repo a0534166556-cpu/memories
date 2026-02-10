@@ -35,6 +35,12 @@
   force = true
   headers = {X-From = "Netlify"}
 
+# שירת assetlinks.json ל-Play Console (לפני SPA catch-all)
+[[redirects]]
+  from = "/.well-known/*"
+  to = "/.well-known/:splat"
+  status = 200
+
 # SPA fallback: כל מסלול שלא תופס redirect קודם (api, uploads, qrcodes) מקבל index.html
 # כך ש-React Router יטפל ב-/delete-account, /forgot-password וכו'
 [[redirects]]
