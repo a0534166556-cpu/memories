@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "app.netlify.app_69655d15daee180008096b7a__memoriesman.twa",
+      "sha256_cert_fingerprints": [
+        "2A:F7:6B:4B:33:65:C7:AC:F6:E6:E3:39:25:BB:06:1B:3E:71:64:91:58:7C:3B:AF:6D:AD:AD:40:29:1A:FD:11"
+      ]
+    }
+  }
+]
