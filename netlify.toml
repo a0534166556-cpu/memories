@@ -35,11 +35,12 @@
   force = true
   headers = {X-From = "Netlify"}
 
-# שירת assetlinks.json ל-Play Console (לפני SPA catch-all)
+# assetlinks.json - גוגל דורשים /.well-known/assetlinks.json, משתמשים בנתיב בלי נקודה
 [[redirects]]
-  from = "/.well-known/*"
-  to = "/.well-known/:splat"
+  from = "/.well-known/assetlinks.json"
+  to = "/well-known/assetlinks.json"
   status = 200
+  force = true
 
 # SPA fallback: כל מסלול שלא תופס redirect קודם (api, uploads, qrcodes) מקבל index.html
 # כך ש-React Router יטפל ב-/delete-account, /forgot-password וכו'
