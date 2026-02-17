@@ -1,0 +1,5 @@
+# Force Nixpacks builder so build does not require RESEND_API_KEY at build time.
+# RESEND_API_KEY is only used at runtime. Railpack fails with: secret RESEND_API_KEY not found.
+
+[build]
+builder = "nixpacks"

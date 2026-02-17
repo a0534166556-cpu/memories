@@ -1,0 +1,6 @@
+# Force Nixpacks builder to avoid Railpack requiring RESEND_API_KEY at build time.
+# RESEND_API_KEY is only used at runtime in server.js.
+# See: https://station.railway.com/questions/build-failed-with-railpacks-due-to-missi-7908f1db
+
+[build]
+builder = "nixpacks"
