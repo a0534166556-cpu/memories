@@ -40,15 +40,12 @@ function MemorialPage() {
   const [reminderSubmitted, setReminderSubmitted] = useState(false);
   const audioRef = useRef(null);
 
-  // Helper function to normalize image/video paths - ensure they start with /
+  // Helper: build full URL for media (images/videos). Full URLs (e.g. Cloudinary) stay as-is; relative paths go to API origin.
   const normalizePath = (path) => {
     if (!path) return '';
-    // If already a full URL, return as-is
-    if (path.startsWith('http://') || path.startsWith('https://')) {
-      return path;
-    }
-    // Ensure path starts with / so Netlify can proxy it correctly
-    return path.startsWith('/') ? path : `/${path}`;
+    if (path.startsWith('http://') || path.startsWith('https://')) return path;
+    const normalized = path.startsWith('/') ? path : `/${path}`;
+    return getApiEndpoint(normalized);
   };
 
   const fetchMemorial = async () => {
@@ -608,7 +605,21 @@ function MemorialPage() {
                   <SwiperSlide key={index}>
                     <div className="media-slide">
                       {media.type === 'image' ? (
-                        <img src={media.url} alt={`זיכרון ${index + 1}`} loading="lazy" />
+                        <>
+                          <img
+                            src={media.url}
+                            alt={`זיכרון ${index + 1}`}
+                            loading="lazy"
+                            onError={(e) => {
+                              e.target.style.display = 'none';
+                              const fallback = e.target.nextElementSibling;
+                              if (fallback) fallback.classList.add('show');
+                            }}
+                          />
+                          <div className="media-placeholder" aria-hidden="true">
+                            תמונה לא זמינה
+                          </div>
+                        </>
                       ) : (
                         <video src={media.url} controls />
                       )}

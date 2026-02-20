@@ -8,11 +8,13 @@ import EditMemorial from './pages/EditMemorial';
 import ManageMemorials from './pages/ManageMemorials';
 import MemorialPage from './pages/MemorialPage';
 import About from './pages/About';
+import MemorialPrayers from './pages/MemorialPrayers';
 import Pricing from './pages/Pricing';
 import Login from './pages/Login';
 import PaymentSuccess from './pages/PaymentSuccess';
 import PaymentCancel from './pages/PaymentCancel';
 import SaveMemorial from './pages/SaveMemorial';
+import AddStorage from './pages/AddStorage';
 import DeleteAccount from './pages/DeleteAccount';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
@@ -64,10 +66,12 @@ function App() {
             <Route path="/manage" element={<ManageMemorials />} />
             <Route path="/memorial/:id" element={<MemorialPage />} />
             <Route path="/about" element={<About />} />
+            <Route path="/memorial-prayers" element={<MemorialPrayers />} />
             <Route path="/pricing" element={<Pricing />} />
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Login />} />
             <Route path="/save/:id" element={<SaveMemorial />} />
+            <Route path="/add-storage" element={<AddStorage />} />
             <Route path="/payment/success" element={<PaymentSuccess />} />
             <Route path="/payment/cancel" element={<PaymentCancel />} />
             <Route path="/delete-account" element={<DeleteAccount />} />

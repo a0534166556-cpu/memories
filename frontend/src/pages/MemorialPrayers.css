@@ -1,0 +1,64 @@
+.memorial-prayers-page {
+  min-height: 80vh;
+  padding: 2rem 0;
+  direction: rtl;
+  text-align: right;
+}
+
+.memorial-prayers-page .prayers-header {
+  margin-bottom: 2rem;
+  border-bottom: 1px solid #e0e0e0;
+  padding-bottom: 1rem;
+}
+
+.memorial-prayers-page .prayers-header h1 {
+  margin: 0;
+  font-size: 1.75rem;
+  font-weight: 600;
+}
+
+.memorial-prayers-page .prayer-section {
+  margin-bottom: 2rem;
+}
+
+.memorial-prayers-page .section-title {
+  font-size: 1.25rem;
+  margin: 0 0 0.5rem 0;
+  color: #333;
+}
+
+.memorial-prayers-page .section-sub {
+  font-size: 1.05rem;
+  margin: 0.25rem 0 0.5rem 0;
+  color: #555;
+  font-weight: 600;
+}
+
+.memorial-prayers-page .section-body {
+  font-size: 1rem;
+  line-height: 1.8;
+  color: #222;
+}
+
+.memorial-prayers-page .section-body p {
+  margin: 0 0 0.75rem 0;
+}
+
+.memorial-prayers-page .section-body p:last-child {
+  margin-bottom: 0;
+}
+
+.memorial-prayers-page .prayers-footer {
+  margin-top: 2.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e0e0e0;
+}
+
+.memorial-prayers-page .prayers-footer a {
+  color: #555;
+  text-decoration: none;
+}
+
+.memorial-prayers-page .prayers-footer a:hover {
+  text-decoration: underline;
+}

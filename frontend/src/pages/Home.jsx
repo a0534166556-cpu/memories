@@ -11,6 +11,7 @@ function Home() {
           <div className="nav-links">
             <Link to="/" className="nav-link">דף הבית</Link>
             <Link to="/about" className="nav-link">אודותינו</Link>
+            <Link to="/memorial-prayers" className="nav-link">סדר תפילות לאזכרה</Link>
             {localStorage.getItem('token') && (
               <Link to="/manage" className="nav-link">ניהול דפי זיכרון</Link>
             )}

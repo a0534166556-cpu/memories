@@ -922,7 +922,7 @@ function EditMemorial() {
                     </>
                   ) : (
                     <p className="no-music-message">
-                      אין שירים זמינים. העלה שיר חדש או הוסף קבצי אודיו לתיקייה backend/uploads/audio
+                      אין שירים זמינים כרגע. העלה שיר חדש (כפתור משמאל) או נסה לרענן את הדף.
                     </p>
                   )}
                 </div>

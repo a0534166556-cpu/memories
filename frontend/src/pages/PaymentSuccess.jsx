@@ -45,9 +45,11 @@ function PaymentSuccess() {
 
       if (response.data.success) {
         setSuccess(true);
-        // Redirect to memorial page after 3 seconds
+        // Redirect after 3 seconds (use redirectUrl from server when present)
         setTimeout(() => {
-          if (response.data.memorialId) {
+          if (response.data.redirectUrl) {
+            navigate(response.data.redirectUrl);
+          } else if (response.data.memorialId) {
             navigate(`/memorial/${response.data.memorialId}`);
           } else {
             navigate('/');

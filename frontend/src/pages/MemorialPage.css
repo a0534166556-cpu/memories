@@ -346,6 +346,7 @@
 }
 
 .media-slide {
+  position: relative;
   aspect-ratio: 16/9;
   background: #000;
   display: flex;
@@ -358,6 +359,20 @@
   max-width: 100%;
   max-height: 100%;
   object-fit: contain;
+}
+
+.media-slide .media-placeholder {
+  display: none;
+  position: absolute;
+  inset: 0;
+  align-items: center;
+  justify-content: center;
+  background: #1a1a1a;
+  color: #999;
+  font-size: 1rem;
+}
+.media-slide .media-placeholder.show {
+  display: flex;
 }
 
 .biography-content {

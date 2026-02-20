@@ -306,6 +306,11 @@ function ManageMemorials() {
               <Link to="/create" className="btn btn-primary" style={{ display: 'inline-block', padding: '12px 24px', marginLeft: '10px' }}>
                 צור דף זיכרון חדש
               </Link>
+              {memorials.some(m => m.status && m.status !== 'temporary') && (
+                <Link to="/add-storage" className="btn btn-outline" style={{ display: 'inline-block', padding: '12px 24px', marginRight: '10px' }}>
+                  הוסף אחסון (גיגה)
+                </Link>
+              )}
               {isAdmin && (
                 <button 
                   onClick={handleCleanupTestMemorials}

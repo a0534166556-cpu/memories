@@ -34,6 +34,58 @@ const mysql = require('mysql2/promise');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 
+// Cloudinary (optional – תמונות/וידאו/אודיו בענן)
+let cloudinary = null;
+const CLOUDINARY_CLOUD = (process.env.CLOUDINARY_CLOUD_NAME || '').trim();
+const CLOUDINARY_KEY = (process.env.CLOUDINARY_API_KEY || '').trim();
+const CLOUDINARY_SECRET = (process.env.CLOUDINARY_API_SECRET || '').trim();
+if (CLOUDINARY_CLOUD && CLOUDINARY_KEY && CLOUDINARY_SECRET) {
+  cloudinary = require('cloudinary').v2;
+  cloudinary.config({
+    cloud_name: CLOUDINARY_CLOUD,
+    api_key: CLOUDINARY_KEY,
+    api_secret: CLOUDINARY_SECRET
+  });
+  console.log('☁️ Cloudinary enabled – media will be stored in the cloud');
+}
+
+async function uploadToCloudinary(file, folder = 'memorials') {
+  if (!cloudinary || !file.buffer) throw new Error('Cloudinary not configured or no file buffer');
+  const resourceType = file.mimetype.startsWith('video/') ? 'video' : (file.mimetype.startsWith('image/') ? 'image' : 'raw');
+  return new Promise((resolve, reject) => {
+    const opts = { resource_type: resourceType, folder, public_id: uuidv4() };
+    const stream = cloudinary.uploader.upload_stream(opts, (err, result) => {
+      if (err) return reject(err);
+      resolve(result.secure_url);
+    });
+    stream.end(file.buffer);
+  });
+}
+
+async function getFileUrl(file) {
+  if (cloudinary && file.buffer) return await uploadToCloudinary(file);
+  return `/${file.path.replace(/\\/g, '/')}`;
+}
+
+// הגבלת מדיה למסלולים בתשלום (לכל דף יש media_limit_bytes; ברירת מחדל 2GB)
+const DEFAULT_MEDIA_LIMIT_2GB = 2 * 1024 * 1024 * 1024;
+const MEDIA_LIMIT_7GB = 7 * 1024 * 1024 * 1024;
+function getMemorialMediaLimitBytes(row) {
+  if (!row || row.status === 'temporary') return 0;
+  const limit = Number(row.media_limit_bytes);
+  return Number.isFinite(limit) && limit > 0 ? limit : DEFAULT_MEDIA_LIMIT_2GB;
+}
+function getFileSize(file) {
+  try {
+    if (file.size != null && !Number.isNaN(Number(file.size))) return Number(file.size);
+    if (file.buffer && file.buffer.length) return Number(file.buffer.length);
+    if (file.path && fs.existsSync(file.path)) return fs.statSync(file.path).size;
+  } catch (e) {
+    console.warn('getFileSize failed:', e.message);
+  }
+  return 0;
+}
+
 // PayPal Configuration (optional - only load if available)
 let paypal = null;
 let paypalClient = null;
@@ -441,6 +493,26 @@ async function initDatabase() {
         throw err;
       }
     }
+    try {
+      await db.execute(`ALTER TABLE memorials ADD COLUMN media_used_bytes BIGINT DEFAULT 0`);
+      console.log('✅ Added media_used_bytes column to memorials');
+    } catch (err) {
+      if (err.code === 'ER_DUP_FIELDNAME') {
+        console.log('✅ media_used_bytes column already exists in memorials');
+      } else {
+        throw err;
+      }
+    }
+    try {
+      await db.execute(`ALTER TABLE memorials ADD COLUMN media_limit_bytes BIGINT NULL`);
+      console.log('✅ Added media_limit_bytes column to memorials');
+    } catch (err) {
+      if (err.code === 'ER_DUP_FIELDNAME') {
+        console.log('✅ media_limit_bytes column already exists in memorials');
+      } else {
+        throw err;
+      }
+    }
     
     // Create condolences table
     await db.execute(`CREATE TABLE IF NOT EXISTS condolences (
@@ -526,6 +598,16 @@ async function initDatabase() {
       FOREIGN KEY (memorialId) REFERENCES memorials(id) ON DELETE SET NULL
     )`);
     console.log('✅ Payments table ready');
+    try {
+      await db.execute(`ALTER TABLE payments ADD COLUMN additional_gb INT NULL`);
+      console.log('✅ Added additional_gb column to payments');
+    } catch (err) {
+      if (err.code === 'ER_DUP_FIELDNAME') {
+        console.log('✅ additional_gb column already exists in payments');
+      } else {
+        throw err;
+      }
+    }
 
     // Create subscriptions table
     await db.execute(`CREATE TABLE IF NOT EXISTS subscriptions (
@@ -701,40 +783,30 @@ function handleDbError(err, res) {
 
 // MySQL doesn't need ensureColumn - all columns are created with the table
 
-// Configure multer for file uploads (תומך ב-STORAGE_PATH לאחסון קבוע)
-const storage = multer.diskStorage({
+// Configure multer: memory when Cloudinary is used (buffer → cloud), disk otherwise
+const fileFilter = (req, file, cb) => {
+  const allowedTypes = /jpeg|jpg|png|gif|mp4|mov|avi|webm|mp3|wav|m4a|ogg/;
+  const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+  const mimetype = allowedTypes.test(file.mimetype) || file.mimetype.startsWith('audio/');
+  if (mimetype && extname) return cb(null, true);
+  cb(new Error('Only images, videos and audio files are allowed!'));
+};
+
+const memoryStorage = multer.memoryStorage();
+const diskStorage = multer.diskStorage({
   destination: (req, file, cb) => {
     let uploadPath = storageDir('uploads', 'images');
-    if (file.mimetype.startsWith('video/')) {
-      uploadPath = storageDir('uploads', 'videos');
-    } else if (file.mimetype.startsWith('audio/')) {
-      uploadPath = storageDir('uploads', 'audio');
-    }
+    if (file.mimetype.startsWith('video/')) uploadPath = storageDir('uploads', 'videos');
+    else if (file.mimetype.startsWith('audio/')) uploadPath = storageDir('uploads', 'audio');
     cb(null, uploadPath);
   },
-  filename: (req, file, cb) => {
-    const uniqueName = `${uuidv4()}${path.extname(file.originalname)}`;
-    cb(null, uniqueName);
-  }
+  filename: (req, file, cb) => cb(null, `${uuidv4()}${path.extname(file.originalname)}`)
 });
 
-const upload = multer({ 
-  storage,
-  limits: { 
-    fileSize: 100 * 1024 * 1024, // 100MB limit
-    files: 20 // Max 20 files per request
-  },
-  fileFilter: (req, file, cb) => {
-    const allowedTypes = /jpeg|jpg|png|gif|mp4|mov|avi|webm|mp3|wav|m4a|ogg/;
-    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
-    const mimetype = allowedTypes.test(file.mimetype) || file.mimetype.startsWith('audio/');
-    
-    if (mimetype && extname) {
-      return cb(null, true);
-    } else {
-      cb(new Error('Only images, videos and audio files are allowed!'));
-    }
-  }
+const upload = multer({
+  storage: (CLOUDINARY_CLOUD && CLOUDINARY_KEY && CLOUDINARY_SECRET) ? memoryStorage : diskStorage,
+  limits: { fileSize: 100 * 1024 * 1024, files: 20 },
+  fileFilter
 });
 
 // Security: Basic input validation
@@ -1194,15 +1266,28 @@ app.post('/api/payments/create', checkDbReady, authenticateToken, async (req, re
     if (!planType || !amount) {
       return res.status(400).json({ success: false, message: 'סוג תוכנית וסכום נדרשים' });
     }
+    let additionalGb = null;
+    const allowedAmounts = { annual: 100, lifetime: 445, 'lifetime-no-edit': 375, 'lifetime-premium': 699 };
+    if (planType === 'storage-addon') {
+      additionalGb = Math.max(1, Math.min(10, parseInt(req.body.additionalGb, 10) || 1));
+      const expectedAmount = 49 * additionalGb;
+      if (Number(amount) !== expectedAmount || !memorialId) {
+        return res.status(400).json({ success: false, message: 'סכום או מזהה דף לא תואם' });
+      }
+    } else {
+      const expectedAmount = allowedAmounts[planType];
+      if (expectedAmount == null || Number(amount) !== expectedAmount) {
+        return res.status(400).json({ success: false, message: 'סכום לא תואם לתוכנית הנבחרת' });
+      }
+    }
 
     await ensureDbConnection();
 
     const paymentId = uuidv4();
     
-    // Create payment record in database
     await db.execute(
-      'INSERT INTO payments (id, userId, memorialId, planType, amount, status) VALUES (?, ?, ?, ?, ?, ?)',
-      [paymentId, req.user.id, memorialId || null, planType, amount, 'pending']
+      'INSERT INTO payments (id, userId, memorialId, planType, amount, status, additional_gb) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [paymentId, req.user.id, memorialId || null, planType, amount, 'pending', additionalGb]
     );
 
     // Create PayPal order
@@ -1223,7 +1308,7 @@ app.post('/api/payments/create', checkDbReady, authenticateToken, async (req, re
           currency_code: 'ILS',
           value: amount.toString()
         },
-        description: `תשלום עבור ${planType === 'lifetime' ? 'הנצחה לכל החיים (עם עריכה)' : planType === 'lifetime-no-edit' ? 'הנצחה לכל החיים (בלי עריכה)' : planType === 'annual' ? 'שמירה שנתית' : 'דף זיכרון'}`
+        description: `תשלום עבור ${planType === 'lifetime' ? 'הנצחה לכל החיים (עם עריכה)' : planType === 'lifetime-no-edit' ? 'הנצחה לכל החיים (בלי עריכה)' : planType === 'lifetime-premium' ? 'הנצחה פרימיום 7 גיגה' : planType === 'storage-addon' ? `תוספת אחסון ${additionalGb} גיגה` : planType === 'annual' ? 'שמירה שנתית' : 'דף זיכרון'}`
       }],
       application_context: {
         brand_name: 'דפי זיכרון דיגיטליים',
@@ -1316,26 +1401,44 @@ app.post('/api/payments/confirm', checkDbReady, authenticateToken, async (req, r
               [subscriptionId, req.user.id, payment.memorialId, payment.planType, new Date(), expiryDate, 'active']
             );
           } else if (payment.planType === 'lifetime') {
-            // Lifetime with editing - no expiry, can edit
             await db.execute(
-              'UPDATE memorials SET status = ?, expiryDate = NULL, canEdit = TRUE WHERE id = ?',
-              ['active', payment.memorialId]
+              'UPDATE memorials SET status = ?, expiryDate = NULL, canEdit = TRUE, media_limit_bytes = ? WHERE id = ?',
+              ['active', DEFAULT_MEDIA_LIMIT_2GB, payment.memorialId]
             );
           } else if (payment.planType === 'lifetime-no-edit') {
-            // Lifetime without editing - no expiry, cannot edit
             await db.execute(
-              'UPDATE memorials SET status = ?, expiryDate = NULL, canEdit = FALSE WHERE id = ?',
-              ['active', payment.memorialId]
+              'UPDATE memorials SET status = ?, expiryDate = NULL, canEdit = FALSE, media_limit_bytes = ? WHERE id = ?',
+              ['active', DEFAULT_MEDIA_LIMIT_2GB, payment.memorialId]
+            );
+          } else if (payment.planType === 'lifetime-premium') {
+            await db.execute(
+              'UPDATE memorials SET status = ?, expiryDate = NULL, canEdit = TRUE, media_limit_bytes = ? WHERE id = ?',
+              ['active', MEDIA_LIMIT_7GB, payment.memorialId]
+            );
+          } else if (payment.planType === 'storage-addon' && payment.memorialId && payment.additional_gb) {
+            const addBytes = Number(payment.additional_gb) * 1024 * 1024 * 1024;
+            await db.execute(
+              'UPDATE memorials SET media_limit_bytes = COALESCE(media_limit_bytes, ?) + ? WHERE id = ?',
+              [DEFAULT_MEDIA_LIMIT_2GB, addBytes, payment.memorialId]
+            );
+          }
+          if (payment.planType === 'annual') {
+            await db.execute(
+              'UPDATE memorials SET media_limit_bytes = ? WHERE id = ?',
+              [DEFAULT_MEDIA_LIMIT_2GB, payment.memorialId]
             );
           }
         }
 
+        const redirectUrl = payment.planType === 'storage-addon'
+          ? '/add-storage'
+          : (payment.memorialId ? `/memorial/${payment.memorialId}` : '/');
         res.json({
           success: true,
           paymentId,
           memorialId: payment.memorialId,
           message: 'תשלום בוצע בהצלחה',
-          redirectUrl: payment.memorialId ? `/memorial/${payment.memorialId}` : '/'
+          redirectUrl
         });
       } else {
         res.status(404).json({ success: false, message: 'תשלום לא נמצא' });
@@ -1450,24 +1553,25 @@ app.post('/api/memorials', checkDbReady, optionalAuth, validateInput, upload.fie
     let backgroundMusic = req.body.backgroundMusicPath || ''; // Allow direct path for existing music
     let heroImage = '';
     
-    // Process regular files
+    // Process regular files (Cloudinary or local path) + check 2GB limit
+    let newMediaBytes = 0;
     if (req.files && req.files.files) {
-      req.files.files.forEach(file => {
-        const filePath = `/${file.path.replace(/\\/g, '/')}`;
-        if (file.mimetype.startsWith('video/')) {
-          videos.push(filePath);
-        } else if (file.mimetype.startsWith('audio/')) {
-          backgroundMusic = filePath; // Only one background music file (overrides path if new file uploaded)
-        } else {
-          images.push(filePath);
-        }
-      });
+      for (const file of req.files.files) {
+        newMediaBytes += getFileSize(file);
+        const url = await getFileUrl(file);
+        if (file.mimetype.startsWith('video/')) videos.push(url);
+        else if (file.mimetype.startsWith('audio/')) backgroundMusic = url;
+        else images.push(url);
+      }
     }
+    if (req.files && req.files.headerImage && req.files.headerImage.length > 0) {
+      newMediaBytes += getFileSize(req.files.headerImage[0]);
+    }
+    // אין הגבלת גיגה ביצירת דף חדש – רק אחרי רכישת תוכנית
 
     // Process header image (separate upload)
     if (req.files && req.files.headerImage && req.files.headerImage.length > 0) {
-      const headerFile = req.files.headerImage[0];
-      heroImage = `/${headerFile.path.replace(/\\/g, '/')}`;
+      heroImage = await getFileUrl(req.files.headerImage[0]);
     } else if (heroImageIndex !== undefined && heroImageIndex !== null && heroImageIndex !== '') {
       // Fallback to heroImageIndex if headerImage not provided
       const heroIndex = Number(heroImageIndex);
@@ -1547,6 +1651,9 @@ app.post('/api/memorials', checkDbReady, optionalAuth, validateInput, upload.fie
       latitude ? parseFloat(latitude) : null,
       longitude ? parseFloat(longitude) : null
       ]);
+      if (newMediaBytes > 0) {
+        await db.execute('UPDATE memorials SET media_used_bytes = ? WHERE id = ?', [newMediaBytes, id]);
+      }
     
     res.json({
       success: true,
@@ -1843,7 +1950,9 @@ app.get('/api/memorials/user/my', checkDbReady, authenticateToken, async (req, r
       canEdit: row.canEdit,
       createdAt: row.createdAt,
       qrCodePath: row.qrCodePath,
-      userId: row.userId // Include userId so we can show which are old test memorials
+      userId: row.userId,
+      media_used_bytes: row.media_used_bytes,
+      media_limit_bytes: row.media_limit_bytes
     }));
     
     res.json({ success: true, memorials });
@@ -2127,24 +2236,31 @@ app.put('/api/memorials/:id', checkDbReady, authenticateToken, validateInput, up
     let videos = JSON.parse(existingMemorial.videos || '[]');
     let backgroundMusic = req.body.backgroundMusicPath || existingMemorial.backgroundMusic || '';
     let heroImage = existingMemorial.heroImage || '';
+    const currentMediaBytes = Number(existingMemorial.media_used_bytes) || 0;
+    let newMediaBytes = 0;
     
-    // Process regular files
+    // Process regular files (Cloudinary or local path)
     if (req.files && req.files.files) {
-      req.files.files.forEach(file => {
-        const filePath = `/${file.path.replace(/\\/g, '/')}`;
-        if (file.mimetype.startsWith('video/')) {
-          videos.push(filePath);
-        } else if (file.mimetype.startsWith('audio/')) {
-          backgroundMusic = filePath;
-        } else {
-          images.push(filePath);
-        }
-      });
+      for (const file of req.files.files) {
+        newMediaBytes += getFileSize(file);
+        const url = await getFileUrl(file);
+        if (file.mimetype.startsWith('video/')) videos.push(url);
+        else if (file.mimetype.startsWith('audio/')) backgroundMusic = url;
+        else images.push(url);
+      }
+    }
+    if (req.files && req.files.headerImage && req.files.headerImage.length > 0) {
+      newMediaBytes += getFileSize(req.files.headerImage[0]);
+    }
+    const limitBytes = getMemorialMediaLimitBytes(existingMemorial);
+    if (limitBytes > 0 && currentMediaBytes + newMediaBytes > limitBytes) {
+      const limitGb = Math.round(limitBytes / (1024 * 1024 * 1024));
+      return res.status(400).json({ success: false, error: `הגעת להגבלת האחסון (${limitGb} גיגה). נא להקטין נפח או לרכוש תוספת אחסון.` });
     }
     
     // Process header image
     if (req.files && req.files.headerImage && req.files.headerImage.length > 0) {
-      heroImage = `/${req.files.headerImage[0].path.replace(/\\/g, '/')}`;
+      heroImage = await getFileUrl(req.files.headerImage[0]);
     } else if (heroImageIndex !== undefined && heroImageIndex !== null && images[heroImageIndex]) {
       heroImage = images[parseInt(heroImageIndex)];
     }
@@ -2178,6 +2294,9 @@ app.put('/api/memorials/:id', checkDbReady, authenticateToken, validateInput, up
       id,
       req.user.id
     ]);
+    if (newMediaBytes > 0) {
+      await db.execute('UPDATE memorials SET media_used_bytes = media_used_bytes + ? WHERE id = ?', [newMediaBytes, id]);
+    }
     
     res.json({
       success: true,
@@ -2204,21 +2323,27 @@ app.post('/api/memorials/:id/upload', checkDbReady, validateInput, upload.array(
     const existingImages = JSON.parse(row.images || '[]');
     const existingVideos = JSON.parse(row.videos || '[]');
     let backgroundMusic = row.backgroundMusic || '';
+    const currentMediaBytes = Number(row.media_used_bytes) || 0;
+    let addBytes = 0;
+    for (const file of req.files) {
+      addBytes += getFileSize(file);
+    }
+    const limitBytes = getMemorialMediaLimitBytes(row);
+    if (limitBytes > 0 && currentMediaBytes + addBytes > limitBytes) {
+      const limitGb = Math.round(limitBytes / (1024 * 1024 * 1024));
+      return res.status(400).json({ success: false, error: `הגעת להגבלת האחסון (${limitGb} גיגה). נא להקטין נפח או לרכוש תוספת אחסון.` });
+    }
     
-    req.files.forEach(file => {
-      const filePath = `/${file.path.replace(/\\/g, '/')}`;
-      if (file.mimetype.startsWith('video/')) {
-        existingVideos.push(filePath);
-      } else if (file.mimetype.startsWith('audio/')) {
-        backgroundMusic = filePath;
-      } else {
-        existingImages.push(filePath);
-      }
-    });
+    for (const file of req.files) {
+      const url = await getFileUrl(file);
+      if (file.mimetype.startsWith('video/')) existingVideos.push(url);
+      else if (file.mimetype.startsWith('audio/')) backgroundMusic = url;
+      else existingImages.push(url);
+    }
     
     await db.execute(
-      'UPDATE memorials SET images = ?, videos = ?, backgroundMusic = ? WHERE id = ?',
-      [JSON.stringify(existingImages), JSON.stringify(existingVideos), backgroundMusic, id]
+      'UPDATE memorials SET images = ?, videos = ?, backgroundMusic = ?, media_used_bytes = COALESCE(media_used_bytes,0) + ? WHERE id = ?',
+      [JSON.stringify(existingImages), JSON.stringify(existingVideos), backgroundMusic, addBytes, id]
     );
     
     res.json({ success: true, images: existingImages, videos: existingVideos, backgroundMusic });
@@ -2508,37 +2633,40 @@ app.options('/api/music', (req, res) => {
   res.sendStatus(200);
 });
 
-// Get list of available background music files
+// שירי רקע ברירת מחדל – מוצגים כשלא יש קבצים בתיקיית השרת (production / אחרי דיפלוי).
+// אפשר להחליף ב-URLs משלכם (למשל מ-Cloudinary) או להשאיר ריק [].
+const DEFAULT_BACKGROUND_MUSIC = [
+  { name: 'רקע 1', path: 'https://cdn.pixabay.com/audio/2022/05/27/audio_3e2f1f0f1c.mp3', displayName: 'שיר רקע רגוע 1' },
+  { name: 'רקע 2', path: 'https://cdn.pixabay.com/audio/2022/03/10/audio_369f1f0f1c.mp3', displayName: 'שיר רקע רגוע 2' }
+];
+
+// Get list of available background music files (from server folder + defaults)
 app.get('/api/music', (req, res) => {
-  console.log('📻📻📻 /api/music endpoint called - REQUEST RECEIVED 📻📻📻');
-  console.log('📻 Request method:', req.method);
-  console.log('📻 Request path:', req.path);
-  console.log('📻 Request URL:', req.url);
-  // Explicitly set CORS headers for this endpoint
+  console.log('📻 /api/music endpoint called');
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
   
   try {
+    let files = [];
     const audioDir = storageDir('uploads', 'audio') || path.join(__dirname, 'uploads', 'audio');
-    console.log('📁 Audio directory:', audioDir);
-    if (!fs.existsSync(audioDir)) {
-      console.log('📁 Audio directory does not exist, returning empty array');
-      return res.json({ success: true, musicFiles: [] });
+    if (fs.existsSync(audioDir)) {
+      files = fs.readdirSync(audioDir)
+        .filter(file => {
+          const ext = path.extname(file).toLowerCase();
+          return ['.mp3', '.wav', '.m4a', '.ogg', '.aac'].includes(ext);
+        })
+        .map(file => ({
+          name: file,
+          path: `/uploads/audio/${file}`,
+          displayName: path.basename(file, path.extname(file))
+        }));
     }
-
-    const files = fs.readdirSync(audioDir)
-      .filter(file => {
-        const ext = path.extname(file).toLowerCase();
-        return ['.mp3', '.wav', '.m4a', '.ogg', '.aac'].includes(ext);
-      })
-      .map(file => ({
-        name: file,
-        path: `/uploads/audio/${file}`,
-        displayName: path.basename(file, path.extname(file))
-      }));
-
-    console.log('✅ Found', files.length, 'music files');
+    // אם אין קבצים בשרת (למשל ב-production אחרי דיפלוי) – החזר שירי ברירת מחדל
+    if (files.length === 0) {
+      files = [...DEFAULT_BACKGROUND_MUSIC];
+    }
+    console.log('✅ Music list:', files.length, 'files');
     res.json({ success: true, musicFiles: files });
   } catch (error) {
     console.error('❌ Error reading music files:', error);

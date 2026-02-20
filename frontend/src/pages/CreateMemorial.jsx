@@ -282,8 +282,9 @@ function CreateMemorial() {
       let errorMessage = 'שגיאה ביצירת דף הזיכרון. אנא נסה שוב.';
       
       if (error.response) {
-        // Server responded with error
-        errorMessage = `שגיאה מהשרת (${error.response.status}): ${error.response.data?.error || error.message}`;
+        const data = error.response.data;
+        const serverMsg = typeof data === 'object' && data?.error ? data.error : (data?.message || (typeof data === 'string' ? data : ''));
+        errorMessage = serverMsg ? `שגיאה מהשרת: ${serverMsg}` : `שגיאה מהשרת (${error.response.status}). נסה להקטין גודל תמונות/סרטונים או לנסות שוב.`;
       } else if (error.request) {
         // Request was made but no response received
         errorMessage = 'לא ניתן להתחבר לשרת. בדוק את חיבור האינטרנט או שהשרת לא זמין.';
@@ -792,7 +793,7 @@ function CreateMemorial() {
                     </>
                   ) : (
                     <p className="no-music-message">
-                      אין שירים זמינים. העלה שיר חדש או הוסף קבצי אודיו לתיקייה backend/uploads/audio
+                      אין שירים זמינים כרגע. העלה שיר חדש (כפתור משמאל) או נסה לרענן את הדף.
                     </p>
                   )}
                 </div>

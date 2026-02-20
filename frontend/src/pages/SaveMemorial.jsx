@@ -58,8 +58,9 @@ function SaveMemorial() {
     try {
       const plans = {
         'annual': { price: 100, name: 'שמירה שנתית' },
-        'lifetime': { price: 400, name: 'הנצחה חד פעמית (עם עריכה)' },
-        'lifetime-no-edit': { price: 330, name: 'הנצחה חד פעמית (בלי עריכה)' }
+        'lifetime': { price: 445, name: 'הנצחה חד פעמית (עם עריכה)' },
+        'lifetime-no-edit': { price: 375, name: 'הנצחה חד פעמית (בלי עריכה)' },
+        'lifetime-premium': { price: 699, name: 'הנצחה פרימיום (7 גיגה)' }
       };
 
       const plan = plans[planType];
@@ -253,15 +254,15 @@ function SaveMemorial() {
             </div>
             <div className="option-content">
               <div className="option-price">
-                <span className="price-amount">₪400</span>
+                <span className="price-amount">₪445</span>
                 <span className="price-period">חד-פעמי</span>
               </div>
               <ul className="option-features">
                 <li>✅ שמירה קבועה</li>
                 <li>✅ עריכה חופשית</li>
-                <li>✅ גיבוי</li>
-                <li>✅ העברת ניהול למשפחה</li>
-                <li>✅ תמיכה מלאה</li>
+                <li>✅ תחזוקת אתר 45₪ (כלול)</li>
+                <li>✅ עד 2 גיגה תמונות וסרטונים</li>
+                <li>✅ גיבוי • תמיכה מלאה</li>
               </ul>
             </div>
             <button
@@ -282,15 +283,15 @@ function SaveMemorial() {
             </div>
             <div className="option-content">
               <div className="option-price">
-                <span className="price-amount">₪330</span>
+                <span className="price-amount">₪375</span>
                 <span className="price-period">חד-פעמי</span>
               </div>
               <ul className="option-features">
                 <li>✅ שמירה קבועה</li>
                 <li>❌ ללא אפשרות עריכה</li>
-                <li>✅ גיבוי</li>
-                <li>✅ תמיכה בסיסית</li>
-                <li>✅ QR נשאר פעיל</li>
+                <li>✅ תחזוקת אתר 45₪ (כלול)</li>
+                <li>✅ עד 2 גיגה תמונות וסרטונים</li>
+                <li>✅ גיבוי • תמיכה בסיסית • QR פעיל</li>
               </ul>
             </div>
             <button
@@ -299,6 +300,35 @@ function SaveMemorial() {
               disabled={processing}
             >
               הנצחה חד פעמית
+            </button>
+          </div>
+
+          {/* Option 5 - Lifetime Premium 7GB */}
+          <div className="save-option lifetime-premium">
+            <div className="option-header">
+              <FaCrown className="option-icon" />
+              <h2>הנצחה פרימיום</h2>
+              <p className="option-subtitle">עד 7 גיגה אחסון</p>
+            </div>
+            <div className="option-content">
+              <div className="option-price">
+                <span className="price-amount">₪699</span>
+                <span className="price-period">חד-פעמי</span>
+              </div>
+              <ul className="option-features">
+                <li>✅ שמירה קבועה</li>
+                <li>✅ עריכה חופשית</li>
+                <li>✅ תחזוקת אתר 45₪ (כלול)</li>
+                <li>✅ עד 7 גיגה תמונות וסרטונים</li>
+                <li>✅ גיבוי • תמיכה מלאה</li>
+              </ul>
+            </div>
+            <button
+              className="btn btn-primary btn-full"
+              onClick={() => handleSelectOption('lifetime-premium')}
+              disabled={processing}
+            >
+              הנצחה פרימיום
             </button>
           </div>
         </div>
