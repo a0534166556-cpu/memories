@@ -17,17 +17,17 @@ function TehilimReader({ chapters }) {
   const currentChapterNum = chapterNumbers[currentChapter];
   const chapterData = tehilimData[currentChapterNum];
 
-  const nextChapter = () => {
+  const nextChapter = (e) => {
+    e?.preventDefault();
     if (currentChapter < chapterNumbers.length - 1) {
       setCurrentChapter(currentChapter + 1);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
 
-  const prevChapter = () => {
+  const prevChapter = (e) => {
+    e?.preventDefault();
     if (currentChapter > 0) {
       setCurrentChapter(currentChapter - 1);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
 
@@ -36,6 +36,7 @@ function TehilimReader({ chapters }) {
       <div className="chapter-selector">
         <div className="chapter-nav">
           <button
+            type="button"
             className="nav-btn"
             onClick={prevChapter}
             disabled={currentChapter === 0}
@@ -49,6 +50,7 @@ function TehilimReader({ chapters }) {
             </span>
           </div>
           <button
+            type="button"
             className="nav-btn"
             onClick={nextChapter}
             disabled={currentChapter === chapterNumbers.length - 1}
@@ -98,6 +100,7 @@ function TehilimReader({ chapters }) {
 
       <div className="chapter-nav-bottom">
         <button
+          type="button"
           className="nav-btn"
           onClick={prevChapter}
           disabled={currentChapter === 0}
@@ -105,6 +108,7 @@ function TehilimReader({ chapters }) {
           ← פרק קודם
         </button>
         <button
+          type="button"
           className="nav-btn"
           onClick={nextChapter}
           disabled={currentChapter === chapterNumbers.length - 1}

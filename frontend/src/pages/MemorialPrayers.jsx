@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { pageTitle, sections } from '../data/memorialPrayersContent';
+import { tehilimData } from '../data/tehilim';
 import './MemorialPrayers.css';
 
 function MemorialPrayers() {
@@ -44,9 +45,15 @@ function MemorialPrayers() {
               {section.title && <h2 className="section-title">{section.title}</h2>}
               {section.sub && <h3 className="section-sub">{section.sub}</h3>}
               <div className="section-body">
-                {section.body.split('\n').map((para, i) => (
-                  <p key={i}>{para}</p>
-                ))}
+                {section.psalmChapter && tehilimData[section.psalmChapter] ? (
+                  tehilimData[section.psalmChapter].verses.map((verse, i) => (
+                    <p key={i}>{verse}</p>
+                  ))
+                ) : section.body ? (
+                  section.body.split('\n').map((para, i) => (
+                    <p key={i}>{para}</p>
+                  ))
+                ) : null}
               </div>
             </section>
           ))}

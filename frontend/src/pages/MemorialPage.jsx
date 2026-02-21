@@ -675,6 +675,7 @@ function MemorialPage() {
                 <FaBook /> פרקי תהילים
               </h2>
               <button
+                type="button"
                 className="btn btn-primary"
                 onClick={() => setShowTehilim(!showTehilim)}
               >

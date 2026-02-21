@@ -12,6 +12,7 @@ function ManageMemorials() {
   const [error, setError] = useState('');
   const [isAdmin, setIsAdmin] = useState(false);
   const [grantingId, setGrantingId] = useState(null);
+  const [payingMaintenanceId, setPayingMaintenanceId] = useState(null);
 
   useEffect(() => {
     fetchMemorials();
@@ -233,13 +234,44 @@ function ManageMemorials() {
     }
   };
 
+  const handlePayMaintenance = async (memorialId) => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    setPayingMaintenanceId(memorialId);
+    try {
+      const res = await axios.post(
+        getApiEndpoint('/api/payments/create'),
+        { memorialId, planType: 'maintenance', amount: 35 },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (res.data.success && res.data.approveUrl) {
+        window.location.href = res.data.approveUrl;
+      } else {
+        alert(res.data?.message || 'שגיאה ביצירת תשלום תחזוקה');
+        setPayingMaintenanceId(null);
+      }
+    } catch (err) {
+      alert(err.response?.data?.message || 'שגיאה ביצירת תשלום תחזוקה');
+      setPayingMaintenanceId(null);
+    }
+  };
+
   const handleCleanupTestMemorials = async () => {
     if (!window.confirm('האם אתה בטוח שאתה רוצה למחוק את כל דפי הבדיקה הישנים (ללא משתמש)? פעולה זו לא ניתנת לביטול.')) {
       return;
     }
 
+    const token = localStorage.getItem('token');
+    if (!token) {
+      alert('נדרש להתחבר. אנא התחבר מחדש.');
+      navigate('/login');
+      return;
+    }
+
     try {
-      const response = await axios.delete(getApiEndpoint('/api/memorials/cleanup/test'));
+      const response = await axios.delete(getApiEndpoint('/api/memorials/cleanup/test'), {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
 
       if (response.data.success) {
         alert(`נמחקו ${response.data.deletedCount} דפי בדיקה ישנים`);
@@ -326,6 +358,9 @@ function ManageMemorials() {
             <div className="memorials-grid">
               {memorials.map((memorial) => {
                 const statusInfo = getStatusText(memorial.status, memorial.expiryDate, memorial.canEdit);
+                const isPaid = memorial.status && memorial.status !== 'temporary';
+                const isLifetime = isPaid && !memorial.expiryDate;
+                const maintenanceDue = isLifetime && (!memorial.maintenance_paid_until || new Date(memorial.maintenance_paid_until) < new Date());
                 return (
                   <div key={memorial.id} className="memorial-card">
                     <div className="card-header">
@@ -360,6 +395,11 @@ function ManageMemorials() {
                       {!memorial.userId && isAdmin && memorial.status !== 'temporary' && (
                         <div className="no-edit-warning" style={{ color: '#f57c00' }}>
                           <span>⚠️ דף בדיקה ישן (ללא משתמש)</span>
+                        </div>
+                      )}
+                      {maintenanceDue && (
+                        <div className="no-edit-warning" style={{ color: '#856404', background: '#fff3cd', padding: '6px 10px', borderRadius: '6px', fontSize: '0.9rem' }}>
+                          <span>חייב בתשלום תחזוקה 35₪ לשנה</span>
                         </div>
                       )}
                     </div>
@@ -428,6 +468,17 @@ function ManageMemorials() {
                         <FaTrash style={{ marginLeft: '5px' }} />
                         מחק
                       </button>
+                      {maintenanceDue && (
+                        <button
+                          type="button"
+                          onClick={() => handlePayMaintenance(memorial.id)}
+                          disabled={payingMaintenanceId === memorial.id}
+                          className="btn btn-primary"
+                          style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                        >
+                          {payingMaintenanceId === memorial.id ? 'מעביר לתשלום...' : 'שלם תחזוקה 35₪'}
+                        </button>
+                      )}
                     </div>
                   </div>
                 );

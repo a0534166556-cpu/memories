@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { FaHeart, FaQrcode, FaHistory, FaUsers, FaEnvelope, FaPhone } from 'react-icons/fa';
+import { FaHeart, FaQrcode, FaHistory, FaUsers, FaEnvelope, FaPhone, FaBook, FaMapMarkerAlt, FaBell, FaFire, FaShieldAlt } from 'react-icons/fa';
 import './About.css';
 
 function About() {
@@ -9,7 +9,7 @@ function About() {
         <div className="container">
           <h1 className="about-title">אודותינו</h1>
           <p className="about-subtitle">
-            דפי זיכרון דיגיטליים - דרך מודרנית ומכבדת להנציח את זכרם של יקירינו
+            דפי זיכרון דיגיטליים – דרך מודרנית ומכבדת להנציח את זכרם של יקירינו
           </p>
         </div>
       </header>
@@ -17,89 +17,139 @@ function About() {
       <section className="about-content">
         <div className="container">
           <div className="about-section">
-            <h2>המטרה שלנו</h2>
+            <h2>המטרה והחזון שלנו</h2>
             <p>
               אנו מאמינים שכל אדם ראוי להיזכר בכבוד ובאהבה. דפי זיכרון דיגיטליים מאפשרים למשפחות 
-              ליצור מקום מרגש ומכבד להנצחת יקיריהן, נגיש מכל מקום בעולם, לכל החיים.
+              ליצור מקום מרגש ומכבד להנצחת יקיריהן – נגיש מכל מקום בעולם, בכל עת, לכל החיים.
             </p>
             <p>
-              באמצעות טכנולוגיה מתקדמת, אנו שומרים את הזיכרונות, הסיפורים והתמונות היקרות ביותר, 
-              ומאפשרים לדורות הבאים להתחבר לשורשיהם ולשמור על קשר עם המורשת המשפחתית.
+              באמצעות טכנולוגיה מתקדמת אנו שומרים את הזיכרונות, הסיפורים והתמונות היקרות ביותר, 
+              ומאפשרים לדורות הבאים להתחבר לשורשיהם ולשמור על קשר עם המורשת המשפחתית. 
+              המטרה שלנו היא להפוך את ההנצחה לנגישה, פשוטה ומלאת כבוד – כך שכל משפחה תוכל 
+              לשמר את סיפור חייו של יקירה בלי תלות במקום או בזמן.
             </p>
           </div>
 
           <div className="about-section">
             <h2>מה אנחנו מציעים</h2>
+            <p className="about-section-intro">
+              כל דף זיכרון כולל מגוון כלים להנצחה מלאה ומרגשת. להלן התכונות העיקריות:
+            </p>
             <div className="features-list">
               <div className="feature-item">
                 <FaQrcode className="feature-icon" />
                 <div>
-                  <h3>QR Code למצבה</h3>
-                  <p>כל דף זיכרון מקבל QR Code ייחודי אותו ניתן להדפיס ולהציב על המצבה</p>
-                </div>
-              </div>
-              <div className="feature-item">
-                <FaHistory className="feature-icon" />
-                <div>
-                  <h3>ציר זמן חיים</h3>
-                  <p>תיעוד אירועים חשובים לאורך החיים בצורה מסודרת ומרגשת</p>
+                  <h3>QR Code ייחודי למצבה</h3>
+                  <p>כל דף זיכרון מקבל קוד QR ייחודי שניתן להדפיס ולהציב על המצבה. מבקרים סורקים את הקוד ומגיעים ישירות לדף הזיכרון מהטלפון – בלי להקליד כתובת.</p>
                 </div>
               </div>
               <div className="feature-item">
                 <FaHeart className="feature-icon" />
                 <div>
-                  <h3>תמונות וסרטונים</h3>
-                  <p>אלבום דיגיטלי עשיר המכיל את הרגעים החשובים ביותר</p>
+                  <h3>תמונות, סרטונים ומוזיקה</h3>
+                  <p>אלבום דיגיטלי עשיר: העלו תמונות וסרטונים, בחרו מוזיקת רקע לדף, ותיעדו את הרגעים החשובים בחיי הנפטר. האחסון מאובטח בענן ונגיש תמיד.</p>
+                </div>
+              </div>
+              <div className="feature-item">
+                <FaHistory className="feature-icon" />
+                <div>
+                  <h3>סיפור חיים וציר זמן</h3>
+                  <p>תיעוד אירועים משמעותיים לאורך החיים – שנים, כותרות ותיאורים – במבנה כרונולוגי וברור. אפשר להוסיף תקציר פתיח ליד התמונה הראשית.</p>
+                </div>
+              </div>
+              <div className="feature-item">
+                <FaBook className="feature-icon" />
+                <div>
+                  <h3>פרקי תהילים ומשניות</h3>
+                  <p>בחירת פרקי תהילים ומשניות להצגה בדף הזיכרון – לקריאה בעלייה לקבר או ביום השנה. הטקסטים מוצגים במלואם ונוחים לקריאה.</p>
+                </div>
+              </div>
+              <div className="feature-item">
+                <FaMapMarkerAlt className="feature-icon" />
+                <div>
+                  <h3>מיקום הקבר</h3>
+                  <p>אפשר להוסיף שם בית עלמין, כתובת וקואורדינטות GPS – או לשלוח מיקום מהטלפון ולהדביק קישור מגוגל מפות – כדי שמבקרים יוכלו לנווט בקלות לקבר.</p>
                 </div>
               </div>
               <div className="feature-item">
                 <FaUsers className="feature-icon" />
                 <div>
                   <h3>הודעות תנחומים</h3>
-                  <p>אפשרות למשפחה וחברים להשאיר הודעות תנחומים ולהגיב</p>
+                  <p>משפחה וחברים יכולים להשאיר הודעות תנחומים ישירות בדף הזיכרון. ההודעות מוצגות בכבוד ומאפשרות להנציח גם את דברי המבקרים.</p>
+                </div>
+              </div>
+              <div className="feature-item">
+                <FaFire className="feature-icon" />
+                <div>
+                  <h3>נר זיכרון וירטואלי</h3>
+                  <p>מבקרים יכולים "להדליק" נר זיכרון וירטואלי בדף – סמל מרגש של זיכרון וכבוד.</p>
+                </div>
+              </div>
+              <div className="feature-item">
+                <FaBell className="feature-icon" />
+                <div>
+                  <h3>תזכורת ליום השנה</h3>
+                  <p>הרשמה לתזכורת במייל – ביום הפטירה ו/או עשרה ימים לפני – כדי לא לפספס את יום האזכרה.</p>
                 </div>
               </div>
             </div>
+            <p className="about-note">
+              בנוסף, באתר דף <Link to="/memorial-prayers">סדר תפילות לאזכרה</Link> – תפילות ופרקי תהילים לטקס עלייה לקבר, במלואם.
+            </p>
           </div>
 
           <div className="about-section">
             <h2>איך זה עובד?</h2>
+            <p className="about-section-intro">
+              יצירת דף זיכרון פשוטה ומדורגת. ניתן להתחיל בחינם ולשדרג כשמחליטים להנציח לצמיתות.
+            </p>
             <div className="steps-list">
               <div className="step-item">
                 <div className="step-number">1</div>
                 <div className="step-content">
                   <h3>צרו דף זיכרון</h3>
-                  <p>העלו תמונות, סרטונים, כתבו סיפור חיים וציר זמן</p>
+                  <p>העלו תמונות וסרטונים, כתבו סיפור חיים, ציר זמן, בחרו פרקי תהילים ומשניות, והוסיפו מיקום הקבר אם תרצו. אין צורך בידע טכני.</p>
                 </div>
               </div>
               <div className="step-item">
                 <div className="step-number">2</div>
                 <div className="step-content">
-                  <h3>קבלו QR Code</h3>
-                  <p>אחרי יצירת הדף, תקבלו QR Code ייחודי להדפסה</p>
+                  <h3>בדקו וקבלו QR Code</h3>
+                  <p>אחרי השמירה תקבלו קישור לדף ו־QR Code ייחודי להדפסה. הדף פעיל זמנית (24 שעות) עד שתבחרו תוכנית שמירה.</p>
                 </div>
               </div>
               <div className="step-item">
                 <div className="step-number">3</div>
                 <div className="step-content">
-                  <h3>הציבו על המצבה</h3>
-                  <p>הדפיסו את ה-QR Code והציבו אותו על המצבה</p>
+                  <h3>בחרו תוכנית שמירה</h3>
+                  <p>שמירה שנתית (100₪), הנצחה לכל החיים עם גיגה אחסון (445₪), או פרימיום עם 3 גיגה (620₪). תחזוקה 35₪ לשנה מהשנה השנייה. ניתן לרכוש תוספת גיגה בכל עת.</p>
                 </div>
               </div>
               <div className="step-item">
                 <div className="step-number">4</div>
                 <div className="step-content">
-                  <h3>שתפו עם המשפחה</h3>
-                  <p>כל אחד יכול לסרוק את הקוד ולגשת לדף הזיכרון מכל מקום</p>
+                  <h3>הציבו על המצבה ושתפו</h3>
+                  <p>הדפיסו את ה־QR Code והציבו על המצבה. כל אחד יכול לסרוק ולגשת לדף מכל מקום. אפשר לערוך את הדף גם אחרי השמירה.</p>
                 </div>
               </div>
             </div>
           </div>
 
           <div className="about-section">
+            <h2>ערכים ואבטחה</h2>
+            <ul className="values-list">
+              <li><FaHeart className="value-icon" /> <strong>כבוד והקפדה</strong> – אנחנו מטפלים בזיכרונות ובתכנים ברגישות מקסימלית.</li>
+              <li><FaShieldAlt className="value-icon" /> <strong>אבטחה וגיבוי</strong> – התכנים מאוחסנים בענן מאובטח; אין תלות במכשיר בודד.</li>
+              <li><strong>נגישות</strong> – הדפים נגישים מכל מכשיר (מחשב, טאבלט, טלפון) ובכל מקום.</li>
+              <li><strong>תמיכה</strong> – צוותנו זמין לשאלות, להנחיה ולתמיכה בתהליך ההנצחה.</li>
+            </ul>
+          </div>
+
+          <div className="about-section">
             <h2>צור קשר</h2>
             <p>
-              יש לך שאלות או הצעות? אנחנו כאן לעזור!
+              יש לך שאלות על השירות, על התמחור או על יצירת דף זיכרון? רוצה עזרה בבחירת תוכנית או בהדפסת ה־QR? 
+              נשמח לעזור – צרו איתנו קשר במייל או בטלפון.
             </p>
             <div className="contact-info">
               <div className="contact-item">

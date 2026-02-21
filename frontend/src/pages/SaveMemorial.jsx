@@ -59,8 +59,7 @@ function SaveMemorial() {
       const plans = {
         'annual': { price: 100, name: 'שמירה שנתית' },
         'lifetime': { price: 445, name: 'הנצחה חד פעמית (עם עריכה)' },
-        'lifetime-no-edit': { price: 375, name: 'הנצחה חד פעמית (בלי עריכה)' },
-        'lifetime-premium': { price: 699, name: 'הנצחה פרימיום (7 גיגה)' }
+        'lifetime-premium': { price: 620, name: 'הנצחה פרימיום (3 גיגה)' }
       };
 
       const plan = plans[planType];
@@ -176,7 +175,7 @@ function SaveMemorial() {
         </div>
 
         <div className="save-options">
-          {/* Option 1 - Temporary (Free, 48 hours) */}
+          {/* Option 1 - Temporary (Free, 24 hours) */}
           <div className="save-option basic">
             <div className="option-header">
               <FaClock className="option-icon" />
@@ -184,7 +183,7 @@ function SaveMemorial() {
             </div>
             <div className="option-content">
               <ul className="option-features">
-                <li>הדף פעיל ל-48 שעות</li>
+                <li>הדף פעיל ל-24 שעות</li>
                 <li>ללא עריכה עתידית</li>
                 {expiryDate && (
                   <li className="expiry-info">
@@ -260,8 +259,9 @@ function SaveMemorial() {
               <ul className="option-features">
                 <li>✅ שמירה קבועה</li>
                 <li>✅ עריכה חופשית</li>
-                <li>✅ תחזוקת אתר 45₪ (כלול)</li>
-                <li>✅ עד 2 גיגה תמונות וסרטונים</li>
+                <li>✅ תחזוקת אתר 35₪ לשנה (חינם בשנה הראשונה, מתחייב מהשנה השנייה)</li>
+                <li>✅ עד גיגה אחד תמונות וסרטונים (כ־1,000 תמונות או עשרות דקות וידאו)</li>
+                <li>✅ ניתן לרכוש תוספת גיגה בכל עת (100₪ לגיגה)</li>
                 <li>✅ גיבוי • תמיכה מלאה</li>
               </ul>
             </div>
@@ -274,52 +274,24 @@ function SaveMemorial() {
             </button>
           </div>
 
-          {/* Option 4 - Lifetime without Edit */}
-          <div className="save-option lifetime-no-edit">
-            <div className="option-header">
-              <FaCrown className="option-icon" />
-              <h2>הנצחה חד פעמית</h2>
-              <p className="option-subtitle">בלי אפשרות עריכה</p>
-            </div>
-            <div className="option-content">
-              <div className="option-price">
-                <span className="price-amount">₪375</span>
-                <span className="price-period">חד-פעמי</span>
-              </div>
-              <ul className="option-features">
-                <li>✅ שמירה קבועה</li>
-                <li>❌ ללא אפשרות עריכה</li>
-                <li>✅ תחזוקת אתר 45₪ (כלול)</li>
-                <li>✅ עד 2 גיגה תמונות וסרטונים</li>
-                <li>✅ גיבוי • תמיכה בסיסית • QR פעיל</li>
-              </ul>
-            </div>
-            <button
-              className="btn btn-secondary btn-full"
-              onClick={() => handleSelectOption('lifetime-no-edit')}
-              disabled={processing}
-            >
-              הנצחה חד פעמית
-            </button>
-          </div>
-
-          {/* Option 5 - Lifetime Premium 7GB */}
+          {/* Option 4 - Lifetime Premium 3GB */}
           <div className="save-option lifetime-premium">
             <div className="option-header">
               <FaCrown className="option-icon" />
               <h2>הנצחה פרימיום</h2>
-              <p className="option-subtitle">עד 7 גיגה אחסון</p>
+              <p className="option-subtitle">עד 3 גיגה אחסון</p>
             </div>
             <div className="option-content">
               <div className="option-price">
-                <span className="price-amount">₪699</span>
+                <span className="price-amount">₪620</span>
                 <span className="price-period">חד-פעמי</span>
               </div>
               <ul className="option-features">
                 <li>✅ שמירה קבועה</li>
                 <li>✅ עריכה חופשית</li>
-                <li>✅ תחזוקת אתר 45₪ (כלול)</li>
-                <li>✅ עד 7 גיגה תמונות וסרטונים</li>
+                <li>✅ תחזוקת אתר 35₪ לשנה (חינם בשנה הראשונה, מתחייב מהשנה השנייה)</li>
+                <li>✅ עד 3 גיגה תמונות וסרטונים (כ־3,000 תמונות או מאות דקות וידאו)</li>
+                <li>✅ ניתן לרכוש תוספת גיגה בכל עת (100₪ לגיגה)</li>
                 <li>✅ גיבוי • תמיכה מלאה</li>
               </ul>
             </div>

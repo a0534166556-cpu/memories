@@ -5,7 +5,7 @@ import axios from 'axios';
 import { getApiEndpoint } from '../config';
 import { tehilimData } from '../data/tehilim';
 import { mishnayotData } from '../data/mishnayot';
-import { FaUpload, FaTrash, FaArrowRight, FaPlus, FaMusic, FaSpinner } from 'react-icons/fa';
+import { FaUpload, FaTrash, FaArrowRight, FaPlus, FaMusic, FaSpinner, FaMapMarkerAlt, FaLink } from 'react-icons/fa';
 import './CreateMemorial.css';
 
 function EditMemorial() {
@@ -45,6 +45,9 @@ function EditMemorial() {
   const [showMishnayotSelector, setShowMishnayotSelector] = useState(false);
   const [selectedMishnayot, setSelectedMishnayot] = useState([]);
   const [error, setError] = useState('');
+  const [locationLoading, setLocationLoading] = useState(false);
+  const [locationError, setLocationError] = useState('');
+  const [mapsLinkInput, setMapsLinkInput] = useState('');
 
   // Load memorial data
   useEffect(() => {
@@ -592,9 +595,66 @@ function EditMemorial() {
             <div className="form-group">
               <h3>מיקום הקבר (אופציונלי)</h3>
               <p style={{ fontSize: '0.9rem', color: '#666', marginBottom: '15px' }}>
-                ניתן להוסיף מיקום הקבר כדי לאפשר למבקרים למצוא את הקבר
+                ניתן להוסיף מיקום הקבר כדי לאפשר למבקרים למצוא את הקבר. אפשר להזין ידנית, לשלוח מיקום מהמכשיר או להדביק קישור מגוגל מפות.
               </p>
-              
+
+              <div className="form-group" style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', alignItems: 'center', marginBottom: '15px' }}>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => {
+                    setLocationError('');
+                    setLocationLoading(true);
+                    if (!navigator.geolocation) {
+                      setLocationError('הדפדפן לא תומך במיקום');
+                      setLocationLoading(false);
+                      return;
+                    }
+                    navigator.geolocation.getCurrentPosition(
+                      (pos) => {
+                        setFormData(prev => ({ ...prev, latitude: String(pos.coords.latitude.toFixed(6)), longitude: String(pos.coords.longitude.toFixed(6)) }));
+                        setLocationLoading(false);
+                        setLocationError('');
+                      },
+                      () => {
+                        setLocationError('לא ניתן לקבל מיקום. אשר גישה למיקום בהגדרות הדפדפן או השתמש בקישור מגוגל מפות.');
+                        setLocationLoading(false);
+                      }
+                    );
+                  }}
+                  disabled={locationLoading}
+                >
+                  <FaMapMarkerAlt style={{ marginLeft: '6px' }} />
+                  {locationLoading ? 'מקבל מיקום...' : 'שליחת מיקום נוכחי'}
+                </button>
+                <span style={{ color: '#666', fontSize: '0.9rem' }}>או</span>
+                <div style={{ flex: '1', minWidth: '200px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                  <input
+                    type="url"
+                    value={mapsLinkInput}
+                    onChange={(e) => setMapsLinkInput(e.target.value)}
+                    placeholder="הדבק קישור מגוגל מפות (שיתוף מיקום)"
+                    style={{ flex: '1', minWidth: '180px', padding: '8px 12px' }}
+                  />
+                  <button
+                    type="button"
+                    className="btn btn-outline"
+                    onClick={() => {
+                      const url = mapsLinkInput.trim();
+                      const match = url.match(/(?:q=|@|query=)(-?\d+\.?\d*),(-?\d+\.?\d*)/);
+                      if (match) {
+                        setFormData(prev => ({ ...prev, latitude: match[1], longitude: match[2] }));
+                        setLocationError('');
+                      } else if (url)
+                        setLocationError('לא נמצאו קואורדינטות בקישור. הדבק קישור שיתוף מיקום מגוגל מפות.');
+                    }}
+                  >
+                    <FaLink style={{ marginLeft: '6px' }} /> הכנס קואורדינטות
+                  </button>
+                </div>
+              </div>
+              {locationError && <p className="form-error" style={{ color: '#c00', fontSize: '0.9rem', marginBottom: '10px' }}>{locationError}</p>}
+
               <div className="form-group">
                 <label htmlFor="cemeteryName">שם בית הקברות</label>
                 <input

@@ -5,7 +5,7 @@ import { getApiEndpoint } from '../config';
 import { FaSpinner, FaDatabase, FaPlus } from 'react-icons/fa';
 import './AddStorage.css';
 
-const PRICE_PER_GB = 49;
+const PRICE_PER_GB = 100;
 
 function AddStorage() {
   const navigate = useNavigate();
@@ -94,7 +94,7 @@ function AddStorage() {
           <FaDatabase /> הוסף אחסון לדף זיכרון
         </h1>
         <p className="page-intro">
-          ניתן לרכוש תוספת של גיגה (49₪ לגיגה) לדפים שכבר נשמרו במסלול בתשלום.
+          ניתן לרכוש תוספת של גיגה (100₪ לגיגה) לדפים שכבר נשמרו במסלול בתשלום.
         </p>
         {error && <div className="alert alert-error">{error}</div>}
 
@@ -108,7 +108,7 @@ function AddStorage() {
           <div className="storage-list">
             {memorials.map((m) => {
               const usedGb = formatGb(Number(m.media_used_bytes));
-              const limitBytes = Number(m.media_limit_bytes) || 2 * 1024 * 1024 * 1024;
+              const limitBytes = Number(m.media_limit_bytes) || (1 * 1024 * 1024 * 1024);
               const limitGb = formatGb(limitBytes);
               const isOpen = addForId === m.id;
               return (
@@ -128,7 +128,7 @@ function AddStorage() {
                   ) : (
                     <div className="add-form">
                       <label>
-                        מספר גיגה (49₪ לגיגה):
+                        מספר גיגה (100₪ לגיגה):
                         <select
                           value={additionalGb}
                           onChange={(e) => setAdditionalGb(Number(e.target.value))}
