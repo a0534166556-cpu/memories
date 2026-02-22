@@ -5,6 +5,9 @@ import axios from 'axios';
 import { getApiEndpoint } from '../config';
 import './SaveMemorial.css';
 
+const GOOGLE_PLAY_URL = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_GOOGLE_PLAY_URL)
+  ? String(import.meta.env.VITE_GOOGLE_PLAY_URL).trim() : '';
+
 function SaveMemorial() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -158,6 +161,14 @@ function SaveMemorial() {
           paymentId: res.data.paymentId,
           amount: plan.price
         });
+        try {
+          const mod = await import('../components/StripePaymentModal');
+          setStripeModalComponent(() => mod.StripePaymentModal);
+        } catch (e) {
+          if (import.meta.env?.DEV) console.error(e);
+          setStripeModal(null);
+          alert('לא ניתן לטעון טופס התשלום. נסה שוב.');
+        }
       } else {
         alert(res.data?.message || 'שגיאה ביצירת תשלום');
       }
@@ -281,23 +292,60 @@ function SaveMemorial() {
                 <li>✅ גמישות – ניתן להפסיק או להמשיך</li>
               </ul>
             </div>
-            <button
-              className="btn btn-primary btn-full"
-              onClick={() => handleSelectOption('monthly')}
-              disabled={processing}
-            >
-              מנוי חודשי
-            </button>
-            {stripeAvailable && (
-              <button
-                type="button"
-                className="btn btn-outline btn-full"
-                style={{ marginTop: '8px', fontSize: '0.9rem' }}
-                onClick={() => handleStripePayment('monthly')}
-                disabled={processing}
-              >
-                או: כרטיס אשראי / Google Pay / Apple Pay
-              </button>
+            {GOOGLE_PLAY_URL ? (
+              <>
+                <a
+                  href={GOOGLE_PLAY_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn btn-primary btn-full"
+                  style={{ textDecoration: 'none', textAlign: 'center' }}
+                >
+                  מנוי חודשי ב-Google Play
+                </a>
+                <p className="save-option-or">או תשלום באתר:</p>
+                <button
+                  type="button"
+                  className="btn btn-outline btn-full"
+                  style={{ marginTop: '4px' }}
+                  onClick={() => handleSelectOption('monthly')}
+                  disabled={processing}
+                >
+                  PayPal
+                </button>
+                {stripeAvailable && (
+                  <button
+                    type="button"
+                    className="btn btn-outline btn-full"
+                    style={{ marginTop: '8px', fontSize: '0.9rem' }}
+                    onClick={() => handleStripePayment('monthly')}
+                    disabled={processing}
+                  >
+                    כרטיס אשראי / Google Pay / Apple Pay
+                  </button>
+                )}
+              </>
+            ) : (
+              <>
+                <button
+                  className="btn btn-primary btn-full"
+                  onClick={() => handleSelectOption('monthly')}
+                  disabled={processing}
+                >
+                  מנוי חודשי
+                </button>
+                {stripeAvailable && (
+                  <button
+                    type="button"
+                    className="btn btn-outline btn-full"
+                    style={{ marginTop: '8px', fontSize: '0.9rem' }}
+                    onClick={() => handleStripePayment('monthly')}
+                    disabled={processing}
+                  >
+                    או: כרטיס אשראי / Google Pay / Apple Pay
+                  </button>
+                )}
+              </>
             )}
           </div>
 
@@ -402,23 +450,60 @@ function SaveMemorial() {
                 <li>✅ גיבוי • תמיכה מלאה</li>
               </ul>
             </div>
-            <button
-              className="btn btn-primary btn-full"
-              onClick={() => handleSelectOption('lifetime-premium')}
-              disabled={processing}
-            >
-              הנצחה פרימיום
-            </button>
-            {stripeAvailable && (
-              <button
-                type="button"
-                className="btn btn-outline btn-full"
-                style={{ marginTop: '8px', fontSize: '0.9rem' }}
-                onClick={() => handleStripePayment('lifetime-premium')}
-                disabled={processing}
-              >
-                או: כרטיס אשראי / Google Pay / Apple Pay
-              </button>
+            {GOOGLE_PLAY_URL ? (
+              <>
+                <a
+                  href={GOOGLE_PLAY_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn btn-primary btn-full"
+                  style={{ textDecoration: 'none', textAlign: 'center' }}
+                >
+                  הנצחה פרימיום ב-Google Play
+                </a>
+                <p className="save-option-or">או תשלום באתר:</p>
+                <button
+                  type="button"
+                  className="btn btn-outline btn-full"
+                  style={{ marginTop: '4px' }}
+                  onClick={() => handleSelectOption('lifetime-premium')}
+                  disabled={processing}
+                >
+                  PayPal
+                </button>
+                {stripeAvailable && (
+                  <button
+                    type="button"
+                    className="btn btn-outline btn-full"
+                    style={{ marginTop: '8px', fontSize: '0.9rem' }}
+                    onClick={() => handleStripePayment('lifetime-premium')}
+                    disabled={processing}
+                  >
+                    כרטיס אשראי / Google Pay / Apple Pay
+                  </button>
+                )}
+              </>
+            ) : (
+              <>
+                <button
+                  className="btn btn-primary btn-full"
+                  onClick={() => handleSelectOption('lifetime-premium')}
+                  disabled={processing}
+                >
+                  הנצחה פרימיום
+                </button>
+                {stripeAvailable && (
+                  <button
+                    type="button"
+                    className="btn btn-outline btn-full"
+                    style={{ marginTop: '8px', fontSize: '0.9rem' }}
+                    onClick={() => handleStripePayment('lifetime-premium')}
+                    disabled={processing}
+                  >
+                    או: כרטיס אשראי / Google Pay / Apple Pay
+                  </button>
+                )}
+              </>
             )}
           </div>
         </div>
