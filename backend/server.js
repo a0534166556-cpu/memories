@@ -1289,7 +1289,7 @@ app.post('/api/payments/create', checkDbReady, authenticateToken, async (req, re
       return res.status(400).json({ success: false, message: 'סוג תוכנית וסכום נדרשים' });
     }
     let additionalGb = null;
-    const allowedAmounts = { annual: 120, monthly: 17, lifetime: 360, 'lifetime-premium': 520, maintenance: 15 };
+    const allowedAmounts = { annual: 120, monthly: 15, lifetime: 360, 'lifetime-premium': 520, maintenance: 15 };
     if (planType === 'storage-addon') {
       additionalGb = Math.max(1, Math.min(10, parseInt(req.body.additionalGb, 10) || 1));
       const expectedAmount = 100 * additionalGb;
@@ -1506,7 +1506,7 @@ app.post('/api/payments/create-intent', checkDbReady, authenticateToken, async (
       return res.status(400).json({ success: false, message: 'סוג תוכנית וסכום נדרשים' });
     }
     let additionalGb = null;
-    const allowedAmounts = { annual: 120, monthly: 17, lifetime: 360, 'lifetime-premium': 520, maintenance: 15 };
+    const allowedAmounts = { annual: 120, monthly: 15, lifetime: 360, 'lifetime-premium': 520, maintenance: 15 };
     if (planType === 'storage-addon') {
       additionalGb = Math.max(1, Math.min(10, parseInt(req.body.additionalGb, 10) || 1));
       const expectedAmount = 100 * additionalGb;

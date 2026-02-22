@@ -290,7 +290,7 @@ function ManageMemorials() {
     try {
       const res = await axios.post(
         getApiEndpoint('/api/payments/create'),
-        { memorialId, planType: 'monthly', amount: 17 },
+        { memorialId, planType: 'monthly', amount: 15 },
         { headers: { Authorization: `Bearer ${token}` } }
       );
       if (res.data.success && res.data.approveUrl) {
@@ -312,14 +312,14 @@ function ManageMemorials() {
     try {
       const res = await axios.post(
         getApiEndpoint('/api/payments/create-intent'),
-        { memorialId, planType: 'monthly', amount: 17 },
+        { memorialId, planType: 'monthly', amount: 15 },
         { headers: { Authorization: `Bearer ${token}` } }
       );
       if (res.data.success && res.data.clientSecret) {
         setStripeModal({
           clientSecret: res.data.clientSecret,
           paymentId: res.data.paymentId,
-          amount: 17
+          amount: 15
         });
       } else {
         alert(res.data?.message || 'שגיאה ביצירת תשלום');
@@ -478,7 +478,7 @@ function ManageMemorials() {
                       )}
                       {isExpiredPaid && (
                         <div className="no-edit-warning" style={{ color: '#721c24', background: '#f8d7da', padding: '6px 10px', borderRadius: '6px', fontSize: '0.9rem' }}>
-                          <span>מנוי פג תוקף – הארך בחודש (17₪) או בחר תוכנית אחרת</span>
+                          <span>מנוי פג תוקף – הארך בחודש (15₪) או בחר תוכנית אחרת</span>
                         </div>
                       )}
                     </div>
@@ -579,7 +579,7 @@ function ManageMemorials() {
                             className="btn btn-primary"
                             style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.9rem' }}
                           >
-                            {extendingMonthlyId === memorial.id ? 'מעביר לתשלום...' : 'הארך מנוי חודשי 17₪ (PayPal)'}
+                            {extendingMonthlyId === memorial.id ? 'מעביר לתשלום...' : 'הארך מנוי חודשי 15₪ (PayPal)'}
                           </button>
                           {isStripeAvailable() && (
                             <button

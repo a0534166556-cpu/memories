@@ -7,7 +7,7 @@ git add frontend/src/pages/SaveMemorial.jsx frontend/src/pages/Pricing.jsx front
 git add -A
 echo.
 echo Committing...
-git commit -m "Tariff, 7GB, AddStorage, סדר תפילות לאזכרה, תיקון טעינת תמונות (Cloudinary/API URL)"
+git commit -m "תשלום רק באתר (הסרת Google Play), מנוי חודשי 15₪, תיקון מודל Stripe"
 echo.
 echo Pushing...
 git push
