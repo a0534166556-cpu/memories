@@ -1,13 +1,20 @@
-import { useState, useEffect } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useState, useEffect, useMemo } from 'react';
+import { useParams, useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { FaHeart, FaCrown, FaCheckCircle, FaClock, FaSpinner, FaUser } from 'react-icons/fa';
 import axios from 'axios';
 import { getApiEndpoint } from '../config';
 import './SaveMemorial.css';
 
+// כשנפתח מהאפליקציה (TWA) עם ?in_app=1 – לא להציג תשלום חיצוני (מדיניות Google Play)
+function useHideExternalPayment() {
+  const [searchParams] = useSearchParams();
+  return useMemo(() => searchParams.get('in_app') === '1', [searchParams]);
+}
+
 function SaveMemorial() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const hideExternalPayment = useHideExternalPayment();
   const [memorial, setMemorial] = useState(null);
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
@@ -15,6 +22,7 @@ function SaveMemorial() {
   const [stripeModal, setStripeModal] = useState(null);
   const [stripeAvailable, setStripeAvailable] = useState(false);
   const [StripeModalComponent, setStripeModalComponent] = useState(null);
+  const [payplusAvailable, setPayplusAvailable] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -26,6 +34,12 @@ function SaveMemorial() {
     const key = typeof import.meta !== 'undefined' && import.meta.env?.VITE_STRIPE_PUBLISHABLE_KEY;
     if (!key) return;
     import('@stripe/stripe-js').then(() => setStripeAvailable(true)).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    axios.get(getApiEndpoint('/api/payment-methods')).then((r) => {
+      if (r.data && r.data.success && r.data.payplus) setPayplusAvailable(true);
+    }).catch(() => {});
   }, []);
 
   const fetchMemorial = async () => {
@@ -68,8 +82,8 @@ function SaveMemorial() {
       const plans = {
         'monthly': { price: 15, name: 'מנוי חודשי' },
         'annual': { price: 120, name: 'שמירה שנתית' },
-        'lifetime': { price: 360, name: 'הנצחה חד פעמית (עם עריכה)' },
-        'lifetime-premium': { price: 520, name: 'הנצחה פרימיום (3 גיגה)' }
+        'lifetime': { price: 399, name: 'הנצחה חד פעמית (עם עריכה)' },
+        'lifetime-premium': { price: 549, name: 'הנצחה פרימיום (3 גיגה)' }
       };
 
       const plan = plans[planType];
@@ -131,8 +145,36 @@ function SaveMemorial() {
   const plansForStripe = {
     monthly: { price: 15 },
     annual: { price: 120 },
-    lifetime: { price: 360 },
-    'lifetime-premium': { price: 520 }
+    lifetime: { price: 399 },
+    'lifetime-premium': { price: 549 }
+  };
+
+  const handlePayPlusPayment = async (planType, preferBit = false) => {
+    const token = localStorage.getItem('token');
+    if (!token?.trim()) {
+      alert('נדרש להתחבר כדי לבצע תשלום.');
+      navigate(`/login?redirect=/save/${id}&plan=${planType}`);
+      return;
+    }
+    const plan = plansForStripe[planType];
+    if (!plan) return;
+    setProcessing(true);
+    try {
+      const res = await axios.post(
+        getApiEndpoint('/api/payments/create-payplus'),
+        { memorialId: id, planType, amount: plan.price, preferBit },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (res.data.success && res.data.paymentLink) {
+        window.location.href = res.data.paymentLink;
+      } else {
+        alert(res.data?.message || 'שגיאה ביצירת קישור תשלום');
+        setProcessing(false);
+      }
+    } catch (err) {
+      alert(err.response?.data?.message || 'שגיאה ביצירת קישור תשלום');
+      setProcessing(false);
+    }
   };
 
   const handleStripePayment = async (planType) => {
@@ -289,23 +331,54 @@ function SaveMemorial() {
                 <li>✅ גמישות – ניתן להפסיק או להמשיך</li>
               </ul>
             </div>
-            <button
-              className="btn btn-primary btn-full"
-              onClick={() => handleSelectOption('monthly')}
-              disabled={processing}
-            >
-              מנוי חודשי
-            </button>
-            {stripeAvailable && (
-              <button
-                type="button"
-                className="btn btn-outline btn-full"
-                style={{ marginTop: '8px', fontSize: '0.9rem' }}
-                onClick={() => handleStripePayment('monthly')}
-                disabled={processing}
-              >
-                או: כרטיס אשראי / Google Pay / Apple Pay
-              </button>
+            {hideExternalPayment ? (
+              <p className="save-option-or" style={{ marginTop: '12px' }}>
+                תשלום זמין בדפדפן.{' '}
+                <a href="https://memoriesman.netlify.app" target="_blank" rel="noopener">גלשו לאתר</a>
+              </p>
+            ) : (
+              <>
+                <button
+                  className="btn btn-primary btn-full"
+                  onClick={() => handleSelectOption('monthly')}
+                  disabled={processing}
+                >
+                  מנוי חודשי
+                </button>
+                {payplusAvailable && (
+                  <>
+                    <button
+                      type="button"
+                      className="btn btn-outline btn-full"
+                      style={{ marginTop: '8px', fontSize: '0.9rem' }}
+                      onClick={() => handlePayPlusPayment('monthly')}
+                      disabled={processing}
+                    >
+                      או: כרטיס אשראי / Google Pay / Apple Pay (PayPlus)
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-outline btn-full"
+                      style={{ marginTop: '6px', fontSize: '0.9rem' }}
+                      onClick={() => handlePayPlusPayment('monthly', true)}
+                      disabled={processing}
+                    >
+                      או: ביט
+                    </button>
+                  </>
+                )}
+                {stripeAvailable && (
+                  <button
+                    type="button"
+                    className="btn btn-outline btn-full"
+                    style={{ marginTop: '8px', fontSize: '0.9rem' }}
+                    onClick={() => handleStripePayment('monthly')}
+                    disabled={processing}
+                  >
+                    או: כרטיס אשראי / Google Pay / Apple Pay
+                  </button>
+                )}
+              </>
             )}
           </div>
 
@@ -327,23 +400,54 @@ function SaveMemorial() {
                 <li>✅ תמיכה בסיסית</li>
               </ul>
             </div>
-            <button
-              className="btn btn-primary btn-full"
-              onClick={() => handleSelectOption('annual')}
-              disabled={processing}
-            >
-              שמור את הדף
-            </button>
-            {stripeAvailable && (
-              <button
-                type="button"
-                className="btn btn-outline btn-full"
-                style={{ marginTop: '8px', fontSize: '0.9rem' }}
-                onClick={() => handleStripePayment('annual')}
-                disabled={processing}
-              >
-                או: כרטיס אשראי / Google Pay / Apple Pay
-              </button>
+            {hideExternalPayment ? (
+              <p className="save-option-or" style={{ marginTop: '12px' }}>
+                תשלום זמין בדפדפן.{' '}
+                <a href="https://memoriesman.netlify.app" target="_blank" rel="noopener">גלשו לאתר</a>
+              </p>
+            ) : (
+              <>
+                <button
+                  className="btn btn-primary btn-full"
+                  onClick={() => handleSelectOption('annual')}
+                  disabled={processing}
+                >
+                  שמור את הדף
+                </button>
+                {payplusAvailable && (
+                  <>
+                    <button
+                      type="button"
+                      className="btn btn-outline btn-full"
+                      style={{ marginTop: '8px', fontSize: '0.9rem' }}
+                      onClick={() => handlePayPlusPayment('annual')}
+                      disabled={processing}
+                    >
+                      או: כרטיס אשראי / Google Pay / Apple Pay (PayPlus)
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-outline btn-full"
+                      style={{ marginTop: '6px', fontSize: '0.9rem' }}
+                      onClick={() => handlePayPlusPayment('annual', true)}
+                      disabled={processing}
+                    >
+                      או: ביט
+                    </button>
+                  </>
+                )}
+                {stripeAvailable && (
+                  <button
+                    type="button"
+                    className="btn btn-outline btn-full"
+                    style={{ marginTop: '8px', fontSize: '0.9rem' }}
+                    onClick={() => handleStripePayment('annual')}
+                    disabled={processing}
+                  >
+                    או: כרטיס אשראי / Google Pay / Apple Pay
+                  </button>
+                )}
+              </>
             )}
           </div>
 
@@ -357,7 +461,7 @@ function SaveMemorial() {
             </div>
             <div className="option-content">
               <div className="option-price">
-                <span className="price-amount">₪360</span>
+                <span className="price-amount">₪399</span>
                 <span className="price-period">חד-פעמי</span>
               </div>
               <ul className="option-features">
@@ -369,23 +473,54 @@ function SaveMemorial() {
                 <li>✅ גיבוי • תמיכה מלאה</li>
               </ul>
             </div>
-            <button
-              className="btn btn-primary btn-full btn-highlight"
-              onClick={() => handleSelectOption('lifetime')}
-              disabled={processing}
-            >
-              הנצחה חד פעמית
-            </button>
-            {stripeAvailable && (
-              <button
-                type="button"
-                className="btn btn-outline btn-full"
-                style={{ marginTop: '8px', fontSize: '0.9rem' }}
-                onClick={() => handleStripePayment('lifetime')}
-                disabled={processing}
-              >
-                או: כרטיס אשראי / Google Pay / Apple Pay
-              </button>
+            {hideExternalPayment ? (
+              <p className="save-option-or" style={{ marginTop: '12px' }}>
+                תשלום זמין בדפדפן.{' '}
+                <a href="https://memoriesman.netlify.app" target="_blank" rel="noopener">גלשו לאתר</a>
+              </p>
+            ) : (
+              <>
+                <button
+                  className="btn btn-primary btn-full btn-highlight"
+                  onClick={() => handleSelectOption('lifetime')}
+                  disabled={processing}
+                >
+                  הנצחה חד פעמית
+                </button>
+                {payplusAvailable && (
+                  <>
+                    <button
+                      type="button"
+                      className="btn btn-outline btn-full"
+                      style={{ marginTop: '8px', fontSize: '0.9rem' }}
+                      onClick={() => handlePayPlusPayment('lifetime')}
+                      disabled={processing}
+                    >
+                      או: כרטיס אשראי / Google Pay / Apple Pay (PayPlus)
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-outline btn-full"
+                      style={{ marginTop: '6px', fontSize: '0.9rem' }}
+                      onClick={() => handlePayPlusPayment('lifetime', true)}
+                      disabled={processing}
+                    >
+                      או: ביט
+                    </button>
+                  </>
+                )}
+                {stripeAvailable && (
+                  <button
+                    type="button"
+                    className="btn btn-outline btn-full"
+                    style={{ marginTop: '8px', fontSize: '0.9rem' }}
+                    onClick={() => handleStripePayment('lifetime')}
+                    disabled={processing}
+                  >
+                    או: כרטיס אשראי / Google Pay / Apple Pay
+                  </button>
+                )}
+              </>
             )}
           </div>
 
@@ -394,11 +529,11 @@ function SaveMemorial() {
             <div className="option-header">
               <FaCrown className="option-icon" />
               <h2>הנצחה פרימיום</h2>
-              <p className="option-subtitle">עד 3 גיגה אחסון</p>
+              <p className="option-subtitle">עם עוד הרבה תמונות וסרטונים עד 3 גיגה איחסון</p>
             </div>
             <div className="option-content">
               <div className="option-price">
-                <span className="price-amount">₪520</span>
+                <span className="price-amount">₪549</span>
                 <span className="price-period">חד-פעמי</span>
               </div>
               <ul className="option-features">
@@ -410,23 +545,54 @@ function SaveMemorial() {
                 <li>✅ גיבוי • תמיכה מלאה</li>
               </ul>
             </div>
-            <button
-              className="btn btn-primary btn-full"
-              onClick={() => handleSelectOption('lifetime-premium')}
-              disabled={processing}
-            >
-              הנצחה פרימיום
-            </button>
-            {stripeAvailable && (
-              <button
-                type="button"
-                className="btn btn-outline btn-full"
-                style={{ marginTop: '8px', fontSize: '0.9rem' }}
-                onClick={() => handleStripePayment('lifetime-premium')}
-                disabled={processing}
-              >
-                או: כרטיס אשראי / Google Pay / Apple Pay
-              </button>
+            {hideExternalPayment ? (
+              <p className="save-option-or" style={{ marginTop: '12px' }}>
+                תשלום זמין בדפדפן.{' '}
+                <a href="https://memoriesman.netlify.app" target="_blank" rel="noopener">גלשו לאתר</a>
+              </p>
+            ) : (
+              <>
+                <button
+                  className="btn btn-primary btn-full"
+                  onClick={() => handleSelectOption('lifetime-premium')}
+                  disabled={processing}
+                >
+                  הנצחה פרימיום
+                </button>
+                {payplusAvailable && (
+                  <>
+                    <button
+                      type="button"
+                      className="btn btn-outline btn-full"
+                      style={{ marginTop: '8px', fontSize: '0.9rem' }}
+                      onClick={() => handlePayPlusPayment('lifetime-premium')}
+                      disabled={processing}
+                    >
+                      או: כרטיס אשראי / Google Pay / Apple Pay (PayPlus)
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-outline btn-full"
+                      style={{ marginTop: '6px', fontSize: '0.9rem' }}
+                      onClick={() => handlePayPlusPayment('lifetime-premium', true)}
+                      disabled={processing}
+                    >
+                      או: ביט
+                    </button>
+                  </>
+                )}
+                {stripeAvailable && (
+                  <button
+                    type="button"
+                    className="btn btn-outline btn-full"
+                    style={{ marginTop: '8px', fontSize: '0.9rem' }}
+                    onClick={() => handleStripePayment('lifetime-premium')}
+                    disabled={processing}
+                  >
+                    או: כרטיס אשראי / Google Pay / Apple Pay
+                  </button>
+                )}
+              </>
             )}
           </div>
         </div>

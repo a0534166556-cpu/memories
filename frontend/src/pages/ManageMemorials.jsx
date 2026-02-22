@@ -1,13 +1,17 @@
-import { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useState, useEffect, useMemo } from 'react';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import { getApiEndpoint } from '../config';
 import { FaSpinner, FaEdit, FaEye, FaLock, FaTrash, FaInfinity } from 'react-icons/fa';
 import { StripePaymentModal, isStripeAvailable } from '../components/StripePaymentModal';
 import './ManageMemorials.css';
 
+const SITE_URL = 'https://memoriesman.netlify.app';
+
 function ManageMemorials() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const hideExternalPayment = useMemo(() => searchParams.get('in_app') === '1', [searchParams]);
   const [memorials, setMemorials] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -549,47 +553,65 @@ function ManageMemorials() {
                       </button>
                       {maintenanceDue && (
                         <>
-                          <button
-                            type="button"
-                            onClick={() => handlePayMaintenance(memorial.id)}
-                            disabled={payingMaintenanceId === memorial.id}
-                            className="btn btn-primary"
-                            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                          >
-                            {payingMaintenanceId === memorial.id ? 'מעביר לתשלום...' : 'שלם תחזוקה 15₪ (PayPal)'}
-                          </button>
-                          {isStripeAvailable() && (
-                            <button
-                              type="button"
-                              className="btn btn-outline"
-                              style={{ fontSize: '0.85rem', marginTop: '4px' }}
-                              onClick={() => handleStripeMaintenance(memorial.id)}
-                            >
-                              או: כרטיס / Google Pay / Apple Pay
-                            </button>
+                          {hideExternalPayment ? (
+                            <p style={{ fontSize: '0.9rem', margin: '8px 0' }}>
+                              תשלום זמין בדפדפן.{' '}
+                              <a href={SITE_URL} target="_blank" rel="noopener">גלשו לאתר</a>
+                            </p>
+                          ) : (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => handlePayMaintenance(memorial.id)}
+                                disabled={payingMaintenanceId === memorial.id}
+                                className="btn btn-primary"
+                                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                              >
+                                {payingMaintenanceId === memorial.id ? 'מעביר לתשלום...' : 'שלם תחזוקה 15₪ (PayPal)'}
+                              </button>
+                              {isStripeAvailable() && (
+                                <button
+                                  type="button"
+                                  className="btn btn-outline"
+                                  style={{ fontSize: '0.85rem', marginTop: '4px' }}
+                                  onClick={() => handleStripeMaintenance(memorial.id)}
+                                >
+                                  או: כרטיס / Google Pay / Apple Pay
+                                </button>
+                              )}
+                            </>
                           )}
                         </>
                       )}
                       {isExpiredPaid && (
                         <>
-                          <button
-                            type="button"
-                            onClick={() => handleExtendMonthly(memorial.id)}
-                            disabled={extendingMonthlyId === memorial.id}
-                            className="btn btn-primary"
-                            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.9rem' }}
-                          >
-                            {extendingMonthlyId === memorial.id ? 'מעביר לתשלום...' : 'הארך מנוי חודשי 15₪ (PayPal)'}
-                          </button>
-                          {isStripeAvailable() && (
-                            <button
-                              type="button"
-                              className="btn btn-outline"
-                              style={{ fontSize: '0.85rem', marginTop: '4px' }}
-                              onClick={() => handleStripeExtendMonthly(memorial.id)}
-                            >
-                              או: כרטיס / Google Pay / Apple Pay
-                            </button>
+                          {hideExternalPayment ? (
+                            <p style={{ fontSize: '0.9rem', margin: '8px 0' }}>
+                              תשלום זמין בדפדפן.{' '}
+                              <a href={SITE_URL} target="_blank" rel="noopener">גלשו לאתר</a>
+                            </p>
+                          ) : (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => handleExtendMonthly(memorial.id)}
+                                disabled={extendingMonthlyId === memorial.id}
+                                className="btn btn-primary"
+                                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.9rem' }}
+                              >
+                                {extendingMonthlyId === memorial.id ? 'מעביר לתשלום...' : 'הארך מנוי חודשי 15₪ (PayPal)'}
+                              </button>
+                              {isStripeAvailable() && (
+                                <button
+                                  type="button"
+                                  className="btn btn-outline"
+                                  style={{ fontSize: '0.85rem', marginTop: '4px' }}
+                                  onClick={() => handleStripeExtendMonthly(memorial.id)}
+                                >
+                                  או: כרטיס / Google Pay / Apple Pay
+                                </button>
+                              )}
+                            </>
                           )}
                         </>
                       )}

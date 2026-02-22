@@ -125,6 +125,19 @@ if (STRIPE_SECRET) {
   }
 }
 
+// PayPlus (סליקה ישראלית – כרטיס / Google Pay / Apple Pay)
+const PAYPLUS_API_KEY = (process.env.PAYPLUS_API_KEY || '').trim();
+const PAYPLUS_SECRET_KEY = (process.env.PAYPLUS_SECRET_KEY || '').trim();
+const PAYPLUS_PAGE_UID = (process.env.PAYPLUS_PAYMENT_PAGE_UID || '').trim();
+const PAYPLUS_DEV = (process.env.PAYPLUS_DEV || '').toLowerCase() === 'true';
+const payplusBaseUrl = PAYPLUS_DEV ? 'https://restapidev.payplus.co.il/api/v1.0' : 'https://restapi.payplus.co.il/api/v1.0';
+const payplusEnabled = !!(PAYPLUS_API_KEY && PAYPLUS_SECRET_KEY && PAYPLUS_PAGE_UID);
+if (payplusEnabled) {
+  console.log('💳 PayPlus enabled – כרטיס / Google Pay / Apple Pay (ישראל)');
+} else if (PAYPLUS_API_KEY || PAYPLUS_SECRET_KEY || PAYPLUS_PAGE_UID) {
+  console.log('⚠️ PayPlus not fully configured – set PAYPLUS_API_KEY, PAYPLUS_SECRET_KEY, PAYPLUS_PAYMENT_PAGE_UID');
+}
+
 console.log('🚀 SERVER STARTING - VERSION WITH FIXES');
 console.log('🚀 Timestamp:', new Date().toISOString());
 
@@ -1289,7 +1302,7 @@ app.post('/api/payments/create', checkDbReady, authenticateToken, async (req, re
       return res.status(400).json({ success: false, message: 'סוג תוכנית וסכום נדרשים' });
     }
     let additionalGb = null;
-    const allowedAmounts = { annual: 120, monthly: 15, lifetime: 360, 'lifetime-premium': 520, maintenance: 15 };
+    const allowedAmounts = { annual: 120, monthly: 15, lifetime: 399, 'lifetime-premium': 549, maintenance: 15 };
     if (planType === 'storage-addon') {
       additionalGb = Math.max(1, Math.min(10, parseInt(req.body.additionalGb, 10) || 1));
       const expectedAmount = 100 * additionalGb;
@@ -1506,7 +1519,7 @@ app.post('/api/payments/create-intent', checkDbReady, authenticateToken, async (
       return res.status(400).json({ success: false, message: 'סוג תוכנית וסכום נדרשים' });
     }
     let additionalGb = null;
-    const allowedAmounts = { annual: 120, monthly: 15, lifetime: 360, 'lifetime-premium': 520, maintenance: 15 };
+    const allowedAmounts = { annual: 120, monthly: 15, lifetime: 399, 'lifetime-premium': 549, maintenance: 15 };
     if (planType === 'storage-addon') {
       additionalGb = Math.max(1, Math.min(10, parseInt(req.body.additionalGb, 10) || 1));
       const expectedAmount = 100 * additionalGb;
@@ -1662,6 +1675,209 @@ app.post('/api/payments/confirm-stripe', checkDbReady, authenticateToken, async 
     console.error('Stripe confirm error:', err);
     handleDbError(err, res);
   }
+});
+
+// Create PayPlus payment link (כרטיס / Google Pay / Apple Pay – ישראל)
+app.post('/api/payments/create-payplus', checkDbReady, authenticateToken, async (req, res) => {
+  try {
+    if (!payplusEnabled) {
+      return res.status(500).json({ success: false, message: 'PayPlus לא מוגדר. הגדר PAYPLUS_API_KEY, PAYPLUS_SECRET_KEY, PAYPLUS_PAYMENT_PAGE_UID.' });
+    }
+    const { memorialId, planType, amount } = req.body;
+    if (!planType || amount == null) {
+      return res.status(400).json({ success: false, message: 'סוג תוכנית וסכום נדרשים' });
+    }
+    let additionalGb = null;
+    const allowedAmounts = { annual: 120, monthly: 15, lifetime: 399, 'lifetime-premium': 549, maintenance: 15 };
+    if (planType === 'storage-addon') {
+      additionalGb = Math.max(1, Math.min(10, parseInt(req.body.additionalGb, 10) || 1));
+      const expectedAmount = 100 * additionalGb;
+      if (Number(amount) !== expectedAmount || !memorialId) {
+        return res.status(400).json({ success: false, message: 'סכום או מזהה דף לא תואם' });
+      }
+    } else if (planType === 'maintenance') {
+      if (Number(amount) !== 15 || !memorialId) {
+        return res.status(400).json({ success: false, message: 'תשלום תחזוקה 15₪ דורש מזהה דף זיכרון' });
+      }
+    } else {
+      const expectedAmount = allowedAmounts[planType];
+      if (expectedAmount == null || Number(amount) !== expectedAmount) {
+        return res.status(400).json({ success: false, message: 'סכום לא תואם לתוכנית הנבחרת' });
+      }
+    }
+
+    await ensureDbConnection();
+    const paymentId = uuidv4();
+    await db.execute(
+      'INSERT INTO payments (id, userId, memorialId, planType, amount, status, paymentMethod, additional_gb) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      [paymentId, req.user.id, memorialId || null, planType, amount, 'pending', 'payplus', additionalGb]
+    );
+
+    const baseUrl = (process.env.BASE_URL || process.env.FRONTEND_URL || 'https://memoriesman.netlify.app').replace(/\/$/, '');
+    const backendUrl = (process.env.BACKEND_URL || process.env.RAILWAY_STATIC_URL || '').replace(/\/$/, '') || `${req.protocol}://${req.get('host')}`;
+
+    const axios = require('axios');
+    const preferBit = !!(req.body && req.body.preferBit);
+    const payload = {
+      payment_page_uid: PAYPLUS_PAGE_UID,
+      amount: Number(amount),
+      currency_code: 'ILS',
+      sendEmailApproval: true,
+      sendEmailFailure: false,
+      charge_method: 1,
+      refURL_success: `${baseUrl}/payment/success?paymentId=${paymentId}`,
+      refURL_failure: `${baseUrl}/payment/cancel?paymentId=${paymentId}`,
+      refURL_callback: `${backendUrl}/api/payments/callback-payplus`,
+      more_info: paymentId,
+      language_code: 'he',
+      customer: {
+        customer_name: (req.user.name || req.user.email || 'לקוח').substring(0, 100),
+        email: req.user.email || ''
+      }
+    };
+    if (preferBit) payload.charge_default = 'bit';
+
+    const apiRes = await axios.post(`${payplusBaseUrl}/PaymentPages/generateLink`, payload, {
+      headers: {
+        'api-key': PAYPLUS_API_KEY,
+        'secret-key': PAYPLUS_SECRET_KEY,
+        'Content-Type': 'application/json'
+      },
+      timeout: 15000
+    });
+
+    const results = apiRes.data && apiRes.data.results;
+    const data = apiRes.data && apiRes.data.data;
+    if (!results || results.status !== 'success' || !data || !data.payment_page_link) {
+      console.error('PayPlus generateLink response:', apiRes.data);
+      return res.status(502).json({ success: false, message: 'PayPlus לא החזיר קישור תשלום. נסה שוב.' });
+    }
+
+    res.json({
+      success: true,
+      paymentId,
+      paymentLink: data.payment_page_link,
+      message: 'מוכן לתשלום'
+    });
+  } catch (err) {
+    console.error('PayPlus create-payplus error:', err.response?.data || err.message);
+    res.status(500).json({
+      success: false,
+      message: err.response?.data?.results?.description || err.response?.data?.message || 'שגיאה ביצירת קישור תשלום PayPlus'
+    });
+  }
+});
+
+// PayPlus server callback (ללא auth – PayPlus קורא לכתובת הזו, GET או POST)
+function handlePayPlusCallback(req, res) {
+  const paymentId = (req.body && req.body.more_info) || (req.query && req.query.more_info);
+  return runPayPlusCallback(paymentId, req, res);
+}
+async function runPayPlusCallback(paymentId, req, res) {
+  try {
+    if (!paymentId || typeof paymentId !== 'string') {
+      res.status(400).send('missing more_info');
+      return;
+    }
+    paymentId = paymentId.trim();
+
+    await ensureDbConnection();
+    const [rows] = await db.execute('SELECT * FROM payments WHERE id = ? AND paymentMethod = ?', [paymentId, 'payplus']);
+    if (rows.length === 0) {
+      res.status(404).send('payment not found');
+      return;
+    }
+    const payment = rows[0];
+    if (payment.status === 'completed') {
+      res.status(200).send('OK');
+      return;
+    }
+
+    const transactionId = (req.body && req.body.transaction_uid) || (req.body && req.body.page_request_uid) || (req.query && req.query.transaction_uid) || (req.query && req.query.page_request_uid);
+    await db.execute(
+      'UPDATE payments SET status = ?, transactionId = COALESCE(?, transactionId) WHERE id = ?',
+      ['completed', transactionId || null, payment.id]
+    );
+
+    if (payment.memorialId) {
+      if (payment.planType === 'annual') {
+        const expiryDate = new Date();
+        expiryDate.setFullYear(expiryDate.getFullYear() + 1);
+        await db.execute(
+          'UPDATE memorials SET status = ?, expiryDate = ? WHERE id = ?',
+          ['active', expiryDate, payment.memorialId]
+        );
+        const subscriptionId = uuidv4();
+        await db.execute(
+          'INSERT INTO subscriptions (id, userId, memorialId, planType, startDate, endDate, status) VALUES (?, ?, ?, ?, ?, ?, ?)',
+          [subscriptionId, payment.userId, payment.memorialId, payment.planType, new Date(), expiryDate, 'active']
+        );
+        await db.execute(
+          'UPDATE memorials SET media_limit_bytes = ? WHERE id = ?',
+          [DEFAULT_MEDIA_LIMIT_1GB, payment.memorialId]
+        );
+      } else if (payment.planType === 'monthly') {
+        const expiryDate = new Date();
+        expiryDate.setMonth(expiryDate.getMonth() + 1);
+        await db.execute(
+          'UPDATE memorials SET status = ?, expiryDate = ? WHERE id = ?',
+          ['active', expiryDate, payment.memorialId]
+        );
+        const subscriptionId = uuidv4();
+        await db.execute(
+          'INSERT INTO subscriptions (id, userId, memorialId, planType, startDate, endDate, status) VALUES (?, ?, ?, ?, ?, ?, ?)',
+          [subscriptionId, payment.userId, payment.memorialId, payment.planType, new Date(), expiryDate, 'active']
+        );
+        await db.execute(
+          'UPDATE memorials SET media_limit_bytes = ? WHERE id = ?',
+          [DEFAULT_MEDIA_LIMIT_1GB, payment.memorialId]
+        );
+      } else if (payment.planType === 'lifetime') {
+        await db.execute(
+          'UPDATE memorials SET status = ?, expiryDate = NULL, canEdit = TRUE, media_limit_bytes = ?, maintenance_paid_until = DATE_ADD(NOW(), INTERVAL 1 YEAR) WHERE id = ?',
+          ['active', DEFAULT_MEDIA_LIMIT_1GB, payment.memorialId]
+        );
+      } else if (payment.planType === 'lifetime-no-edit') {
+        await db.execute(
+          'UPDATE memorials SET status = ?, expiryDate = NULL, canEdit = FALSE, media_limit_bytes = ?, maintenance_paid_until = DATE_ADD(NOW(), INTERVAL 1 YEAR) WHERE id = ?',
+          ['active', DEFAULT_MEDIA_LIMIT_1GB, payment.memorialId]
+        );
+      } else if (payment.planType === 'lifetime-premium') {
+        await db.execute(
+          'UPDATE memorials SET status = ?, expiryDate = NULL, canEdit = TRUE, media_limit_bytes = ?, maintenance_paid_until = DATE_ADD(NOW(), INTERVAL 1 YEAR) WHERE id = ?',
+          ['active', MEDIA_LIMIT_3GB, payment.memorialId]
+        );
+      } else if (payment.planType === 'maintenance' && payment.memorialId) {
+        await db.execute(
+          'UPDATE memorials SET maintenance_paid_until = DATE_ADD(COALESCE(maintenance_paid_until, NOW()), INTERVAL 1 YEAR) WHERE id = ?',
+          [payment.memorialId]
+        );
+      } else if (payment.planType === 'storage-addon' && payment.memorialId && payment.additional_gb) {
+        const addBytes = Number(payment.additional_gb) * 1024 * 1024 * 1024;
+        await db.execute(
+          'UPDATE memorials SET media_limit_bytes = COALESCE(media_limit_bytes, ?) + ? WHERE id = ?',
+          [DEFAULT_MEDIA_LIMIT_1GB, addBytes, payment.memorialId]
+        );
+      }
+    }
+
+    res.status(200).send('OK');
+  } catch (err) {
+    console.error('PayPlus callback error:', err);
+    res.status(500).send('error');
+  }
+}
+app.get('/api/payments/callback-payplus', checkDbReady, (req, res) => handlePayPlusCallback(req, res));
+app.post('/api/payments/callback-payplus', checkDbReady, (req, res) => handlePayPlusCallback(req, res));
+
+// Which payment methods are enabled (for frontend to show buttons)
+app.get('/api/payment-methods', (req, res) => {
+  res.json({
+    success: true,
+    paypal: !!(paypal && paypalClient),
+    stripe: !!stripe,
+    payplus: payplusEnabled
+  });
 });
 
 // Get user's payments

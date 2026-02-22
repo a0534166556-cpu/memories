@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useState, useEffect, useMemo } from 'react';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import { getApiEndpoint } from '../config';
 import { FaSpinner, FaDatabase, FaPlus } from 'react-icons/fa';
@@ -7,9 +7,12 @@ import { StripePaymentModal, isStripeAvailable } from '../components/StripePayme
 import './AddStorage.css';
 
 const PRICE_PER_GB = 100;
+const SITE_URL = 'https://memoriesman.netlify.app';
 
 function AddStorage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const hideExternalPayment = useMemo(() => searchParams.get('in_app') === '1', [searchParams]);
   const [memorials, setMemorials] = useState([]);
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
@@ -173,23 +176,32 @@ function AddStorage() {
                         </select>
                       </label>
                       <div className="add-form-actions">
-                        <button
-                          type="button"
-                          className="btn btn-primary"
-                          onClick={handlePurchaseAddon}
-                          disabled={processing}
-                        >
-                          {processing ? 'מעביר לתשלום...' : `שלם עם PayPal ₪${PRICE_PER_GB * additionalGb}`}
-                        </button>
-                        {isStripeAvailable() && (
-                          <button
-                            type="button"
-                            className="btn btn-outline"
-                            onClick={handleStripeAddon}
-                            disabled={processing}
-                          >
-                            כרטיס / Google Pay / Apple Pay
-                          </button>
+                        {hideExternalPayment ? (
+                          <p style={{ fontSize: '0.9rem', marginBottom: '8px' }}>
+                            תשלום זמין בדפדפן.{' '}
+                            <a href={SITE_URL} target="_blank" rel="noopener">גלשו לאתר</a>
+                          </p>
+                        ) : (
+                          <>
+                            <button
+                              type="button"
+                              className="btn btn-primary"
+                              onClick={handlePurchaseAddon}
+                              disabled={processing}
+                            >
+                              {processing ? 'מעביר לתשלום...' : `שלם עם PayPal ₪${PRICE_PER_GB * additionalGb}`}
+                            </button>
+                            {isStripeAvailable() && (
+                              <button
+                                type="button"
+                                className="btn btn-outline"
+                                onClick={handleStripeAddon}
+                                disabled={processing}
+                              >
+                                כרטיס / Google Pay / Apple Pay
+                              </button>
+                            )}
+                          </>
                         )}
                         <button
                           type="button"
