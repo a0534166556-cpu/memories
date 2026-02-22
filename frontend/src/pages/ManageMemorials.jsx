@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 import { getApiEndpoint } from '../config';
 import { FaSpinner, FaEdit, FaEye, FaLock, FaTrash, FaInfinity } from 'react-icons/fa';
+import { StripePaymentModal, isStripeAvailable } from '../components/StripePaymentModal';
 import './ManageMemorials.css';
 
 function ManageMemorials() {
@@ -13,16 +14,13 @@ function ManageMemorials() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [grantingId, setGrantingId] = useState(null);
   const [payingMaintenanceId, setPayingMaintenanceId] = useState(null);
+  const [extendingMonthlyId, setExtendingMonthlyId] = useState(null);
+  const [stripeModal, setStripeModal] = useState(null);
 
   useEffect(() => {
     fetchMemorials();
     checkAdminStatus();
   }, []);
-
-  // Debug: Log admin status whenever it changes
-  useEffect(() => {
-    console.log('🔍 Admin status changed:', isAdmin);
-  }, [isAdmin]);
 
   const checkAdminStatus = async () => {
     const token = localStorage.getItem('token');
@@ -38,17 +36,20 @@ function ManageMemorials() {
         }
       });
 
-      console.log('Admin check - API response:', response.data);
+      if (import.meta.env?.DEV) {
+        console.log('Admin check - API response:', response.data);
+      }
       if (response.data.success && response.data.user) {
         const userEmail = response.data.user.email;
-        // Normalize email for comparison (lowercase and trim)
         const normalizedUserEmail = userEmail ? userEmail.toLowerCase().trim() : '';
         const adminEmail = 'a0534166556@gmail.com';
         const isAdminUser = normalizedUserEmail === adminEmail;
-        console.log('Admin check - User email:', userEmail, 'Normalized:', normalizedUserEmail, 'Admin email:', adminEmail, 'Is admin:', isAdminUser);
+        if (import.meta.env?.DEV) {
+          console.log('Admin check - Is admin:', isAdminUser);
+        }
         setIsAdmin(isAdminUser);
       } else {
-        console.log('Admin check - No user data in response');
+        if (import.meta.env?.DEV) console.log('Admin check - No user data in response');
         setIsAdmin(false);
       }
     } catch (err) {
@@ -104,7 +105,9 @@ function ManageMemorials() {
             );
             
             if (linkResponse.data.success && linkResponse.data.linkedCount > 0) {
-              console.log(`✅ Linked ${linkResponse.data.linkedCount} temporary memorial(s) to user account`);
+              if (import.meta.env?.DEV) {
+                console.log(`✅ Linked ${linkResponse.data.linkedCount} temporary memorial(s) to user account`);
+              }
               // Re-fetch to get updated list with userId linked
               const refreshedResponse = await axios.get(url, {
                 headers: {
@@ -117,7 +120,7 @@ function ManageMemorials() {
               }
             }
           } catch (linkErr) {
-            console.warn('Could not link memorials to user account:', linkErr);
+            if (import.meta.env?.DEV) console.warn('Could not link memorials to user account:', linkErr);
             // Continue with unlinked memorials - they'll still show up
           }
         }
@@ -241,7 +244,7 @@ function ManageMemorials() {
     try {
       const res = await axios.post(
         getApiEndpoint('/api/payments/create'),
-        { memorialId, planType: 'maintenance', amount: 35 },
+        { memorialId, planType: 'maintenance', amount: 15 },
         { headers: { Authorization: `Bearer ${token}` } }
       );
       if (res.data.success && res.data.approveUrl) {
@@ -253,6 +256,76 @@ function ManageMemorials() {
     } catch (err) {
       alert(err.response?.data?.message || 'שגיאה ביצירת תשלום תחזוקה');
       setPayingMaintenanceId(null);
+    }
+  };
+
+  const handleStripeMaintenance = async (memorialId) => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    setStripeModal(null);
+    try {
+      const res = await axios.post(
+        getApiEndpoint('/api/payments/create-intent'),
+        { memorialId, planType: 'maintenance', amount: 15 },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (res.data.success && res.data.clientSecret) {
+        setStripeModal({
+          clientSecret: res.data.clientSecret,
+          paymentId: res.data.paymentId,
+          amount: 15
+        });
+      } else {
+        alert(res.data?.message || 'שגיאה ביצירת תשלום');
+      }
+    } catch (err) {
+      alert(err.response?.data?.message || 'שגיאה ביצירת תשלום תחזוקה');
+    }
+  };
+
+  const handleExtendMonthly = async (memorialId) => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    setExtendingMonthlyId(memorialId);
+    try {
+      const res = await axios.post(
+        getApiEndpoint('/api/payments/create'),
+        { memorialId, planType: 'monthly', amount: 17 },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (res.data.success && res.data.approveUrl) {
+        window.location.href = res.data.approveUrl;
+      } else {
+        alert(res.data?.message || 'שגיאה ביצירת תשלום');
+        setExtendingMonthlyId(null);
+      }
+    } catch (err) {
+      alert(err.response?.data?.message || 'שגיאה ביצירת תשלום');
+      setExtendingMonthlyId(null);
+    }
+  };
+
+  const handleStripeExtendMonthly = async (memorialId) => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    setStripeModal(null);
+    try {
+      const res = await axios.post(
+        getApiEndpoint('/api/payments/create-intent'),
+        { memorialId, planType: 'monthly', amount: 17 },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (res.data.success && res.data.clientSecret) {
+        setStripeModal({
+          clientSecret: res.data.clientSecret,
+          paymentId: res.data.paymentId,
+          amount: 17
+        });
+      } else {
+        alert(res.data?.message || 'שגיאה ביצירת תשלום');
+      }
+    } catch (err) {
+      alert(err.response?.data?.message || 'שגיאה ביצירת תשלום');
     }
   };
 
@@ -361,6 +434,7 @@ function ManageMemorials() {
                 const isPaid = memorial.status && memorial.status !== 'temporary';
                 const isLifetime = isPaid && !memorial.expiryDate;
                 const maintenanceDue = isLifetime && (!memorial.maintenance_paid_until || new Date(memorial.maintenance_paid_until) < new Date());
+                const isExpiredPaid = isPaid && memorial.expiryDate && new Date(memorial.expiryDate) < new Date();
                 return (
                   <div key={memorial.id} className="memorial-card">
                     <div className="card-header">
@@ -399,7 +473,12 @@ function ManageMemorials() {
                       )}
                       {maintenanceDue && (
                         <div className="no-edit-warning" style={{ color: '#856404', background: '#fff3cd', padding: '6px 10px', borderRadius: '6px', fontSize: '0.9rem' }}>
-                          <span>חייב בתשלום תחזוקה 35₪ לשנה</span>
+                          <span>חייב בתשלום תחזוקה 15₪ לשנה</span>
+                        </div>
+                      )}
+                      {isExpiredPaid && (
+                        <div className="no-edit-warning" style={{ color: '#721c24', background: '#f8d7da', padding: '6px 10px', borderRadius: '6px', fontSize: '0.9rem' }}>
+                          <span>מנוי פג תוקף – הארך בחודש (17₪) או בחר תוכנית אחרת</span>
                         </div>
                       )}
                     </div>
@@ -469,15 +548,50 @@ function ManageMemorials() {
                         מחק
                       </button>
                       {maintenanceDue && (
-                        <button
-                          type="button"
-                          onClick={() => handlePayMaintenance(memorial.id)}
-                          disabled={payingMaintenanceId === memorial.id}
-                          className="btn btn-primary"
-                          style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                        >
-                          {payingMaintenanceId === memorial.id ? 'מעביר לתשלום...' : 'שלם תחזוקה 35₪'}
-                        </button>
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => handlePayMaintenance(memorial.id)}
+                            disabled={payingMaintenanceId === memorial.id}
+                            className="btn btn-primary"
+                            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                          >
+                            {payingMaintenanceId === memorial.id ? 'מעביר לתשלום...' : 'שלם תחזוקה 15₪ (PayPal)'}
+                          </button>
+                          {isStripeAvailable() && (
+                            <button
+                              type="button"
+                              className="btn btn-outline"
+                              style={{ fontSize: '0.85rem', marginTop: '4px' }}
+                              onClick={() => handleStripeMaintenance(memorial.id)}
+                            >
+                              או: כרטיס / Google Pay / Apple Pay
+                            </button>
+                          )}
+                        </>
+                      )}
+                      {isExpiredPaid && (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => handleExtendMonthly(memorial.id)}
+                            disabled={extendingMonthlyId === memorial.id}
+                            className="btn btn-primary"
+                            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.9rem' }}
+                          >
+                            {extendingMonthlyId === memorial.id ? 'מעביר לתשלום...' : 'הארך מנוי חודשי 17₪ (PayPal)'}
+                          </button>
+                          {isStripeAvailable() && (
+                            <button
+                              type="button"
+                              className="btn btn-outline"
+                              style={{ fontSize: '0.85rem', marginTop: '4px' }}
+                              onClick={() => handleStripeExtendMonthly(memorial.id)}
+                            >
+                              או: כרטיס / Google Pay / Apple Pay
+                            </button>
+                          )}
+                        </>
                       )}
                     </div>
                   </div>
@@ -485,6 +599,19 @@ function ManageMemorials() {
               })}
             </div>
           </>
+        )}
+
+        {stripeModal && (
+          <StripePaymentModal
+            clientSecret={stripeModal.clientSecret}
+            paymentId={stripeModal.paymentId}
+            amount={stripeModal.amount}
+            onSuccess={() => {
+              setStripeModal(null);
+              fetchMemorials();
+            }}
+            onClose={() => setStripeModal(null)}
+          />
         )}
       </div>
     </div>

@@ -12,12 +12,21 @@ function SaveMemorial() {
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
   const [expiryDate, setExpiryDate] = useState(null);
+  const [stripeModal, setStripeModal] = useState(null);
+  const [stripeAvailable, setStripeAvailable] = useState(false);
+  const [StripeModalComponent, setStripeModalComponent] = useState(null);
 
   useEffect(() => {
     if (id) {
       fetchMemorial();
     }
   }, [id]);
+
+  useEffect(() => {
+    const key = typeof import.meta !== 'undefined' && import.meta.env?.VITE_STRIPE_PUBLISHABLE_KEY;
+    if (!key) return;
+    import('@stripe/stripe-js').then(() => setStripeAvailable(true)).catch(() => {});
+  }, []);
 
   const fetchMemorial = async () => {
     try {
@@ -57,9 +66,10 @@ function SaveMemorial() {
 
     try {
       const plans = {
-        'annual': { price: 100, name: 'שמירה שנתית' },
-        'lifetime': { price: 445, name: 'הנצחה חד פעמית (עם עריכה)' },
-        'lifetime-premium': { price: 620, name: 'הנצחה פרימיום (3 גיגה)' }
+        'monthly': { price: 17, name: 'מנוי חודשי' },
+        'annual': { price: 120, name: 'שמירה שנתית' },
+        'lifetime': { price: 360, name: 'הנצחה חד פעמית (עם עריכה)' },
+        'lifetime-premium': { price: 520, name: 'הנצחה פרימיום (3 גיגה)' }
       };
 
       const plan = plans[planType];
@@ -68,21 +78,18 @@ function SaveMemorial() {
         return;
       }
 
-      // Debug: Log token before sending
-      console.log('🔑 Token exists:', !!token);
-      console.log('🔑 Token length:', token ? token.length : 0);
-      console.log('🔑 Token preview:', token ? token.substring(0, 20) + '...' : 'none');
-      
       const requestUrl = getApiEndpoint('/api/payments/create');
       const requestHeaders = {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token.trim()}`
       };
-      
-      console.log('🌐 Request URL:', requestUrl);
-      console.log('📋 Request headers:', JSON.stringify(requestHeaders, null, 2));
-      console.log('📦 Request body:', { memorialId: id, planType: planType, amount: plan.price });
-      
+
+      if (import.meta.env?.DEV) {
+        console.log('🔑 Token exists:', !!token);
+        console.log('🌐 Request URL:', requestUrl);
+        console.log('📦 Request body:', { memorialId: id, planType: planType, amount: plan.price });
+      }
+
       // Create payment with PayPal
       const response = await axios.post(
         requestUrl,
@@ -117,6 +124,46 @@ function SaveMemorial() {
       } else {
         alert(err.response?.data?.message || 'אירעה שגיאה ביצירת התשלום');
       }
+      setProcessing(false);
+    }
+  };
+
+  const plansForStripe = {
+    monthly: { price: 17 },
+    annual: { price: 120 },
+    lifetime: { price: 360 },
+    'lifetime-premium': { price: 520 }
+  };
+
+  const handleStripePayment = async (planType) => {
+    const token = localStorage.getItem('token');
+    if (!token?.trim()) {
+      alert('נדרש להתחבר כדי לבצע תשלום.');
+      navigate(`/login?redirect=/save/${id}&plan=${planType}`);
+      return;
+    }
+    const plan = plansForStripe[planType];
+    if (!plan) return;
+    setProcessing(true);
+    setStripeModal(null);
+    try {
+      const res = await axios.post(
+        getApiEndpoint('/api/payments/create-intent'),
+        { memorialId: id, planType, amount: plan.price },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (res.data.success && res.data.clientSecret) {
+        setStripeModal({
+          clientSecret: res.data.clientSecret,
+          paymentId: res.data.paymentId,
+          amount: plan.price
+        });
+      } else {
+        alert(res.data?.message || 'שגיאה ביצירת תשלום');
+      }
+    } catch (err) {
+      alert(err.response?.data?.message || 'שגיאה ביצירת תשלום');
+    } finally {
       setProcessing(false);
     }
   };
@@ -216,7 +263,45 @@ function SaveMemorial() {
             )}
           </div>
 
-          {/* Option 2 - Annual */}
+          {/* Option 2 - Monthly */}
+          <div className="save-option annual">
+            <div className="option-header">
+              <FaHeart className="option-icon" />
+              <h2>מנוי חודשי</h2>
+            </div>
+            <div className="option-content">
+              <div className="option-price">
+                <span className="price-amount">₪17</span>
+                <span className="price-period">לחודש</span>
+              </div>
+              <ul className="option-features">
+                <li>✅ הדף נשמר</li>
+                <li>✅ אפשר לערוך ולהוסיף תכנים</li>
+                <li>✅ QR נשאר פעיל</li>
+                <li>✅ גמישות – ניתן להפסיק או להמשיך</li>
+              </ul>
+            </div>
+            <button
+              className="btn btn-primary btn-full"
+              onClick={() => handleSelectOption('monthly')}
+              disabled={processing}
+            >
+              מנוי חודשי
+            </button>
+            {stripeAvailable && (
+              <button
+                type="button"
+                className="btn btn-outline btn-full"
+                style={{ marginTop: '8px', fontSize: '0.9rem' }}
+                onClick={() => handleStripePayment('monthly')}
+                disabled={processing}
+              >
+                או: כרטיס אשראי / Google Pay / Apple Pay
+              </button>
+            )}
+          </div>
+
+          {/* Option 3 - Annual */}
           <div className="save-option annual">
             <div className="option-header">
               <FaHeart className="option-icon" />
@@ -224,7 +309,7 @@ function SaveMemorial() {
             </div>
             <div className="option-content">
               <div className="option-price">
-                <span className="price-amount">₪100</span>
+                <span className="price-amount">₪120</span>
                 <span className="price-period">לשנה</span>
               </div>
               <ul className="option-features">
@@ -241,6 +326,17 @@ function SaveMemorial() {
             >
               שמור את הדף
             </button>
+            {stripeAvailable && (
+              <button
+                type="button"
+                className="btn btn-outline btn-full"
+                style={{ marginTop: '8px', fontSize: '0.9rem' }}
+                onClick={() => handleStripePayment('annual')}
+                disabled={processing}
+              >
+                או: כרטיס אשראי / Google Pay / Apple Pay
+              </button>
+            )}
           </div>
 
           {/* Option 3 - Lifetime with Edit (Recommended) */}
@@ -253,13 +349,13 @@ function SaveMemorial() {
             </div>
             <div className="option-content">
               <div className="option-price">
-                <span className="price-amount">₪445</span>
+                <span className="price-amount">₪360</span>
                 <span className="price-period">חד-פעמי</span>
               </div>
               <ul className="option-features">
                 <li>✅ שמירה קבועה</li>
                 <li>✅ עריכה חופשית</li>
-                <li>✅ תחזוקת אתר 35₪ לשנה (חינם בשנה הראשונה, מתחייב מהשנה השנייה)</li>
+                <li>✅ תחזוקת אתר 15₪ לשנה (חינם בשנה הראשונה, מתחייב מהשנה השנייה)</li>
                 <li>✅ עד גיגה אחד תמונות וסרטונים (כ־1,000 תמונות או עשרות דקות וידאו)</li>
                 <li>✅ ניתן לרכוש תוספת גיגה בכל עת (100₪ לגיגה)</li>
                 <li>✅ גיבוי • תמיכה מלאה</li>
@@ -272,6 +368,17 @@ function SaveMemorial() {
             >
               הנצחה חד פעמית
             </button>
+            {stripeAvailable && (
+              <button
+                type="button"
+                className="btn btn-outline btn-full"
+                style={{ marginTop: '8px', fontSize: '0.9rem' }}
+                onClick={() => handleStripePayment('lifetime')}
+                disabled={processing}
+              >
+                או: כרטיס אשראי / Google Pay / Apple Pay
+              </button>
+            )}
           </div>
 
           {/* Option 4 - Lifetime Premium 3GB */}
@@ -283,13 +390,13 @@ function SaveMemorial() {
             </div>
             <div className="option-content">
               <div className="option-price">
-                <span className="price-amount">₪620</span>
+                <span className="price-amount">₪520</span>
                 <span className="price-period">חד-פעמי</span>
               </div>
               <ul className="option-features">
                 <li>✅ שמירה קבועה</li>
                 <li>✅ עריכה חופשית</li>
-                <li>✅ תחזוקת אתר 35₪ לשנה (חינם בשנה הראשונה, מתחייב מהשנה השנייה)</li>
+                <li>✅ תחזוקת אתר 15₪ לשנה (חינם בשנה הראשונה, מתחייב מהשנה השנייה)</li>
                 <li>✅ עד 3 גיגה תמונות וסרטונים (כ־3,000 תמונות או מאות דקות וידאו)</li>
                 <li>✅ ניתן לרכוש תוספת גיגה בכל עת (100₪ לגיגה)</li>
                 <li>✅ גיבוי • תמיכה מלאה</li>
@@ -302,8 +409,36 @@ function SaveMemorial() {
             >
               הנצחה פרימיום
             </button>
+            {stripeAvailable && (
+              <button
+                type="button"
+                className="btn btn-outline btn-full"
+                style={{ marginTop: '8px', fontSize: '0.9rem' }}
+                onClick={() => handleStripePayment('lifetime-premium')}
+                disabled={processing}
+              >
+                או: כרטיס אשראי / Google Pay / Apple Pay
+              </button>
+            )}
           </div>
         </div>
+
+        {stripeModal && StripeModalComponent && (
+          <StripeModalComponent
+            clientSecret={stripeModal.clientSecret}
+            paymentId={stripeModal.paymentId}
+            amount={stripeModal.amount}
+            onSuccess={(redirectUrl) => {
+              setStripeModal(null);
+              setStripeModalComponent(null);
+              navigate(redirectUrl);
+            }}
+            onClose={() => {
+              setStripeModal(null);
+              setStripeModalComponent(null);
+            }}
+          />
+        )}
 
         <div className="save-footer">
           <Link to={`/memorial/${id}`} className="view-link">

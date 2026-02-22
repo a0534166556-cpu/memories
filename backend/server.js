@@ -113,6 +113,18 @@ try {
   console.log('⚠️  Install with: npm install @paypal/checkout-server-sdk');
 }
 
+// Stripe (Google Pay / Apple Pay / כרטיס אשראי)
+let stripe = null;
+const STRIPE_SECRET = (process.env.STRIPE_SECRET_KEY || '').trim();
+if (STRIPE_SECRET) {
+  try {
+    stripe = require('stripe')(STRIPE_SECRET);
+    console.log('💳 Stripe enabled – Google Pay / Apple Pay / card');
+  } catch (err) {
+    console.warn('⚠️ Stripe not available:', err.message);
+  }
+}
+
 console.log('🚀 SERVER STARTING - VERSION WITH FIXES');
 console.log('🚀 Timestamp:', new Date().toISOString());
 
@@ -1277,7 +1289,7 @@ app.post('/api/payments/create', checkDbReady, authenticateToken, async (req, re
       return res.status(400).json({ success: false, message: 'סוג תוכנית וסכום נדרשים' });
     }
     let additionalGb = null;
-    const allowedAmounts = { annual: 100, lifetime: 445, 'lifetime-premium': 620, maintenance: 35 };
+    const allowedAmounts = { annual: 120, monthly: 17, lifetime: 360, 'lifetime-premium': 520, maintenance: 15 };
     if (planType === 'storage-addon') {
       additionalGb = Math.max(1, Math.min(10, parseInt(req.body.additionalGb, 10) || 1));
       const expectedAmount = 100 * additionalGb;
@@ -1285,8 +1297,8 @@ app.post('/api/payments/create', checkDbReady, authenticateToken, async (req, re
         return res.status(400).json({ success: false, message: 'סכום או מזהה דף לא תואם' });
       }
     } else if (planType === 'maintenance') {
-      if (Number(amount) !== 35 || !memorialId) {
-        return res.status(400).json({ success: false, message: 'תשלום תחזוקה 35₪ דורש מזהה דף זיכרון' });
+      if (Number(amount) !== 15 || !memorialId) {
+        return res.status(400).json({ success: false, message: 'תשלום תחזוקה 15₪ דורש מזהה דף זיכרון' });
       }
     } else {
       const expectedAmount = allowedAmounts[planType];
@@ -1322,7 +1334,7 @@ app.post('/api/payments/create', checkDbReady, authenticateToken, async (req, re
           currency_code: 'ILS',
           value: amount.toString()
         },
-        description: `תשלום עבור ${planType === 'lifetime' ? 'הנצחה לכל החיים (עם עריכה)' : planType === 'lifetime-no-edit' ? 'הנצחה לכל החיים (בלי עריכה)' : planType === 'lifetime-premium' ? 'הנצחה פרימיום 3 גיגה' : planType === 'storage-addon' ? `תוספת אחסון ${additionalGb} גיגה` : planType === 'maintenance' ? 'תחזוקת אתר לשנה' : planType === 'annual' ? 'שמירה שנתית' : 'דף זיכרון'}`
+        description: `תשלום עבור ${planType === 'lifetime' ? 'הנצחה לכל החיים (עם עריכה)' : planType === 'lifetime-no-edit' ? 'הנצחה לכל החיים (בלי עריכה)' : planType === 'lifetime-premium' ? 'הנצחה פרימיום 3 גיגה' : planType === 'storage-addon' ? `תוספת אחסון ${additionalGb} גיגה` : planType === 'maintenance' ? 'תחזוקת אתר לשנה' : planType === 'annual' ? 'שמירה שנתית' : planType === 'monthly' ? 'מנוי חודשי' : 'דף זיכרון'}`
       }],
       application_context: {
         brand_name: 'דפי זיכרון דיגיטליים',
@@ -1399,20 +1411,36 @@ app.post('/api/payments/confirm', checkDbReady, authenticateToken, async (req, r
         // Update memorial status based on plan type
         if (payment.memorialId) {
           if (payment.planType === 'annual') {
-            // Annual subscription - set expiry to 1 year from now
             const expiryDate = new Date();
             expiryDate.setFullYear(expiryDate.getFullYear() + 1);
-            
             await db.execute(
               'UPDATE memorials SET status = ?, expiryDate = ? WHERE id = ?',
               ['active', expiryDate, payment.memorialId]
             );
-
-            // Create subscription record
             const subscriptionId = uuidv4();
             await db.execute(
               'INSERT INTO subscriptions (id, userId, memorialId, planType, startDate, endDate, status) VALUES (?, ?, ?, ?, ?, ?, ?)',
               [subscriptionId, req.user.id, payment.memorialId, payment.planType, new Date(), expiryDate, 'active']
+            );
+            await db.execute(
+              'UPDATE memorials SET media_limit_bytes = ? WHERE id = ?',
+              [DEFAULT_MEDIA_LIMIT_1GB, payment.memorialId]
+            );
+          } else if (payment.planType === 'monthly') {
+            const expiryDate = new Date();
+            expiryDate.setMonth(expiryDate.getMonth() + 1);
+            await db.execute(
+              'UPDATE memorials SET status = ?, expiryDate = ? WHERE id = ?',
+              ['active', expiryDate, payment.memorialId]
+            );
+            const subscriptionId = uuidv4();
+            await db.execute(
+              'INSERT INTO subscriptions (id, userId, memorialId, planType, startDate, endDate, status) VALUES (?, ?, ?, ?, ?, ?, ?)',
+              [subscriptionId, req.user.id, payment.memorialId, payment.planType, new Date(), expiryDate, 'active']
+            );
+            await db.execute(
+              'UPDATE memorials SET media_limit_bytes = ? WHERE id = ?',
+              [DEFAULT_MEDIA_LIMIT_1GB, payment.memorialId]
             );
           } else if (payment.planType === 'lifetime') {
             await db.execute(
@@ -1441,12 +1469,6 @@ app.post('/api/payments/confirm', checkDbReady, authenticateToken, async (req, r
               [DEFAULT_MEDIA_LIMIT_1GB, addBytes, payment.memorialId]
             );
           }
-          if (payment.planType === 'annual' && payment.memorialId) {
-            await db.execute(
-              'UPDATE memorials SET media_limit_bytes = ? WHERE id = ?',
-              [DEFAULT_MEDIA_LIMIT_1GB, payment.memorialId]
-            );
-          }
         }
 
         const redirectUrl = payment.planType === 'storage-addon'
@@ -1469,6 +1491,175 @@ app.post('/api/payments/confirm', checkDbReady, authenticateToken, async (req, r
     }
   } catch (err) {
     console.error('Payment confirmation error:', err);
+    handleDbError(err, res);
+  }
+});
+
+// Create Stripe PaymentIntent (כרטיס / Google Pay / Apple Pay)
+app.post('/api/payments/create-intent', checkDbReady, authenticateToken, async (req, res) => {
+  try {
+    if (!stripe) {
+      return res.status(500).json({ success: false, message: 'Stripe לא מוגדר. הגדר STRIPE_SECRET_KEY.' });
+    }
+    const { memorialId, planType, amount } = req.body;
+    if (!planType || amount == null) {
+      return res.status(400).json({ success: false, message: 'סוג תוכנית וסכום נדרשים' });
+    }
+    let additionalGb = null;
+    const allowedAmounts = { annual: 120, monthly: 17, lifetime: 360, 'lifetime-premium': 520, maintenance: 15 };
+    if (planType === 'storage-addon') {
+      additionalGb = Math.max(1, Math.min(10, parseInt(req.body.additionalGb, 10) || 1));
+      const expectedAmount = 100 * additionalGb;
+      if (Number(amount) !== expectedAmount || !memorialId) {
+        return res.status(400).json({ success: false, message: 'סכום או מזהה דף לא תואם' });
+      }
+    } else if (planType === 'maintenance') {
+      if (Number(amount) !== 15 || !memorialId) {
+        return res.status(400).json({ success: false, message: 'תשלום תחזוקה 15₪ דורש מזהה דף זיכרון' });
+      }
+    } else {
+      const expectedAmount = allowedAmounts[planType];
+      if (expectedAmount == null || Number(amount) !== expectedAmount) {
+        return res.status(400).json({ success: false, message: 'סכום לא תואם לתוכנית הנבחרת' });
+      }
+    }
+
+    await ensureDbConnection();
+    const paymentId = uuidv4();
+    await db.execute(
+      'INSERT INTO payments (id, userId, memorialId, planType, amount, status, paymentMethod, additional_gb) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      [paymentId, req.user.id, memorialId || null, planType, amount, 'pending', 'stripe', additionalGb]
+    );
+
+    const amountAgorot = Math.round(Number(amount) * 100);
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount: amountAgorot,
+      currency: 'ils',
+      automatic_payment_methods: { enabled: true },
+      metadata: { paymentId }
+    });
+
+    await db.execute(
+      'UPDATE payments SET transactionId = ? WHERE id = ?',
+      [paymentIntent.id, paymentId]
+    );
+
+    res.json({
+      success: true,
+      clientSecret: paymentIntent.client_secret,
+      paymentId,
+      message: 'מוכן לתשלום בכרטיס / Google Pay / Apple Pay'
+    });
+  } catch (err) {
+    console.error('Stripe create-intent error:', err);
+    handleDbError(err, res);
+  }
+});
+
+// Confirm Stripe payment (after client confirms PaymentIntent)
+app.post('/api/payments/confirm-stripe', checkDbReady, authenticateToken, async (req, res) => {
+  try {
+    const { paymentId } = req.body;
+    if (!paymentId) {
+      return res.status(400).json({ success: false, message: 'Payment ID נדרש' });
+    }
+    await ensureDbConnection();
+    const [payments] = await db.execute('SELECT * FROM payments WHERE id = ? AND userId = ?', [paymentId, req.user.id]);
+    if (payments.length === 0) {
+      return res.status(404).json({ success: false, message: 'תשלום לא נמצא' });
+    }
+    const payment = payments[0];
+    if (payment.status === 'completed') {
+      const redirectUrl = payment.planType === 'storage-addon' ? '/add-storage' : payment.planType === 'maintenance' ? '/manage' : (payment.memorialId ? `/memorial/${payment.memorialId}` : '/');
+      return res.json({ success: true, paymentId, memorialId: payment.memorialId, message: 'תשלום בוצע בהצלחה', redirectUrl });
+    }
+    if (payment.paymentMethod !== 'stripe' || !payment.transactionId) {
+      return res.status(400).json({ success: false, message: 'תשלום לא באמצעות Stripe' });
+    }
+
+    const pi = await stripe.paymentIntents.retrieve(payment.transactionId);
+    if (pi.status !== 'succeeded') {
+      return res.status(400).json({ success: false, message: 'התשלום טרם אושר. סטטוס: ' + pi.status });
+    }
+
+    await db.execute('UPDATE payments SET status = ? WHERE id = ?', ['completed', paymentId]);
+
+    if (payment.memorialId) {
+      if (payment.planType === 'annual') {
+        const expiryDate = new Date();
+        expiryDate.setFullYear(expiryDate.getFullYear() + 1);
+        await db.execute(
+          'UPDATE memorials SET status = ?, expiryDate = ? WHERE id = ?',
+          ['active', expiryDate, payment.memorialId]
+        );
+        const subscriptionId = uuidv4();
+        await db.execute(
+          'INSERT INTO subscriptions (id, userId, memorialId, planType, startDate, endDate, status) VALUES (?, ?, ?, ?, ?, ?, ?)',
+          [subscriptionId, req.user.id, payment.memorialId, payment.planType, new Date(), expiryDate, 'active']
+        );
+        await db.execute(
+          'UPDATE memorials SET media_limit_bytes = ? WHERE id = ?',
+          [DEFAULT_MEDIA_LIMIT_1GB, payment.memorialId]
+        );
+      } else if (payment.planType === 'monthly') {
+        const expiryDate = new Date();
+        expiryDate.setMonth(expiryDate.getMonth() + 1);
+        await db.execute(
+          'UPDATE memorials SET status = ?, expiryDate = ? WHERE id = ?',
+          ['active', expiryDate, payment.memorialId]
+        );
+        const subscriptionId = uuidv4();
+        await db.execute(
+          'INSERT INTO subscriptions (id, userId, memorialId, planType, startDate, endDate, status) VALUES (?, ?, ?, ?, ?, ?, ?)',
+          [subscriptionId, req.user.id, payment.memorialId, payment.planType, new Date(), expiryDate, 'active']
+        );
+        await db.execute(
+          'UPDATE memorials SET media_limit_bytes = ? WHERE id = ?',
+          [DEFAULT_MEDIA_LIMIT_1GB, payment.memorialId]
+        );
+      } else if (payment.planType === 'lifetime') {
+        await db.execute(
+          'UPDATE memorials SET status = ?, expiryDate = NULL, canEdit = TRUE, media_limit_bytes = ?, maintenance_paid_until = DATE_ADD(NOW(), INTERVAL 1 YEAR) WHERE id = ?',
+          ['active', DEFAULT_MEDIA_LIMIT_1GB, payment.memorialId]
+        );
+      } else if (payment.planType === 'lifetime-no-edit') {
+        await db.execute(
+          'UPDATE memorials SET status = ?, expiryDate = NULL, canEdit = FALSE, media_limit_bytes = ?, maintenance_paid_until = DATE_ADD(NOW(), INTERVAL 1 YEAR) WHERE id = ?',
+          ['active', DEFAULT_MEDIA_LIMIT_1GB, payment.memorialId]
+        );
+      } else if (payment.planType === 'lifetime-premium') {
+        await db.execute(
+          'UPDATE memorials SET status = ?, expiryDate = NULL, canEdit = TRUE, media_limit_bytes = ?, maintenance_paid_until = DATE_ADD(NOW(), INTERVAL 1 YEAR) WHERE id = ?',
+          ['active', MEDIA_LIMIT_3GB, payment.memorialId]
+        );
+      } else if (payment.planType === 'maintenance' && payment.memorialId) {
+        await db.execute(
+          'UPDATE memorials SET maintenance_paid_until = DATE_ADD(COALESCE(maintenance_paid_until, NOW()), INTERVAL 1 YEAR) WHERE id = ?',
+          [payment.memorialId]
+        );
+      } else if (payment.planType === 'storage-addon' && payment.memorialId && payment.additional_gb) {
+        const addBytes = Number(payment.additional_gb) * 1024 * 1024 * 1024;
+        await db.execute(
+          'UPDATE memorials SET media_limit_bytes = COALESCE(media_limit_bytes, ?) + ? WHERE id = ?',
+          [DEFAULT_MEDIA_LIMIT_1GB, addBytes, payment.memorialId]
+        );
+      }
+    }
+
+    const redirectUrl = payment.planType === 'storage-addon'
+      ? '/add-storage'
+      : payment.planType === 'maintenance'
+      ? '/manage'
+      : (payment.memorialId ? `/memorial/${payment.memorialId}` : '/');
+    res.json({
+      success: true,
+      paymentId,
+      memorialId: payment.memorialId,
+      message: 'תשלום בוצע בהצלחה',
+      redirectUrl
+    });
+  } catch (err) {
+    console.error('Stripe confirm error:', err);
     handleDbError(err, res);
   }
 });

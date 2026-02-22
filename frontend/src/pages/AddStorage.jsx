@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 import { getApiEndpoint } from '../config';
 import { FaSpinner, FaDatabase, FaPlus } from 'react-icons/fa';
+import { StripePaymentModal, isStripeAvailable } from '../components/StripePaymentModal';
 import './AddStorage.css';
 
 const PRICE_PER_GB = 100;
@@ -15,6 +16,7 @@ function AddStorage() {
   const [error, setError] = useState('');
   const [addForId, setAddForId] = useState(null);
   const [additionalGb, setAdditionalGb] = useState(1);
+  const [stripeModal, setStripeModal] = useState(null);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -68,6 +70,38 @@ function AddStorage() {
       }
     } catch (err) {
       setError(err.response?.data?.message || 'שגיאה ביצירת התשלום');
+      setProcessing(false);
+    }
+  };
+
+  const handleStripeAddon = async () => {
+    if (!addForId || additionalGb < 1 || additionalGb > 10) return;
+    const token = localStorage.getItem('token');
+    if (!token) {
+      navigate('/login?redirect=/add-storage');
+      return;
+    }
+    setProcessing(true);
+    setStripeModal(null);
+    try {
+      const amount = PRICE_PER_GB * additionalGb;
+      const res = await axios.post(
+        getApiEndpoint('/api/payments/create-intent'),
+        { memorialId: addForId, planType: 'storage-addon', additionalGb, amount },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (res.data.success && res.data.clientSecret) {
+        setStripeModal({
+          clientSecret: res.data.clientSecret,
+          paymentId: res.data.paymentId,
+          amount
+        });
+      } else {
+        setError(res.data?.message || 'שגיאה ביצירת תשלום');
+      }
+    } catch (err) {
+      setError(err.response?.data?.message || 'שגיאה ביצירת תשלום');
+    } finally {
       setProcessing(false);
     }
   };
@@ -145,8 +179,18 @@ function AddStorage() {
                           onClick={handlePurchaseAddon}
                           disabled={processing}
                         >
-                          {processing ? 'מעביר לתשלום...' : `שלם ₪${PRICE_PER_GB * additionalGb}`}
+                          {processing ? 'מעביר לתשלום...' : `שלם עם PayPal ₪${PRICE_PER_GB * additionalGb}`}
                         </button>
+                        {isStripeAvailable() && (
+                          <button
+                            type="button"
+                            className="btn btn-outline"
+                            onClick={handleStripeAddon}
+                            disabled={processing}
+                          >
+                            כרטיס / Google Pay / Apple Pay
+                          </button>
+                        )}
                         <button
                           type="button"
                           className="btn btn-secondary"
@@ -168,6 +212,21 @@ function AddStorage() {
           <Link to="/manage">← חזרה לניהול דפי זיכרון</Link>
         </div>
       </div>
+
+      {stripeModal && (
+        <StripePaymentModal
+          clientSecret={stripeModal.clientSecret}
+          paymentId={stripeModal.paymentId}
+          amount={stripeModal.amount}
+          onSuccess={() => {
+            setStripeModal(null);
+            setAddForId(null);
+            fetchMemorials();
+            navigate('/add-storage');
+          }}
+          onClose={() => setStripeModal(null)}
+        />
+      )}
     </main>
   );
 }

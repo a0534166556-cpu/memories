@@ -12,10 +12,12 @@ import MemorialPrayers from './pages/MemorialPrayers';
 import Pricing from './pages/Pricing';
 import Login from './pages/Login';
 import PaymentSuccess from './pages/PaymentSuccess';
+import PaymentSuccessStripe from './pages/PaymentSuccessStripe';
 import PaymentCancel from './pages/PaymentCancel';
 import SaveMemorial from './pages/SaveMemorial';
 import AddStorage from './pages/AddStorage';
 import DeleteAccount from './pages/DeleteAccount';
+import Privacy from './pages/Privacy';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import './App.css';
@@ -73,8 +75,10 @@ function App() {
             <Route path="/save/:id" element={<SaveMemorial />} />
             <Route path="/add-storage" element={<AddStorage />} />
             <Route path="/payment/success" element={<PaymentSuccess />} />
+            <Route path="/payment/success-stripe" element={<PaymentSuccessStripe />} />
             <Route path="/payment/cancel" element={<PaymentCancel />} />
             <Route path="/delete-account" element={<DeleteAccount />} />
+            <Route path="/privacy" element={<Privacy />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/reset-password" element={<ResetPassword />} />
           </Routes>

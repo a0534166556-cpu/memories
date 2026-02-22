@@ -1,0 +1,93 @@
+.stripe-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 20px;
+  direction: rtl;
+}
+
+.stripe-modal {
+  background: white;
+  border-radius: 16px;
+  max-width: 480px;
+  width: 100%;
+  max-height: 90vh;
+  overflow: auto;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+}
+
+.stripe-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px;
+  border-bottom: 1px solid #eee;
+}
+
+.stripe-modal-header h2 {
+  margin: 0;
+  font-size: 1.35rem;
+  color: #2c3e50;
+}
+
+.stripe-modal-close {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: #666;
+  padding: 4px;
+  line-height: 1;
+}
+
+.stripe-modal-close:hover {
+  color: #333;
+}
+
+.stripe-modal-body {
+  padding: 24px;
+}
+
+.stripe-modal-amount {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-bottom: 16px;
+  color: #2c3e50;
+}
+
+.stripe-payment-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.stripe-form-error {
+  color: #c00;
+  font-size: 0.95rem;
+  margin: 0;
+}
+
+.stripe-form-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.stripe-form-actions .btn {
+  min-width: 100px;
+}
+
+.spin {
+  animation: spin 0.8s linear infinite;
+  margin-left: 6px;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}

@@ -25,6 +25,7 @@
     "mysql2": "^3.6.5",
     "nodemailer": "^8.0.1",
     "qrcode": "^1.5.3",
+    "stripe": "^14.0.0",
     "uuid": "^9.0.1"
   },
   "devDependencies": {

@@ -97,6 +97,7 @@ function Home() {
         <div className="footer-links">
           <Link to="/">דף הבית</Link>
           <Link to="/about">אודות</Link>
+          <Link to="/privacy">מדיניות פרטיות</Link>
         </div>
       </footer>
     </main>

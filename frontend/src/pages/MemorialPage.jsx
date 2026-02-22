@@ -105,7 +105,7 @@ function MemorialPage() {
         const expiredMessage = error.response?.data?.message || 'דף הזיכרון פג תוקף. יש לשדרג לשמירה קבועה.';
         setError(expiredMessage);
         // Still show the memorial if we have cached data, but with warning
-        if (error.response?.data?.expired) {
+        if (error.response?.data?.expired && import.meta.env?.DEV) {
           console.log('⚠️ Memorial expired, but allowing view with warning');
         }
       } else if (error.request) {

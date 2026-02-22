@@ -10,11 +10,10 @@ if ('serviceWorker' in navigator) {
     registerSW({
       immediate: true,
       onNeedRefresh() {
-        // Optional: Show update notification
-        console.log('New content available, please refresh')
+        if (import.meta.env?.DEV) console.log('New content available, please refresh')
       },
       onOfflineReady() {
-        console.log('App ready to work offline')
+        if (import.meta.env?.DEV) console.log('App ready to work offline')
       },
     })
   })
