@@ -1,0 +1,5 @@
+I am appealing to publish my app "דף זיכרון דיגיטלי" with my individual developer account.
+
+My app is a TWA that loads my website with ?in_app=1. In this mode all payment options (PayPal, PayPlus, Stripe) are hidden. Users only see "תשלום זמין בדפדפן" (Payment available in browser) and a link. No payment can be completed inside the app; payment is only in an external browser. The app does not use Google Play Billing.
+
+I believe it does not require an organization account as it does not offer or process payments within the app. I request re-review and approval with my individual account. Thank you.

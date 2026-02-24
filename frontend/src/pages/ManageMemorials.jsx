@@ -437,7 +437,7 @@ function ManageMemorials() {
                 const statusInfo = getStatusText(memorial.status, memorial.expiryDate, memorial.canEdit);
                 const isPaid = memorial.status && memorial.status !== 'temporary';
                 const isLifetime = isPaid && !memorial.expiryDate;
-                const maintenanceDue = isLifetime && (!memorial.maintenance_paid_until || new Date(memorial.maintenance_paid_until) < new Date());
+                const maintenanceDue = isLifetime && memorial.maintenance_paid_until != null && new Date(memorial.maintenance_paid_until) < new Date();
                 const isExpiredPaid = isPaid && memorial.expiryDate && new Date(memorial.expiryDate) < new Date();
                 return (
                   <div key={memorial.id} className="memorial-card">

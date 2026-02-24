@@ -75,6 +75,16 @@ function getMemorialMediaLimitBytes(row) {
   const limit = Number(row.media_limit_bytes);
   return Number.isFinite(limit) && limit > 0 ? limit : DEFAULT_MEDIA_LIMIT_1GB;
 }
+/** תאריך תפוגה למנוי חודשי: היום + חודש, עם התאמה לסוף חודש (למשל 31 בינואר -> 28 בפברואר) */
+function addOneMonth(fromDate) {
+  const d = new Date(fromDate);
+  const day = d.getDate();
+  d.setMonth(d.getMonth() + 1);
+  const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+  d.setDate(Math.min(day, lastDay));
+  return d;
+}
+
 function getFileSize(file) {
   try {
     if (file.size != null && !Number.isNaN(Number(file.size))) return Number(file.size);
@@ -1440,8 +1450,7 @@ app.post('/api/payments/confirm', checkDbReady, authenticateToken, async (req, r
               [DEFAULT_MEDIA_LIMIT_1GB, payment.memorialId]
             );
           } else if (payment.planType === 'monthly') {
-            const expiryDate = new Date();
-            expiryDate.setMonth(expiryDate.getMonth() + 1);
+            const expiryDate = addOneMonth(new Date());
             await db.execute(
               'UPDATE memorials SET status = ?, expiryDate = ? WHERE id = ?',
               ['active', expiryDate, payment.memorialId]
@@ -1457,17 +1466,17 @@ app.post('/api/payments/confirm', checkDbReady, authenticateToken, async (req, r
             );
           } else if (payment.planType === 'lifetime') {
             await db.execute(
-              'UPDATE memorials SET status = ?, expiryDate = NULL, canEdit = TRUE, media_limit_bytes = ?, maintenance_paid_until = DATE_ADD(NOW(), INTERVAL 1 YEAR) WHERE id = ?',
+              'UPDATE memorials SET status = ?, expiryDate = NULL, canEdit = TRUE, media_limit_bytes = ?, maintenance_paid_until = DATE_ADD(NOW(), INTERVAL 2 YEAR) WHERE id = ?',
               ['active', DEFAULT_MEDIA_LIMIT_1GB, payment.memorialId]
             );
           } else if (payment.planType === 'lifetime-no-edit') {
             await db.execute(
-              'UPDATE memorials SET status = ?, expiryDate = NULL, canEdit = FALSE, media_limit_bytes = ?, maintenance_paid_until = DATE_ADD(NOW(), INTERVAL 1 YEAR) WHERE id = ?',
+              'UPDATE memorials SET status = ?, expiryDate = NULL, canEdit = FALSE, media_limit_bytes = ?, maintenance_paid_until = DATE_ADD(NOW(), INTERVAL 2 YEAR) WHERE id = ?',
               ['active', DEFAULT_MEDIA_LIMIT_1GB, payment.memorialId]
             );
           } else if (payment.planType === 'lifetime-premium') {
             await db.execute(
-              'UPDATE memorials SET status = ?, expiryDate = NULL, canEdit = TRUE, media_limit_bytes = ?, maintenance_paid_until = DATE_ADD(NOW(), INTERVAL 1 YEAR) WHERE id = ?',
+              'UPDATE memorials SET status = ?, expiryDate = NULL, canEdit = TRUE, media_limit_bytes = ?, maintenance_paid_until = DATE_ADD(NOW(), INTERVAL 2 YEAR) WHERE id = ?',
               ['active', MEDIA_LIMIT_3GB, payment.memorialId]
             );
           } else if (payment.planType === 'maintenance' && payment.memorialId) {
@@ -1615,8 +1624,7 @@ app.post('/api/payments/confirm-stripe', checkDbReady, authenticateToken, async 
           [DEFAULT_MEDIA_LIMIT_1GB, payment.memorialId]
         );
       } else if (payment.planType === 'monthly') {
-        const expiryDate = new Date();
-        expiryDate.setMonth(expiryDate.getMonth() + 1);
+        const expiryDate = addOneMonth(new Date());
         await db.execute(
           'UPDATE memorials SET status = ?, expiryDate = ? WHERE id = ?',
           ['active', expiryDate, payment.memorialId]
@@ -1632,17 +1640,17 @@ app.post('/api/payments/confirm-stripe', checkDbReady, authenticateToken, async 
         );
       } else if (payment.planType === 'lifetime') {
         await db.execute(
-          'UPDATE memorials SET status = ?, expiryDate = NULL, canEdit = TRUE, media_limit_bytes = ?, maintenance_paid_until = DATE_ADD(NOW(), INTERVAL 1 YEAR) WHERE id = ?',
+          'UPDATE memorials SET status = ?, expiryDate = NULL, canEdit = TRUE, media_limit_bytes = ?, maintenance_paid_until = DATE_ADD(NOW(), INTERVAL 2 YEAR) WHERE id = ?',
           ['active', DEFAULT_MEDIA_LIMIT_1GB, payment.memorialId]
         );
       } else if (payment.planType === 'lifetime-no-edit') {
         await db.execute(
-          'UPDATE memorials SET status = ?, expiryDate = NULL, canEdit = FALSE, media_limit_bytes = ?, maintenance_paid_until = DATE_ADD(NOW(), INTERVAL 1 YEAR) WHERE id = ?',
+          'UPDATE memorials SET status = ?, expiryDate = NULL, canEdit = FALSE, media_limit_bytes = ?, maintenance_paid_until = DATE_ADD(NOW(), INTERVAL 2 YEAR) WHERE id = ?',
           ['active', DEFAULT_MEDIA_LIMIT_1GB, payment.memorialId]
         );
       } else if (payment.planType === 'lifetime-premium') {
         await db.execute(
-          'UPDATE memorials SET status = ?, expiryDate = NULL, canEdit = TRUE, media_limit_bytes = ?, maintenance_paid_until = DATE_ADD(NOW(), INTERVAL 1 YEAR) WHERE id = ?',
+          'UPDATE memorials SET status = ?, expiryDate = NULL, canEdit = TRUE, media_limit_bytes = ?, maintenance_paid_until = DATE_ADD(NOW(), INTERVAL 2 YEAR) WHERE id = ?',
           ['active', MEDIA_LIMIT_3GB, payment.memorialId]
         );
       } else if (payment.planType === 'maintenance' && payment.memorialId) {
@@ -1817,8 +1825,7 @@ async function runPayPlusCallback(paymentId, req, res) {
           [DEFAULT_MEDIA_LIMIT_1GB, payment.memorialId]
         );
       } else if (payment.planType === 'monthly') {
-        const expiryDate = new Date();
-        expiryDate.setMonth(expiryDate.getMonth() + 1);
+        const expiryDate = addOneMonth(new Date());
         await db.execute(
           'UPDATE memorials SET status = ?, expiryDate = ? WHERE id = ?',
           ['active', expiryDate, payment.memorialId]
@@ -1834,17 +1841,17 @@ async function runPayPlusCallback(paymentId, req, res) {
         );
       } else if (payment.planType === 'lifetime') {
         await db.execute(
-          'UPDATE memorials SET status = ?, expiryDate = NULL, canEdit = TRUE, media_limit_bytes = ?, maintenance_paid_until = DATE_ADD(NOW(), INTERVAL 1 YEAR) WHERE id = ?',
+          'UPDATE memorials SET status = ?, expiryDate = NULL, canEdit = TRUE, media_limit_bytes = ?, maintenance_paid_until = DATE_ADD(NOW(), INTERVAL 2 YEAR) WHERE id = ?',
           ['active', DEFAULT_MEDIA_LIMIT_1GB, payment.memorialId]
         );
       } else if (payment.planType === 'lifetime-no-edit') {
         await db.execute(
-          'UPDATE memorials SET status = ?, expiryDate = NULL, canEdit = FALSE, media_limit_bytes = ?, maintenance_paid_until = DATE_ADD(NOW(), INTERVAL 1 YEAR) WHERE id = ?',
+          'UPDATE memorials SET status = ?, expiryDate = NULL, canEdit = FALSE, media_limit_bytes = ?, maintenance_paid_until = DATE_ADD(NOW(), INTERVAL 2 YEAR) WHERE id = ?',
           ['active', DEFAULT_MEDIA_LIMIT_1GB, payment.memorialId]
         );
       } else if (payment.planType === 'lifetime-premium') {
         await db.execute(
-          'UPDATE memorials SET status = ?, expiryDate = NULL, canEdit = TRUE, media_limit_bytes = ?, maintenance_paid_until = DATE_ADD(NOW(), INTERVAL 1 YEAR) WHERE id = ?',
+          'UPDATE memorials SET status = ?, expiryDate = NULL, canEdit = TRUE, media_limit_bytes = ?, maintenance_paid_until = DATE_ADD(NOW(), INTERVAL 2 YEAR) WHERE id = ?',
           ['active', MEDIA_LIMIT_3GB, payment.memorialId]
         );
       } else if (payment.planType === 'maintenance' && payment.memorialId) {
@@ -2176,21 +2183,46 @@ app.get('/api/memorials/:id', checkDbReady, optionalAuth, async (req, res) => {
       console.log('✅ Memorial found:', row.name, 'Status:', row.status, 'User ID:', row.userId);
     }
     
-    // Check if memorial has expired (for temporary status)
+    const now = new Date();
+
+    // חסימת גישה כשדף פג – בלי למחוק (הנתונים והתמונות נשמרים; מחיקה רק כשמנהל מוחק)
+    // Temporary: פג אחרי 24 שעות
     if (row.status === 'temporary' && row.expiryDate) {
       const expiryDate = new Date(row.expiryDate);
-      const now = new Date();
-      
       if (now > expiryDate) {
-        return res.status(410).json({ 
-          success: false, 
+        return res.status(410).json({
+          success: false,
           error: 'Memorial expired',
           expired: true,
           message: 'דף הזיכרון פג. יש לשדרג לשמירה קבועה.'
         });
       }
     }
-    
+    // מנוי חודשי/שנתי: פג תוקף – אין גישה עד חידוש
+    if (row.status === 'active' && row.expiryDate) {
+      const expiryDate = new Date(row.expiryDate);
+      if (now > expiryDate) {
+        return res.status(410).json({
+          success: false,
+          error: 'Subscription expired',
+          expired: true,
+          message: 'מנוי פג תוקף. יש לחדש את המנוי כדי לצפות בדף.'
+        });
+      }
+    }
+    // הנצחה: תחזוקה לא שולמה – אין גישה עד תשלום תחזוקה
+    if ((row.status === 'lifetime' || (row.status === 'active' && !row.expiryDate)) && row.maintenance_paid_until) {
+      const maintenanceUntil = new Date(row.maintenance_paid_until);
+      if (now > maintenanceUntil) {
+        return res.status(410).json({
+          success: false,
+          error: 'Maintenance due',
+          expired: true,
+          message: 'נדרש תשלום תחזוקה. יש לשלם תחזוקה כדי לצפות בדף.'
+        });
+      }
+    }
+
     res.json({
       success: true,
       memorial: {
@@ -2301,17 +2333,15 @@ app.get('/api/memorials', checkDbReady, async (req, res) => {
   }
 });
 
-// Delete all old test memorials (with no userId) - for admin only
+// מחיקה רק כשמנהל מריץ במפורש – לא מוחקים דפים אוטומטית בגלל פג תוקף.
+// Cleanup זה מוחק רק דפי בדיקה שלא שויכו למשתמש (userId ריק), רק כשמנהל קורא ל-endpoint.
 app.delete('/api/memorials/cleanup/test', checkDbReady, authenticateToken, async (req, res) => {
   try {
-    // Only admin can cleanup test memorials
     if (!isAdmin(req.user)) {
       return res.status(403).json({ success: false, message: 'רק מנהל יכול למחוק דפי בדיקה ישנים' });
     }
-    
     await ensureDbConnection();
-    
-    // Delete all memorials where userId is NULL (old test memorials)
+    // רק דפים ללא userId (דפי בדיקה ישנים) – לא מוחקים לפי תאריך תפוגה
     const [result] = await db.execute('DELETE FROM memorials WHERE userId IS NULL OR userId = ""');
     
     const deletedCount = result.affectedRows || 0;
@@ -2565,8 +2595,8 @@ app.patch('/api/memorials/:id/grant-lifetime', checkDbReady, authenticateToken, 
     }
 
     await db.execute(
-      'UPDATE memorials SET status = ?, expiryDate = NULL, canEdit = 1 WHERE id = ?',
-      ['lifetime', id]
+      'UPDATE memorials SET status = ?, expiryDate = NULL, canEdit = 1, media_limit_bytes = ?, maintenance_paid_until = DATE_ADD(NOW(), INTERVAL 2 YEAR) WHERE id = ?',
+      ['lifetime', DEFAULT_MEDIA_LIMIT_1GB, id]
     );
 
     if (process.env.NODE_ENV === 'development') {

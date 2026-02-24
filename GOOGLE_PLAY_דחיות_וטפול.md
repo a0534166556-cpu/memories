@@ -24,13 +24,26 @@
 
 ---
 
-## 1. Data safety (בטיחות נתונים)
+## 1. חשבון ארגוני (Organization account) – מה עלול לגרום לדחייה
+
+גוגל דורשים **חשבון ארגוני** כשהאפליקציה מסווגת כשירות פיננסי או כשיש הצהרות/קטגוריה שמרמזות על כך. מה לבדוק:
+
+- **קטגוריה (App category):** ב-Play Console → Store → Main store listing → **Category**. אל תבחר **Finance** או **Shopping** אם יש "in-app purchases". עדיף **Lifestyle**, **Social** או **Education** – לפי תוכן (הנצחה, דפי זיכרון).
+- **Data safety:** אם סימנת "Financial info" או "Purchase history" – נסח בצורה ברורה: "Purchase history for service access only; we do not provide financial services; payment is handled by third parties (PayPal, etc.)."
+- **מדיניות פרטיות (באתר):** בדף הפרטיות הוחלשו ניסוחים שמרמזים על "שירות פיננסי" – מודגש ש"אנו לא מספקים שירות פיננסי" ושאין שמירת פרטי כרטיס. וודא שהדף מעודכן (לאחר דיפלוי).
+- **באתר:** הוסר המונח "העברה בנקאית" מדף התמחור (הוחלף ב"העברה דרך ספקי תשלום מאומתים") כדי להפחית טריגר אוטומטי למילות מפתח "בנק/ banking".
+
+אם הדחייה מפורשת על "Play Console Requirements" / "organization account" – הגש ערעור (ראו טקסט בעברית/אנגלית בקובץ APPEAL_TEXT_SHORT.txt) והקפד ש־TWA נטען עם `?in_app=1` (אין תשלום בתוך האפליקציה).
+
+---
+
+## 2. Data safety (בטיחות נתונים)
 
 - **ב-Play Console:** Store → App content → Data safety  
 - **חובה:** להצהיר בדיוק אילו נתונים נאספים ולמה.
 - **מומלץ להצהיר:**
   - **שם, אימייל, מזהה משתמש (User ID)** – נאספים, לא משותפים עם צד שלישי (מלבד ספקי תשלום לצורך ביצוע תשלום), לא זמניים, נדרשים לתפעול האפליקציה.
-  - **מידע פיננסי** – היסטוריית רכישות (לא פרטי כרטיס). נאסף, יכול להיות מועבר ל-PayPal / PayPlus / Stripe לצורך תשלום.
+  - **היסטוריית רכישות** – רק לצורך שירות ואסמכתא; התשלום מתבצע אצל צד שלישי (PayPal וכו'); אנו לא שומרים פרטי כרטיס ולא מספקים שירות פיננסי.
   - **תמונות/תוכן** – אם משתמשים מעלים תמונות לדפי זיכרון: לסמן "User-generated content" או תמונות, ולציין שזה נשמר כדי להציג בדף הזיכרון.
 - **קישור למדיניות פרטיות:** חייב להיות **בדיוק**  
   `https://memoriesman.netlify.app/privacy`  
@@ -38,7 +51,7 @@
 
 ---
 
-## 2. מדיניות פרטיות (Privacy policy)
+## 3. מדיניות פרטיות (Privacy policy)
 
 - **כתובת:** חייב להיות נגיש וזהה למה שהזנת ב-Play Console.  
   בדוק: https://memoriesman.netlify.app/privacy  
@@ -47,7 +60,7 @@
 
 ---
 
-## 3. "Minimum functionality" / אפליקציה כ־Web wrapper (TWA)
+## 4. "Minimum functionality" / אפליקציה כ־Web wrapper (TWA)
 
 - גוגל דוחים אפליקציות שנראות "רק דפדפן לאתר" בלי ערך מוסף.
 - **מה לעשות:**
@@ -57,7 +70,7 @@
 
 ---
 
-## 4. תוכן רגיש (memorial / הנצחה)
+## 5. תוכן רגיש (memorial / הנצחה)
 
 - אפליקציות שעוסקות בהנצחה/זיכרון עלולות להיבדק בקפידה.
 - **מומלץ:**
@@ -67,14 +80,14 @@
 
 ---
 
-## 5. הרשאות (Permissions)
+## 6. הרשאות (Permissions)
 
 - אם האפליקציה (TWA) לא צריכה הרשאות מיוחדות – עדיף שלא לבקש.
 - אם מבקשים הרשאות (מצלמה, אחסון וכו'): ב-Play Console **חובה** להסביר למה כל הרשאה נדרשת (במסך ההרשאות של האפליקציה).
 
 ---
 
-## 6. Digital Asset Links (TWA / כניסה ישירה)
+## 7. Digital Asset Links (TWA / כניסה ישירה)
 
 - אם האפליקציה היא TWA (Trusted Web Activity), גוגל בודקים ש־`assetlinks.json` מתאים.
 - **באתר:** הכתובת חייבת להיות נגישה:  
@@ -84,13 +97,13 @@
 
 ---
 
-## 7. גרסה ו־Target API
+## 8. גרסה ו־Target API
 
 - וודא ש־Target SDK / API level עומד בדרישות העדכניות של Google Play (ב-build של האפליקציה, לא רק של האתר).
 
 ---
 
-## 8. מה לעשות כשמקבלים דחייה
+## 9. מה לעשות כשמקבלים דחייה
 
 - **קרא את ההודעה המלאה** מ-Play Console – שם יופיעו לרוב הסעיף המדויק במדיניות (למשל "Data safety", "Minimum functionality", "Privacy policy").
 - **תקן לפי הסעיף שצוין:** Data safety → עדכן הצהרה ומדיניות פרטיות; Minimum functionality → שפר תיאור ו/או פיצ'רים; Privacy → תקן קישור ותוכן.
@@ -102,7 +115,8 @@
 
 | נושא | איפה לבדוק | פעולה |
 |------|------------|--------|
-| Data safety | Play Console → App content → Data safety | להצהיר: שם, אימייל, User ID, היסטוריית רכישות; תמונות/תוכן אם רלוונטי |
+| חשבון ארגוני | קטגוריה, Data safety, מדיניות פרטיות | לא לבחור Finance; לנסח שאין שירות פיננסי; וידוא in_app=1 |
+| Data safety | Play Console → App content → Data safety | להצהיר: שם, אימייל, User ID, היסטוריית רכישות (לא שירות פיננסי); תמונות/תוכן אם רלוונטי |
 | Privacy policy | Play Console + דף באתר | קישור: https://memoriesman.netlify.app/privacy |
 | Minimum functionality | תיאור האפליקציה | להדגיש פונקציונליות ייעודית (דפי זיכרון, QR, תזכורות) |
 | Content rating | Play Console → Content rating | לענות בכנות על תוכן רגיש (הנצחה) |
