@@ -69,6 +69,7 @@ function Privacy() {
             <Link to="/">דף הבית</Link>
             <Link to="/about">אודות</Link>
             <Link to="/pricing">תמחור</Link>
+            <Link to="/support">משאבים למשפחות</Link>
           </div>
         </div>
       </footer>

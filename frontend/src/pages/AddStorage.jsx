@@ -128,98 +128,13 @@ function AddStorage() {
     <main className="add-storage-page">
       <div className="container">
         <h1 className="page-title">
-          <FaDatabase /> הוסף אחסון לדף זיכרון
+          <FaDatabase /> הוסף אחסון
         </h1>
-        <p className="page-intro">
-          ניתן לרכוש תוספת של גיגה (100₪ לגיגה) לדפים שכבר נשמרו במסלול בתשלום.
-        </p>
-        {error && <div className="alert alert-error">{error}</div>}
-
-        {memorials.length === 0 ? (
-          <div className="empty-state">
-            <p>אין לך דפי זיכרון במסלול בתשלום.</p>
-            <p>אפשרות זו זמינה רק אחרי רכישת תוכנית שמירה.</p>
-            <Link to="/manage" className="btn btn-primary">ניהול דפי זיכרון</Link>
-          </div>
-        ) : (
-          <div className="storage-list">
-            {memorials.map((m) => {
-              const usedGb = formatGb(Number(m.media_used_bytes));
-              const limitBytes = Number(m.media_limit_bytes) || (1 * 1024 * 1024 * 1024);
-              const limitGb = formatGb(limitBytes);
-              const isOpen = addForId === m.id;
-              return (
-                <div key={m.id} className="storage-card">
-                  <div className="storage-card-header">
-                    <h2>{m.name || m.hebrewName || 'דף זיכרון'}</h2>
-                    <span className="storage-usage">שימוש: {usedGb} / {limitGb} גיגה</span>
-                  </div>
-                  {!isOpen ? (
-                    <button
-                      type="button"
-                      className="btn btn-secondary"
-                      onClick={() => { setAddForId(m.id); setAdditionalGb(1); setError(''); }}
-                    >
-                      <FaPlus /> הוסף גיגה
-                    </button>
-                  ) : (
-                    <div className="add-form">
-                      <label>
-                        מספר גיגה (100₪ לגיגה):
-                        <select
-                          value={additionalGb}
-                          onChange={(e) => setAdditionalGb(Number(e.target.value))}
-                        >
-                          {[1,2,3,4,5,6,7,8,9,10].map(n => (
-                            <option key={n} value={n}>{n} גיגה — ₪{PRICE_PER_GB * n}</option>
-                          ))}
-                        </select>
-                      </label>
-                      <div className="add-form-actions">
-                        {hideExternalPayment ? (
-                          <p style={{ fontSize: '0.9rem', marginBottom: '8px' }}>
-                            תשלום זמין בדפדפן.{' '}
-                            <a href={SITE_URL} target="_blank" rel="noopener">גלשו לאתר</a>
-                          </p>
-                        ) : (
-                          <>
-                            <button
-                              type="button"
-                              className="btn btn-primary"
-                              onClick={handlePurchaseAddon}
-                              disabled={processing}
-                            >
-                              {processing ? 'מעביר לתשלום...' : `שלם עם PayPal ₪${PRICE_PER_GB * additionalGb}`}
-                            </button>
-                            {isStripeAvailable() && (
-                              <button
-                                type="button"
-                                className="btn btn-outline"
-                                onClick={handleStripeAddon}
-                                disabled={processing}
-                              >
-                                כרטיס / Google Pay / Apple Pay
-                              </button>
-                            )}
-                          </>
-                        )}
-                        <button
-                          type="button"
-                          className="btn btn-secondary"
-                          onClick={() => setAddForId(null)}
-                          disabled={processing}
-                        >
-                          ביטול
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        )}
-
+        <div className="empty-state">
+          <p>אפשרות רכישת תוספת אחסון (גיגה) אינה זמינה יותר.</p>
+          <p>בכל התוכניות מוגבל האחסון לתמונות וסרטונים.</p>
+          <Link to="/manage" className="btn btn-primary">חזרה לניהול דפי זיכרון</Link>
+        </div>
         <div className="back-link">
           <Link to="/manage">← חזרה לניהול דפי זיכרון</Link>
         </div>

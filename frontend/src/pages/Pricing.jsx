@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { FaCheck, FaTimes, FaCrown, FaHeart, FaSync } from 'react-icons/fa';
 import axios from 'axios';
 import { getApiEndpoint } from '../config';
+import { memorialPageFeatures } from '../data/memorialFeatures';
 import './Pricing.css';
 
 function Pricing() {
@@ -12,7 +13,7 @@ function Pricing() {
     {
       id: 'monthly',
       name: 'מנוי חודשי',
-      price: 15,
+      price: 12,
       period: 'חודש',
       description: 'שמירה חודשית עם אפשרות עריכה',
       features: [
@@ -28,7 +29,7 @@ function Pricing() {
     {
       id: 'annual',
       name: 'שמירה וניהול שנתי',
-      price: 120,
+      price: 100,
       period: 'לשנה',
       description: 'שמירה שנתית עם אפשרות עריכה',
       features: [
@@ -52,33 +53,12 @@ function Pricing() {
         'שמירה קבועה',
         'עריכה חופשית',
         'תחזוקת אתר 15₪ לשנה (חינם בשנתיים הראשונות, מתחייב מהשנה השלישית)',
-        'עד גיגה אחד תמונות וסרטונים (כ־1,000 תמונות או עשרות דקות וידאו)',
-        'ניתן לרכוש תוספת גיגה בכל עת (100₪ לגיגה)',
         'גיבוי',
         'העברת ניהול למשפחה',
         'תמיכה מלאה'
       ],
       limitations: [],
       popular: true,
-      icon: FaCrown
-    },
-    {
-      id: 'lifetime-premium',
-      name: 'הנצחה פרימיום',
-      price: 549,
-      period: 'חד-פעמי',
-      description: 'שמירה חד פעמית עם עוד הרבה תמונות וסרטונים עד 3 גיגה איחסון',
-      features: [
-        'שמירה קבועה',
-        'עריכה חופשית',
-        'תחזוקת אתר 15₪ לשנה (חינם בשנתיים הראשונות, מתחייב מהשנה השלישית)',
-        'עד 3 גיגה תמונות וסרטונים (כ־3,000 תמונות או מאות דקות וידאו)',
-        'ניתן לרכוש תוספת גיגה בכל עת (100₪ לגיגה)',
-        'גיבוי',
-        'תמיכה מלאה'
-      ],
-      limitations: [],
-      popular: false,
       icon: FaCrown
     }
   ];
@@ -107,11 +87,6 @@ function Pricing() {
               אנו מציעים מספר אפשרויות תשלום גמישות, כך שכל משפחה תוכל למצוא את הפתרון המתאים לה.
               כל התוכניות כוללות דף זיכרון מלא עם QR Code ייחודי.
             </p>
-            <div className="add-storage-cta" style={{ marginTop: '1rem', padding: '1rem 1.25rem', background: 'linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)', borderRadius: '12px', border: '1px solid #0ea5e9', textAlign: 'center' }}>
-              <strong>צריכים יותר אחסון?</strong>
-              <p style={{ margin: '0.5rem 0 0', fontSize: '1rem' }}>ניתן לרכוש תוספת גיגה (100₪ לגיגה) בכל עת – ממסך ניהול הדפים.</p>
-              <Link to="/add-storage" className="btn btn-primary" style={{ marginTop: '0.75rem' }}>רכישת תוספת גיגה</Link>
-            </div>
           </div>
 
           <div className="pricing-grid">
@@ -144,20 +119,45 @@ function Pricing() {
                     </div>
                   </div>
 
-                  <ul className="features-list">
-                    {plan.features.map((feature, index) => (
-                      <li key={index} className="feature-item">
-                        <FaCheck className="check-icon" />
-                        <span>{feature}</span>
-                      </li>
-                    ))}
-                    {plan.limitations.map((limitation, index) => (
-                      <li key={`lim-${index}`} className="feature-item limitation">
-                        <FaTimes className="times-icon" />
-                        <span>{limitation}</span>
-                      </li>
-                    ))}
-                  </ul>
+                  <div className="plan-features-block">
+                    <div className="memorial-features-in-plan">
+                      <h4 className="memorial-features-title">
+                        <span className="memorial-features-title-icon">✨</span>
+                        מה כלול בדף הזיכרון (בכל תוכנית)
+                      </h4>
+                      <ul className="features-list memorial-features-list">
+                        {memorialPageFeatures.map((feature, index) => {
+                          const FeatureIcon = feature.Icon;
+                          return (
+                            <li key={index} className="feature-item feature-item-with-icon">
+                              <span className="feature-icon-wrap">
+                                <FeatureIcon className="feature-icon" />
+                              </span>
+                              <span className="feature-text">{feature.label}</span>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </div>
+                    <h4 className="plan-specific-title">
+                      <span className="plan-specific-title-icon">✓</span>
+                      יתרונות התוכנית
+                    </h4>
+                    <ul className="features-list">
+                      {plan.features.map((feature, index) => (
+                        <li key={index} className="feature-item">
+                          <FaCheck className="check-icon" />
+                          <span>{feature}</span>
+                        </li>
+                      ))}
+                      {plan.limitations.map((limitation, index) => (
+                        <li key={`lim-${index}`} className="feature-item limitation">
+                          <FaTimes className="times-icon" />
+                          <span>{limitation}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
 
                   <button
                     className={`btn btn-${plan.popular ? 'primary' : 'secondary'} btn-full`}
@@ -176,9 +176,8 @@ function Pricing() {
               <div className="faq-item">
                 <h3>מה ההבדל בין התוכניות?</h3>
                 <p>
-                  מנוי חודשי (15₪), שנתי (120₪), הנצחה חד־פעמית (399₪) או פרימיום 3 גיגה (549₪). 
-                  תחזוקת אתר 15₪ לשנה – חינם בשנתיים הראשונות במסלולי החד־פעמי, מתחייב מהשנה השלישית. 
-                  ניתן לרכוש תוספת גיגה בכל עת (100₪ לגיגה).
+                  מנוי חודשי (12₪), שנתי (100₪), הנצחה חד־פעמית (399₪). 
+                  תחזוקת אתר 15₪ לשנה – חינם בשנתיים הראשונות במסלולי החד־פעמי, מתחייב מהשנה השלישית.
                 </p>
               </div>
               <div className="faq-item">
@@ -219,6 +218,7 @@ function Pricing() {
             <Link to="/">דף הבית</Link>
             <Link to="/about">אודות</Link>
             <Link to="/privacy">מדיניות פרטיות</Link>
+            <Link to="/support">משאבים למשפחות</Link>
           </div>
         </div>
       </footer>

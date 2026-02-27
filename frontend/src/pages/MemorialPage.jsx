@@ -5,9 +5,11 @@ import axios from 'axios';
 import { getApiEndpoint } from '../config';
 import { Swiper, SwiperSlide } from 'swiper/react';
 import { Navigation, Pagination, Autoplay } from 'swiper/modules';
-import { FaHome, FaDownload, FaBook, FaHeart, FaPlay, FaPause, FaVolumeUp, FaHistory, FaFire, FaComment, FaExclamationTriangle, FaClock, FaMapMarkerAlt, FaShareAlt, FaEnvelope, FaBell } from 'react-icons/fa';
+import { FaHome, FaDownload, FaBook, FaHeart, FaPlay, FaPause, FaVolumeUp, FaHistory, FaFire, FaComment, FaExclamationTriangle, FaClock, FaMapMarkerAlt, FaShareAlt, FaEnvelope, FaBell, FaPrint, FaCopy, FaPalette, FaTimes, FaExpand } from 'react-icons/fa';
 import TehilimReader from '../components/TehilimReader';
 import MishnayotReader from '../components/MishnayotReader';
+import { memorialPageTranslations, LANG_KEY } from '../i18n/memorialPage';
+import { yizkorText, elMaleRachamimText } from '../data/yizkorPrayers';
 import 'swiper/css';
 import 'swiper/css/navigation';
 import 'swiper/css/pagination';
@@ -33,12 +35,92 @@ function MemorialPage() {
   const [canEdit, setCanEdit] = useState(false);
   const [regeneratingQR, setRegeneratingQR] = useState(false);
   const [error, setError] = useState('');
+  const [lang, setLang] = useState(() => {
+    try {
+      const saved = localStorage.getItem(LANG_KEY);
+      return saved === 'en' ? 'en' : 'he';
+    } catch (e) {
+      return 'he';
+    }
+  });
   const [reminderEmail, setReminderEmail] = useState('');
   const [remindOnDay, setRemindOnDay] = useState(true);
   const [remind10DaysBefore, setRemind10DaysBefore] = useState(false);
+  const [remindBirthday, setRemindBirthday] = useState(false);
   const [reminderSubmitting, setReminderSubmitting] = useState(false);
   const [reminderSubmitted, setReminderSubmitted] = useState(false);
+  const [showShareMenu, setShowShareMenu] = useState(false);
+  const [yizkorCopied, setYizkorCopied] = useState(false);
+  const [elMaleCopied, setElMaleCopied] = useState(false);
+  const [candleName, setCandleName] = useState('');
+  const [fullscreenImageIndex, setFullscreenImageIndex] = useState(null);
+  const FONT_SIZE_KEY = 'memorialFontSize';
+  const [fontSizeMode, setFontSizeMode] = useState(() => {
+    try {
+      const saved = localStorage.getItem(FONT_SIZE_KEY);
+      if (saved === 'xlarge') return 'xlarge';
+      if (saved === 'large') return 'large';
+      if (saved === 'normal' || saved === 'small') return 'large'; // מיגרציה: גודל קטן הוסר, מעבר לרגיל
+    } catch (e) { /* ignore */ }
+    return 'large';
+  });
+  const setFontSizeAndSave = (mode) => {
+    setFontSizeMode(mode);
+    try {
+      localStorage.setItem(FONT_SIZE_KEY, mode);
+    } catch (e) { /* ignore */ }
+  };
+  const BACKGROUND_KEY = 'memorialBackground';
+  const BACKGROUND_OPTIONS = [
+    { id: 'default', label: 'רגיל', title: 'רקע רגיל' },
+    { id: 'paper', label: 'נייר', title: 'רקע נייר שמנת' },
+    { id: 'warm', label: 'חם', title: 'רקע חם/בז\'ה' },
+    { id: 'sky', label: 'שמיים', title: 'רקע תכלת עדין' },
+    { id: 'nature', label: 'טבע', title: 'רקע ירוק עדין' },
+    { id: 'gradient', label: 'גרדיאנט', title: 'גרדיאנט סגול-ורוד' },
+    { id: 'dark', label: 'כהה', title: 'רקע כהה' }
+  ];
+  const [backgroundMode, setBackgroundMode] = useState(() => {
+    try {
+      const saved = localStorage.getItem(BACKGROUND_KEY);
+      if (BACKGROUND_OPTIONS.some(o => o.id === saved)) return saved;
+    } catch (e) { /* ignore */ }
+    return 'default';
+  });
+  const [showBackgroundMenu, setShowBackgroundMenu] = useState(false);
+  const setBackgroundAndSave = (mode) => {
+    setBackgroundMode(mode);
+    setShowBackgroundMenu(false);
+    try {
+      localStorage.setItem(BACKGROUND_KEY, mode);
+    } catch (e) { /* ignore */ }
+  };
   const audioRef = useRef(null);
+  const t = memorialPageTranslations[lang] || memorialPageTranslations.he;
+
+  const setLangAndSave = (nextLang) => {
+    setLang(nextLang);
+    try {
+      localStorage.setItem(LANG_KEY, nextLang);
+    } catch (e) {
+      // ignore
+    }
+  };
+
+  const copyPrayer = async (text, which) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      if (which === 'yizkor') {
+        setYizkorCopied(true);
+        setTimeout(() => setYizkorCopied(false), 2000);
+      } else if (which === 'elMale') {
+        setElMaleCopied(true);
+        setTimeout(() => setElMaleCopied(false), 2000);
+      }
+    } catch (e) {
+      alert(lang === 'en' ? 'Could not copy text. Please copy manually.' : 'לא ניתן להעתיק טקסט. אנא העתק ידנית.');
+    }
+  };
 
   // Helper: build full URL for media (images/videos). Full URLs (e.g. Cloudinary) stay as-is; relative paths go to API origin.
   const normalizePath = (path) => {
@@ -225,8 +307,9 @@ function MemorialPage() {
     }
 
     try {
+      const nameToSend = candleName.trim() || (lang === 'en' ? 'Anonymous' : 'אנונימי');
       const response = await axios.post(getApiEndpoint(`/api/memorials/${id}/candles`), {
-        litBy: 'אנונימי',
+        litBy: nameToSend,
         visitorId: visitorId
       });
       if (response.data.success) {
@@ -281,28 +364,51 @@ function MemorialPage() {
     }
   };
 
-  const shareMemorial = async () => {
-    const url = `${SITE_URL}/memorial/${id}`;
-    const title = `דף זיכרון - ${memorial?.name || 'זיכרון'}`;
-    const text = memorial?.heroSummary ? `${memorial.name}: ${memorial.heroSummary.slice(0, 100)}...` : `דף זיכרון להנצחת ${memorial?.name || 'יקירנו'}`;
+  const shareUrl = `${SITE_URL}/memorial/${id}`;
+  const shareTitle = `דף זיכרון - ${memorial?.name || 'זיכרון'}`;
+  const shareText = memorial?.heroSummary
+    ? `${memorial.name}: ${memorial.heroSummary.slice(0, 80)}...`
+    : `דף זיכרון לזכר ${memorial?.name || 'יקירנו'}`;
+
+  const copyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      alert('הקישור הועתק ללוח.');
+      setShowShareMenu(false);
+    } catch {
+      alert('לא ניתן להעתיק. העתק את הכתובת מהדפדפן.');
+    }
+  };
+
+  const shareViaWhatsApp = () => {
+    const text = encodeURIComponent(`${shareText}\n${shareUrl}`);
+    window.open(`https://wa.me/?text=${text}`, '_blank', 'noopener');
+    setShowShareMenu(false);
+  };
+
+  const shareViaEmail = () => {
+    const subject = encodeURIComponent(shareTitle);
+    const body = encodeURIComponent(`${shareText}\n\n${shareUrl}`);
+    window.location.href = `mailto:?subject=${subject}&body=${body}`;
+    setShowShareMenu(false);
+  };
+
+  const shareNative = async () => {
     try {
       if (navigator.share) {
-        await navigator.share({ title, text, url });
+        await navigator.share({ title: shareTitle, text: shareText, url: shareUrl });
         alert('הקישור שותף בהצלחה.');
       } else {
-        await navigator.clipboard.writeText(url);
-        alert('הקישור הועתק ללוח.');
+        copyLink();
       }
+      setShowShareMenu(false);
     } catch (err) {
-      if (err.name !== 'AbortError') {
-        try {
-          await navigator.clipboard.writeText(url);
-          alert('הקישור הועתק ללוח.');
-        } catch {
-          alert('לא ניתן לשתף. העתק את הכתובת מהדפדפן.');
-        }
-      }
+      if (err.name !== 'AbortError') copyLink();
     }
+  };
+
+  const printMemorial = () => {
+    window.print();
   };
 
   const formatDate = (dateStr) => {
@@ -341,7 +447,7 @@ function MemorialPage() {
       alert('נא להזין כתובת אימייל');
       return;
     }
-    if (!remindOnDay && !remind10DaysBefore) {
+    if (!remindOnDay && !remind10DaysBefore && !remindBirthday) {
       alert('נא לבחור לפחות תזכורת אחת');
       return;
     }
@@ -350,7 +456,8 @@ function MemorialPage() {
       const response = await axios.post(getApiEndpoint(`/api/memorials/${id}/remind`), {
         email,
         remindOnDay,
-        remind10DaysBefore
+        remind10DaysBefore,
+        remindBirthday
       });
       if (response.data.success) {
         setReminderSubmitted(true);
@@ -452,8 +559,37 @@ function MemorialPage() {
     ? (memorial.heroImage.startsWith('http') ? memorial.heroImage : `${SITE_URL}${memorial.heroImage.startsWith('/') ? '' : '/'}${memorial.heroImage}`)
     : null;
 
+  // מועד האזכרה הבא – כמה ימים נשארו ותאריך עברי
+  let yahrzeitBanner = null;
+  if (memorial.deathDate && memorial.deathDate.trim() !== '') {
+    try {
+      const death = new Date(memorial.deathDate);
+      if (!isNaN(death.getTime())) {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const thisYear = new Date(today.getFullYear(), death.getMonth(), death.getDate());
+        const nextYahrzeit = thisYear < today
+          ? new Date(today.getFullYear() + 1, death.getMonth(), death.getDate())
+          : thisYear;
+        const daysUntil = Math.ceil((nextYahrzeit - today) / (1000 * 60 * 60 * 24));
+        const hebrewDateStr = new Intl.DateTimeFormat('he-IL', {
+          day: 'numeric',
+          month: 'long',
+          year: 'numeric',
+          calendar: 'hebrew'
+        }).format(nextYahrzeit);
+        yahrzeitBanner = {
+          daysUntil,
+          hebrewDateStr
+        };
+      }
+    } catch (e) {
+      // ignore
+    }
+  }
+
   return (
-    <div className="memorial-page">
+    <div className={`memorial-page memorial-page--bg-${backgroundMode}`}>
       <Helmet>
         <title>דף זיכרון - {memorial.name} | דפי זיכרון דיגיטליים</title>
         <meta name="description" content={memorial.heroSummary || `דף זיכרון להנצחת ${memorial.name}. תהא נשמתו צרורה בצרור החיים.`} />
@@ -467,6 +603,14 @@ function MemorialPage() {
         <meta name="twitter:card" content={ogImage ? 'summary_large_image' : 'summary'} />
         <meta name="twitter:title" content={`דף זיכרון - ${memorial.name}`} />
       </Helmet>
+      {/* באנר מועד האזכרה – למעלה */}
+      {yahrzeitBanner && (
+        <div className="yahrzeit-banner no-print">
+          <div className="yahrzeit-banner-inner">
+            מועד האזכרה בעוד {yahrzeitBanner.daysUntil} ימים בתאריך {yahrzeitBanner.hebrewDateStr}
+          </div>
+        </div>
+      )}
       {/* Expiry Warning Banner */}
       {isTemporary && (isExpired || hoursUntilExpiry !== null) && (
         <div className={`expiry-warning ${isExpired ? 'expired' : hoursUntilExpiry < 24 ? 'urgent' : ''}`}>
@@ -540,13 +684,58 @@ function MemorialPage() {
       <div className="memorial-header">
         <div className="header-overlay">
           <div className="container">
-            <div className="header-links">
+            <div className="header-links no-print">
               <Link to="/" className="home-link">
-                <FaHome /> דף הבית
+                <FaHome /> {t.home}
               </Link>
-              <button type="button" className="btn-share" onClick={shareMemorial} title="שתף דף זיכרון">
-                <FaShareAlt /> שתף
+              <div className="share-dropdown-wrap">
+                <button type="button" className="btn-share" onClick={() => setShowShareMenu((v) => !v)} title={t.share} aria-expanded={showShareMenu} aria-haspopup="true">
+                  <FaShareAlt /> {t.share}
+                </button>
+                {showShareMenu && (
+                  <div className="share-menu" role="menu">
+                    <button type="button" role="menuitem" onClick={shareNative}><FaShareAlt /> {t.shareSystem}</button>
+                    <button type="button" role="menuitem" onClick={shareViaWhatsApp}>WhatsApp</button>
+                    <button type="button" role="menuitem" onClick={shareViaEmail}><FaEnvelope /> {t.email}</button>
+                    <button type="button" role="menuitem" onClick={copyLink}><FaCopy /> {t.copyLink}</button>
+                  </div>
+                )}
+              </div>
+              <button type="button" className="btn-print no-print" onClick={printMemorial} title="הדפס דף">
+                <FaPrint /> {t.print}
               </button>
+              <div className="background-dropdown no-print">
+                <button type="button" className="btn-background" onClick={() => setShowBackgroundMenu((v) => !v)} title={t.background} aria-expanded={showBackgroundMenu} aria-haspopup="true">
+                  <FaPalette /> {t.background}
+                </button>
+                {showBackgroundMenu && (
+                  <div className="background-menu" role="menu">
+                    {BACKGROUND_OPTIONS.map((opt) => (
+                      <button key={opt.id} type="button" role="menuitem" className={backgroundMode === opt.id ? 'active' : ''} onClick={() => setBackgroundAndSave(opt.id)} title={opt.title}>
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div className="lang-toggle no-print" role="group" aria-label="Language">
+                <button
+                  type="button"
+                  className={`lang-btn ${lang === 'he' ? 'active' : ''}`}
+                  onClick={() => setLangAndSave('he')}
+                  aria-pressed={lang === 'he'}
+                >
+                  עב
+                </button>
+                <button
+                  type="button"
+                  className={`lang-btn ${lang === 'en' ? 'active' : ''}`}
+                  onClick={() => setLangAndSave('en')}
+                  aria-pressed={lang === 'en'}
+                >
+                  EN
+                </button>
+              </div>
             </div>
             <div className="memorial-title-section">
               <h1 className="memorial-name">{memorial.name}</h1>
@@ -584,12 +773,12 @@ function MemorialPage() {
         </div>
       </div>
 
-      <div className="container memorial-content">
+      <div className={`container memorial-content ${fontSizeMode === 'xlarge' ? 'memorial-content--font-xlarge' : 'memorial-content--font-large'}`}>
         {/* Media Gallery */}
         {allMedia.length > 0 && (
           <section className="media-section">
             <h2 className="section-title">
-              <FaHeart /> גלריית זיכרונות
+              <FaHeart /> {t.gallery}
             </h2>
             <div className="media-gallery">
               <Swiper
@@ -606,10 +795,20 @@ function MemorialPage() {
                     <div className="media-slide">
                       {media.type === 'image' ? (
                         <>
+                          <button
+                            type="button"
+                            className="media-slide-expand-btn"
+                            onClick={() => setFullscreenImageIndex(index)}
+                            title="הגדל למסך מלא"
+                            aria-label="הגדל למסך מלא"
+                          >
+                            <FaExpand />
+                          </button>
                           <img
                             src={media.url}
                             alt={`זיכרון ${index + 1}`}
                             loading="lazy"
+                            onClick={() => setFullscreenImageIndex(index)}
                             onError={(e) => {
                               e.target.style.display = 'none';
                               const fallback = e.target.nextElementSibling;
@@ -628,13 +827,37 @@ function MemorialPage() {
                 ))}
               </Swiper>
             </div>
+            {fullscreenImageIndex !== null && allMedia[fullscreenImageIndex]?.type === 'image' && (
+              <div
+                className="gallery-fullscreen-overlay"
+                onClick={() => setFullscreenImageIndex(null)}
+                role="dialog"
+                aria-modal="true"
+                aria-label="תמונה במסך מלא"
+              >
+                <button
+                  type="button"
+                  className="gallery-fullscreen-close"
+                  onClick={(e) => { e.stopPropagation(); setFullscreenImageIndex(null); }}
+                  aria-label="סגור"
+                >
+                  <FaTimes />
+                </button>
+                <img
+                  src={allMedia[fullscreenImageIndex].url}
+                  alt={`זיכרון ${fullscreenImageIndex + 1}`}
+                  onClick={(e) => e.stopPropagation()}
+                  draggable={false}
+                />
+              </div>
+            )}
           </section>
         )}
 
         {/* Biography */}
         {memorial.biography && (
           <section className="biography-section">
-            <h2 className="section-title">סיפור חיים</h2>
+            <h2 className="section-title">{t.biography}</h2>
             <div className="biography-content">
               <p>{memorial.biography}</p>
             </div>
@@ -645,7 +868,7 @@ function MemorialPage() {
         {timelineEvents.length > 0 && (
           <section className="timeline-section">
             <h2 className="section-title">
-              <FaHistory /> ציר חיים
+              <FaHistory /> {t.timeline}
             </h2>
             <ol className="timeline-list">
               {timelineEvents.map((event, index) => {
@@ -672,7 +895,7 @@ function MemorialPage() {
           <section className="tehilim-section">
             <div className="tehilim-header">
               <h2 className="section-title">
-                <FaBook /> פרקי תהילים
+                <FaBook /> {t.tehilim}
               </h2>
               <button
                 type="button"
@@ -693,7 +916,7 @@ function MemorialPage() {
           <section className="mishnayot-section">
             <div className="tehilim-header">
               <h2 className="section-title">
-                <FaBook /> משניות
+                <FaBook /> {t.mishnayot}
               </h2>
               <button
                 className="btn btn-primary"
@@ -711,7 +934,7 @@ function MemorialPage() {
         {/* Virtual Candle Section */}
         <section className="candle-section">
           <h2 className="section-title">
-            <FaFire /> נר זיכרון
+            <FaFire /> {t.candle}
           </h2>
           <div className="candle-content">
             {!hasLitCandle ? (
@@ -729,16 +952,30 @@ function MemorialPage() {
               </div>
             )}
             <div className="candle-info">
-              <p className="candle-count">{candles.length} נרות דולקים</p>
-              <p className="candle-text">
-                {hasLitCandle ? 'הדלקת נר זיכרון' : 'לחץ להדלקת נר זיכרון'}
+              <p className="candle-count">
+                {candles.length} {t.candlesLit}
               </p>
+              <p className="candle-text">
+                {hasLitCandle ? t.youLitCandle : t.lightCandle}
+              </p>
+              <div className="candle-name-input">
+                <label htmlFor="candle-name-input">
+                  {t.candleLighterName}
+                </label>
+                <input
+                  id="candle-name-input"
+                  type="text"
+                  value={candleName}
+                  onChange={(e) => setCandleName(e.target.value)}
+                  placeholder={lang === 'en' ? 'Optional' : 'אופציונלי'}
+                />
+              </div>
             </div>
           </div>
           
           {candles.length > 0 && (
             <div className="candles-list">
-              <h3>נרות שהודלקו ({candles.length})</h3>
+              <h3>{t.candlesList} ({candles.length})</h3>
               <div className="candles-grid">
                 {candles.map((candle) => (
                   <div key={candle.id} className="candle-item">
@@ -747,7 +984,9 @@ function MemorialPage() {
                       <div className="candle-body small"></div>
                     </div>
                     <div className="candle-item-info">
-                      <p className="candle-item-name">{candle.litBy || 'אנונימי'}</p>
+                      <p className="candle-item-name">
+                        {candle.litBy || (lang === 'en' ? 'Anonymous' : 'אנונימי')}
+                      </p>
                       <p className="candle-item-date">
                         {new Date(candle.createdAt).toLocaleDateString('he-IL')}
                       </p>
@@ -863,29 +1102,71 @@ function MemorialPage() {
           </section>
         )}
 
-        {/* Yahrzeit reminder – תזכורת ביום הפטירה */}
-        {memorial.deathDate && memorial.deathDate.trim() !== '' && (
+        {/* אירוע שנתי לזכרו */}
+        {(memorial.event_title || memorial.event_date || memorial.event_place || memorial.event_url || (memorial.event_description && memorial.event_description.trim())) && (
+          <section className="event-section">
+            <h2 className="section-title">
+              <FaHistory /> אירועים לזכרו
+            </h2>
+            <div className="event-content">
+              {memorial.event_title && <h3 className="event-title">{memorial.event_title}</h3>}
+              {(memorial.event_date || memorial.event_place) && (
+                <div className="event-meta">
+                  {memorial.event_date && <span className="event-date">{memorial.event_date}</span>}
+                  {memorial.event_date && memorial.event_place && ' · '}
+                  {memorial.event_place && <span className="event-place">{memorial.event_place}</span>}
+                </div>
+              )}
+              {memorial.event_description && memorial.event_description.trim() && (
+                <p className="event-description">{memorial.event_description.trim()}</p>
+              )}
+              {memorial.event_url && (
+                <a
+                  href={memorial.event_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn btn-primary event-link"
+                >
+                  פרטים ורישום
+                </a>
+              )}
+            </div>
+          </section>
+        )}
+
+        {/* תזכורות – יום הפטירה ויום ההולדת */}
+        {((memorial.deathDate && memorial.deathDate.trim() !== '') || (memorial.birthDate && memorial.birthDate.trim() !== '')) && (
           <section className="reminder-section">
             <h2 className="section-title">
-              <FaBell /> תזכורת ביום הפטירה
+              <FaBell /> {t.reminders}
             </h2>
             <div className="reminder-content">
               <p className="reminder-description">
-                הרשם לכתובת האימייל שלך ונשלח אליך תזכורת בכל שנה (אפשר לבחור ביום הפטירה ו/או 10 ימים לפני).
+                {t.reminderDesc}
               </p>
               {reminderSubmitted ? (
-                <p className="reminder-success">נרשמת בהצלחה. נשלח אליך אימייל בכל שנה לפי הבחירה שלך.</p>
+                <p className="reminder-success">{t.reminderSuccess}</p>
               ) : (
                 <form onSubmit={submitReminder} className="reminder-form-inner">
                   <div className="reminder-checkboxes">
-                    <label>
-                      <input type="checkbox" checked={remindOnDay} onChange={(e) => setRemindOnDay(e.target.checked)} />
-                      תזכורת ביום הפטירה
-                    </label>
-                    <label>
-                      <input type="checkbox" checked={remind10DaysBefore} onChange={(e) => setRemind10DaysBefore(e.target.checked)} />
-                      תזכורת 10 ימים לפני
-                    </label>
+                    {memorial.deathDate && memorial.deathDate.trim() !== '' && (
+                      <>
+                        <label>
+                          <input type="checkbox" checked={remindOnDay} onChange={(e) => setRemindOnDay(e.target.checked)} />
+                          {t.remindDeath}
+                        </label>
+                        <label>
+                          <input type="checkbox" checked={remind10DaysBefore} onChange={(e) => setRemind10DaysBefore(e.target.checked)} />
+                          {t.remind10Before}
+                        </label>
+                      </>
+                    )}
+                    {memorial.birthDate && memorial.birthDate.trim() !== '' && (
+                      <label>
+                        <input type="checkbox" checked={remindBirthday} onChange={(e) => setRemindBirthday(e.target.checked)} />
+                        {t.remindBirthday}
+                      </label>
+                    )}
                   </div>
                   <div className="reminder-form">
                     <input
@@ -897,7 +1178,7 @@ function MemorialPage() {
                       disabled={reminderSubmitting}
                     />
                     <button type="submit" className="btn btn-primary" disabled={reminderSubmitting}>
-                      <FaEnvelope /> {reminderSubmitting ? 'נרשם...' : 'הרשם לתזכורת'}
+                      <FaEnvelope /> {reminderSubmitting ? (lang === 'en' ? 'Subscribing...' : 'נרשם...') : t.subscribeReminder}
                     </button>
                   </div>
                 </form>
@@ -906,10 +1187,49 @@ function MemorialPage() {
           </section>
         )}
 
+        {/* Yizkor & memorial prayers */}
+        <section className="yizkor-section">
+          <h2 className="section-title">
+            {t.yizkorPrayers}
+          </h2>
+          <div className="yizkor-grid">
+            <div className="yizkor-card">
+              <div className="yizkor-card-header">
+                <h3>{t.yizkorTitle}</h3>
+                <button
+                  type="button"
+                  className="btn btn-outline btn-sm"
+                  onClick={() => copyPrayer(yizkorText, 'yizkor')}
+                >
+                  {yizkorCopied ? t.copied : t.copyPrayer}
+                </button>
+              </div>
+              <p className="yizkor-text">
+                {yizkorText}
+              </p>
+            </div>
+            <div className="yizkor-card">
+              <div className="yizkor-card-header">
+                <h3>{t.elMaleTitle}</h3>
+                <button
+                  type="button"
+                  className="btn btn-outline btn-sm"
+                  onClick={() => copyPrayer(elMaleRachamimText, 'elMale')}
+                >
+                  {elMaleCopied ? t.copied : t.copyPrayer}
+                </button>
+              </div>
+              <p className="yizkor-text">
+                {elMaleRachamimText}
+              </p>
+            </div>
+          </div>
+        </section>
+
         {/* QR Code Section */}
         {memorial.qrCodePath && (
           <section className="qr-section">
-            <h2 className="section-title">QR Code לדף זיכרון זה</h2>
+            <h2 className="section-title">{t.qrCode}</h2>
             <div className="qr-content">
               <div className="qr-image">
                 <img 
@@ -972,6 +1292,7 @@ function MemorialPage() {
       {/* Footer */}
       <footer className="memorial-footer">
         <p>תהא נשמתו צרורה בצרור החיים</p>
+        <Link to="/support" className="memorial-footer-support-link">משאבים למשפחות</Link>
       </footer>
     </div>
   );

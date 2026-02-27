@@ -25,7 +25,12 @@ function EditMemorial() {
     cemeteryName: '',
     cemeteryAddress: '',
     latitude: '',
-    longitude: ''
+    longitude: '',
+    event_title: '',
+    event_date: '',
+    event_place: '',
+    event_url: '',
+    event_description: ''
   });
   const [files, setFiles] = useState([]);
   const [previews, setPreviews] = useState([]);
@@ -85,7 +90,12 @@ function EditMemorial() {
             cemeteryName: memorial.cemeteryName || '',
             cemeteryAddress: memorial.cemeteryAddress || '',
             latitude: memorial.latitude ? String(memorial.latitude) : '',
-            longitude: memorial.longitude ? String(memorial.longitude) : ''
+            longitude: memorial.longitude ? String(memorial.longitude) : '',
+            event_title: memorial.event_title || '',
+            event_date: memorial.event_date || '',
+            event_place: memorial.event_place || '',
+            event_url: memorial.event_url || '',
+            event_description: memorial.event_description || ''
           });
 
           // Set existing media
@@ -553,6 +563,7 @@ function EditMemorial() {
                   value={formData.birthDate}
                   onChange={handleChange}
                 />
+                <small className="date-hint">פורמט: יום/חודש/שנה</small>
               </div>
 
               <div className="form-group">
@@ -564,6 +575,7 @@ function EditMemorial() {
                   value={formData.deathDate}
                   onChange={handleChange}
                 />
+                <small className="date-hint">פורמט: יום/חודש/שנה</small>
               </div>
             </div>
 
@@ -709,6 +721,132 @@ function EditMemorial() {
                 </div>
               </div>
             </div>
+
+          <div className="form-section">
+            <h2>אירוע שנתי לזכרו (אופציונלי)</h2>
+            <p className="form-hint">ערב לימוד, גיוס תרומות, אירוע לזכר וכדומה – יוצגו בדף הזיכרון.</p>
+            <div className="form-group">
+              <label htmlFor="event_title">כותרת האירוע</label>
+              <input
+                type="text"
+                id="event_title"
+                name="event_title"
+                value={formData.event_title}
+                onChange={handleChange}
+                placeholder="לדוגמה: אירוע שנתי לזכר..."
+              />
+            </div>
+            <div className="form-row">
+              <div className="form-group">
+                <label htmlFor="event_date">תאריך</label>
+                <input
+                  type="text"
+                  id="event_date"
+                  name="event_date"
+                  value={formData.event_date}
+                  onChange={handleChange}
+                  placeholder="לדוגמה: 15.5 או א׳ סיון"
+                />
+              </div>
+              <div className="form-group">
+                <label htmlFor="event_place">מקום</label>
+                <input
+                  type="text"
+                  id="event_place"
+                  name="event_place"
+                  value={formData.event_place}
+                  onChange={handleChange}
+                  placeholder="מקום האירוע"
+                />
+              </div>
+            </div>
+            <div className="form-group">
+              <label htmlFor="event_url">קישור (רישום / פרטים)</label>
+              <input
+                type="url"
+                id="event_url"
+                name="event_url"
+                value={formData.event_url}
+                onChange={handleChange}
+                placeholder="https://..."
+              />
+              <small className="form-hint-inline">כתובת דף באינטרנט של האירוע — דף רישום או דף פרטים (ערב לימוד, גיוס תרומות, אירוע לזכר וכדומה). אם תמלא, יופיע בדף הזיכרון כפתור "פרטים ורישום" שיוביל לכתובת. לא חובה.</small>
+            </div>
+            <div className="form-group">
+              <label htmlFor="event_description">תיאור קצר</label>
+              <textarea
+                id="event_description"
+                name="event_description"
+                value={formData.event_description}
+                onChange={handleChange}
+                rows="2"
+                placeholder="משפט או שניים על האירוע"
+              />
+              </div>
+            </div>
+
+          <div className="form-section">
+            <h2>אירוע שנתי לזכרו (אופציונלי)</h2>
+            <p className="form-hint">ערב לימוד, גיוס תרומות, אירוע לזכר וכדומה – יוצגו בדף הזיכרון.</p>
+            <div className="form-group">
+              <label htmlFor="event_title">כותרת האירוע</label>
+              <input
+                type="text"
+                id="event_title"
+                name="event_title"
+                value={formData.event_title}
+                onChange={handleChange}
+                placeholder="לדוגמה: אירוע שנתי לזכר..."
+              />
+            </div>
+            <div className="form-row">
+              <div className="form-group">
+                <label htmlFor="event_date">תאריך</label>
+                <input
+                  type="text"
+                  id="event_date"
+                  name="event_date"
+                  value={formData.event_date}
+                  onChange={handleChange}
+                  placeholder="לדוגמה: 15.5 או א׳ סיון"
+                />
+              </div>
+              <div className="form-group">
+                <label htmlFor="event_place">מקום</label>
+                <input
+                  type="text"
+                  id="event_place"
+                  name="event_place"
+                  value={formData.event_place}
+                  onChange={handleChange}
+                  placeholder="מקום האירוע"
+                />
+              </div>
+            </div>
+            <div className="form-group">
+              <label htmlFor="event_url">קישור (רישום / פרטים)</label>
+              <input
+                type="url"
+                id="event_url"
+                name="event_url"
+                value={formData.event_url}
+                onChange={handleChange}
+                placeholder="https://..."
+              />
+              <small className="form-hint-inline">כתובת דף באינטרנט של האירוע — דף רישום או דף פרטים (ערב לימוד, גיוס תרומות, אירוע לזכר וכדומה). אם תמלא, יופיע בדף הזיכרון כפתור "פרטים ורישום" שיוביל לכתובת. לא חובה.</small>
+            </div>
+            <div className="form-group">
+              <label htmlFor="event_description">תיאור קצר</label>
+              <textarea
+                id="event_description"
+                name="event_description"
+                value={formData.event_description}
+                onChange={handleChange}
+                rows="2"
+                placeholder="משפט או שניים על האירוע"
+              />
+            </div>
+          </div>
 
           <div className="form-group">
             <div className="timeline-header">
@@ -928,7 +1066,7 @@ function EditMemorial() {
 
             <div className="form-group music-upload">
               <label>שיר רקע למצגת (אופציונלי)</label>
-              
+              <p className="music-eulogy-hint">ניתן גם להוסיף שיר או הקלטת מילות הספד על הנפטר – ינוגן אוטומטית למבקרים בדף.</p>
               <div className="music-mode-selector">
                 <button
                   type="button"

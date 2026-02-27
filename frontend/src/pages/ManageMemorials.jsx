@@ -294,7 +294,7 @@ function ManageMemorials() {
     try {
       const res = await axios.post(
         getApiEndpoint('/api/payments/create'),
-        { memorialId, planType: 'monthly', amount: 15 },
+        { memorialId, planType: 'monthly', amount: 12 },
         { headers: { Authorization: `Bearer ${token}` } }
       );
       if (res.data.success && res.data.approveUrl) {
@@ -316,14 +316,14 @@ function ManageMemorials() {
     try {
       const res = await axios.post(
         getApiEndpoint('/api/payments/create-intent'),
-        { memorialId, planType: 'monthly', amount: 15 },
+        { memorialId, planType: 'monthly', amount: 12 },
         { headers: { Authorization: `Bearer ${token}` } }
       );
       if (res.data.success && res.data.clientSecret) {
         setStripeModal({
           clientSecret: res.data.clientSecret,
           paymentId: res.data.paymentId,
-          amount: 15
+          amount: 12
         });
       } else {
         alert(res.data?.message || 'שגיאה ביצירת תשלום');
@@ -351,8 +351,7 @@ function ManageMemorials() {
       });
 
       if (response.data.success) {
-        alert(`נמחקו ${response.data.deletedCount} דפי בדיקה ישנים`);
-        // Refresh the list
+        alert(response.data.message || `נמחקו ${response.data.deletedCount} דפי בדיקה ישנים`);
         fetchMemorials();
       } else {
         alert('שגיאה במחיקת דפי הבדיקה');
@@ -360,6 +359,36 @@ function ManageMemorials() {
     } catch (err) {
       console.error('Error cleaning up test memorials:', err);
       alert('שגיאה במחיקת דפי הבדיקה: ' + (err.response?.data?.message || err.message));
+    }
+  };
+
+  const handleDeleteAllMemorials = async () => {
+    const total = memorials.length;
+    if (total === 0) {
+      alert('אין דפי זיכרון למחוק.');
+      return;
+    }
+    const msg = `אזהרה: אתה עומד למחוק את כל ${total} דפי הזיכרון במערכת.\nפעולה זו לא ניתנת לביטול.\n\nלהמשיך?`;
+    if (!window.confirm(msg)) return;
+    const token = localStorage.getItem('token');
+    if (!token) {
+      alert('נדרש להתחבר. אנא התחבר מחדש.');
+      navigate('/login');
+      return;
+    }
+    try {
+      const response = await axios.delete(getApiEndpoint('/api/memorials/cleanup/all'), {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (response.data.success) {
+        alert(response.data.message || `נמחקו ${response.data.deletedCount} דפי זיכרון`);
+        fetchMemorials();
+      } else {
+        alert(response?.data?.message || 'שגיאה במחיקת דפי הזיכרון');
+      }
+    } catch (err) {
+      console.error('Error deleting all memorials:', err);
+      alert('שגיאה: ' + (err.response?.data?.message || err.message));
     }
   };
 
@@ -415,20 +444,25 @@ function ManageMemorials() {
               <Link to="/create" className="btn btn-primary" style={{ display: 'inline-block', padding: '12px 24px', marginLeft: '10px' }}>
                 צור דף זיכרון חדש
               </Link>
-              {memorials.some(m => m.status && m.status !== 'temporary') && (
-                <Link to="/add-storage" className="btn btn-outline" style={{ display: 'inline-block', padding: '12px 24px', marginRight: '10px' }}>
-                  הוסף אחסון (גיגה)
-                </Link>
-              )}
               {isAdmin && (
-                <button 
-                  onClick={handleCleanupTestMemorials}
-                  className="btn btn-outline" 
-                  style={{ display: 'inline-block', padding: '12px 24px', marginRight: '10px', background: '#fff', color: '#dc3545', borderColor: '#dc3545' }}
-                >
-                  <FaTrash style={{ marginLeft: '5px' }} />
-                  מחק דפי בדיקה ישנים
-                </button>
+                <>
+                  <button
+                    onClick={handleDeleteAllMemorials}
+                    className="btn btn-outline"
+                    style={{ display: 'inline-block', padding: '12px 24px', marginRight: '10px', background: '#dc3545', color: '#fff', borderColor: '#dc3545' }}
+                  >
+                    <FaTrash style={{ marginLeft: '5px' }} />
+                    מחק את כל דפי הזיכרון
+                  </button>
+                  <button
+                    onClick={handleCleanupTestMemorials}
+                    className="btn btn-outline"
+                    style={{ display: 'inline-block', padding: '12px 24px', marginRight: '10px', background: '#fff', color: '#856404', borderColor: '#856404' }}
+                  >
+                    <FaTrash style={{ marginLeft: '5px' }} />
+                    מחק דפי בדיקה ישנים (ללא משתמש)
+                  </button>
+                </>
               )}
             </div>
 

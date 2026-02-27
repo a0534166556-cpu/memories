@@ -1,60 +1,77 @@
 import { useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { FaHome, FaPlay, FaPause, FaVolumeUp, FaHeart, FaBook, FaHistory, FaFire, FaComment, FaMapMarkerAlt } from 'react-icons/fa';
+import { FaHome, FaPlay, FaPause, FaVolumeUp, FaHeart, FaBook, FaHistory, FaFire, FaComment, FaMapMarkerAlt, FaTimes, FaExpand, FaShareAlt, FaEnvelope, FaCopy, FaPrint, FaPalette, FaBell, FaDownload, FaCalendarAlt } from 'react-icons/fa';
 import { Swiper, SwiperSlide } from 'swiper/react';
 import { Navigation, Pagination, Autoplay } from 'swiper/modules';
 import TehilimReader from '../components/TehilimReader';
 import MishnayotReader from '../components/MishnayotReader';
+import { memorialPageTranslations } from '../i18n/memorialPage';
+import { yizkorText, elMaleRachamimText } from '../data/yizkorPrayers';
 import 'swiper/css';
 import 'swiper/css/navigation';
 import 'swiper/css/pagination';
 import './MemorialPage.css';
 
+const EXAMPLE_PAGE_URL = typeof window !== 'undefined' ? window.location.origin + '/example' : 'https://memoriesman.netlify.app/example';
+const BACKGROUND_OPTIONS = [
+  { id: 'default', label: 'רגיל', title: 'רקע רגיל' },
+  { id: 'paper', label: 'נייר', title: 'רקע נייר שמנת' },
+  { id: 'warm', label: 'חם', title: 'רקע חם/בז\'ה' },
+  { id: 'sky', label: 'שמיים', title: 'רקע תכלת עדין' },
+  { id: 'nature', label: 'טבע', title: 'רקע ירוק עדין' },
+  { id: 'gradient', label: 'גרדיאנט', title: 'רקע גרדיאנט' },
+  { id: 'dark', label: 'כהה', title: 'רקע כהה' },
+];
+
 // Example memorial data - structured like a real user-created memorial
 const exampleMemorial = {
-  name: 'שמואל (סמי) ארז',
-  hebrewName: 'שמואל בן אברהם ושרה',
-  birthDate: '1954-03-15',
-  deathDate: '2024-11-20',
-  heroImage: 'https://images.unsplash.com/photo-1544723795-3fb6469f5b39?auto=format&fit=crop&w=900&q=80',
-  heroSummary: 'מחנך, מתנדב, ואב מסור שהאיר פנים לכל אדם. חייו הטביעו חותם של חסד, סבלנות ותקווה עבור קהילתו ובני משפחתו. זכרו יישאר בליבנו לנצח.',
-  biography: 'שמואל ארז נולד בשכונת נחלאות בירושלים לבית צנוע ומלא ערכים. כבר מילדות גילה אהבה עמוקה לעזרה לזולת והיה מוכר בשכונה כמי שתמיד מוכן להגיש יד, לחייך ולשמח את הלבבות. עיניו הטובות והחיוך החם שלו היו סימן ההיכר שלו, וכל מי שפגש אותו חש מיד את החום והאנושיות שזרמו ממנו.\n\nלאחר שירות צבאי משמעותי בו גילה אומץ ונאמנות, המשיך שמואל ללימודי חינוך והפך למורה אהוב ומוערך. תלמידיו זוכרים אותו כמי שהאמין בהם גם כשלא האמינו בעצמם, כמי שלימד לא רק חומר לימודי אלא גם ערכים, כבוד ואהבת אדם. "המורה שמואל שינה את חיי" - כך אמרו רבים מתלמידיו.\n\nלאורך הקריירה שלו, דאג שמואל להרחיב את תחום ההשפעה שלו. הוא הקים עמותה קהילתית במטרה לתת מענה לנוער במצבי משבר וסיפק להם ליווי אישי, פעילויות העשרה ומרחב בטוח לגדול בו. מאות בני נוער מצאו בו דמות אב, מנטור וחבר אמיתי. "הוא היה האב שלא היה לי" - כך סיפר אחד מהם.\n\nלצד פעילותו הציבורית, שמואל היה אב מסור וזוגיותו עם אסתר התאפיינה בשותפות עמוקה, אהבה בלתי מתפשרת וכבוד הדדי. יחד הם בנו בית מלא אהבה, צחוק וזיכרונות יקרים. שלושת ילדיהם גדלו באווירה של נתינה, ערכים ואמונה בטוב שבאדם.\n\nבשנותיו האחרונות השקיע את זמנו בנכדיו, שהפכו למרכז עולמו. הוא ארגן מפגשי שבת משפחתיים, סיפר סיפורים, שר שירים ולמד איתם תורה. הנכדים זוכרים את הסיפורים שלו, את החיבוקים החמים ואת האהבה הבלתי מותנית שזרמה ממנו. "סבא היה הגיבור שלי" - כך אמר אחד הנכדים.\n\nשמואל המשיך להוביל שיעורי השראה שבועיים על ערכים, מסורת וחסד עד ימיו האחרונים. הוא האמין שכל אדם יכול לשנות את העולם, ולו במעט, אם רק יבחר בטוב.\n\nהוא הותיר אחריו משפחה מאוחדת, תלמידים רבים שזכו להכיר אותו, ומורשת של נדיבות, מוזיקה ושמחה. הזיכרונות שלו מלווים אותנו בכל יום, והאהבה שלו ממשיכה להאיר את דרכנו. תהא נשמתו צרורה בצרור החיים.',
+  name: 'סגן יעקב אליאן ז"ל',
+  hebrewName: 'יעקב בן יורם וסילביה',
+  birthDate: '2003-01-15',
+  deathDate: '2023-12-20',
+  heroImage: 'https://app.memoriez.co.il/wp-content/uploads/2024/09/c2e0d17f-e7a1-4723-b279-e58e81968de5.jpeg',
+  heroSummary: 'התגייס לגבעתי ב-2022 והגשים את חלום חייו להילחם על הארץ. צוער בגדוד "גפן" בבית הספר לקצינים, נפל בקרב בצפון רצועת עזה ב-20/12/23 תוך ביצוע מעשי גבורה כשהסתער לתוך האש כדי להציל את חברו שנפגע מאש מחבלים. בן 20 במותו.',
+  biography: 'סגן יעקב אליאן ז"ל התגייס לגבעתי ב-2022 והגשים את חלום חייו להילחם על הארץ. צוער בגדוד "גפן" בבית הספר לקצינים, שנפל בקרב בצפון רצועת עזה ב-20/12/23, תוך ביצוע מעשי גבורה כשהסתער לתוך האש כדי להציל את חברו שנפגע מאש מחבלים. בן 20 במותו.\n\nכל כך צעיר, עניו – חינניות אפיינה אותו ואת מראהו. היה ילד של תרומה לזולת, נתינה אינסופית, תורם לחברה ללא גבולות, מתנדב בקהילה, חבר מופלא, בן מסור להוריו ולמשפחתו, שתמיד היה שם עבור כולם ועבור כל דבר.\n\nכנער התנדב באופן קבוע במשטרת ישראל, ניצל כל זמן שהיה לתרומה לקהילה. בלווייתו היה ניתן להיווכח כיצד בכל תחנות חייו השאיר חותם על מוריו וחבריו – נציגים מכל תחנות חייו באו לחלוק לו כבוד בדרכו האחרונה, החל מהגננת ועד למנהלי בתי הספר בהם למד.\n\nמרכזי החינוך אמונים בגבעתיים ותיכון אמי"ת בר אילן בגבעת שמואל הטמיעו בו את ערכי תורה ועבודה שלהם הם מחנכים: אהבת הארץ, מצוינות, תרומה לחברה ואמונה בנצח ישראל. וכמובן, שמורה להוריו היקרים סילביה ויורם אליאן מלוא ההערכה על גידולו לתפארת של יעקב והטמעת הערכים של ציונות ואהבת המדינה.\n\nיעקב הוא בן יחיד להוריו, אח לאחותו הצעירה קרן. מתגעגעים אלייך יעקב.',
+  // גלריה — תמונות (קישורים)
   images: [
-    'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?auto=format&fit=crop&w=1400&q=80',
-    'https://images.unsplash.com/photo-1441974231531-c6227db76b6e?auto=format&fit=crop&w=1400&q=80',
-    'https://images.unsplash.com/photo-1511497584788-876760111969?auto=format&fit=crop&w=1400&q=80',
-    'https://images.unsplash.com/photo-1505142468610-359e7d316be0?auto=format&fit=crop&w=1400&q=80'
+    'https://app.memoriez.co.il/wp-content/uploads/forminator/1626_7388d296f009d41d0cd8267a6979706c/uploads/OMFlEEo5cWhY-e1bca42b-6646-4ccc-90b3-e82227dd7638.jpeg',
   ],
-  videos: [],
+  videos: ['/demo-gallery-video.mp4'],
   timeline: [
     {
-      year: '1954',
-      title: 'ילדות בירושלים',
-      description: 'נולד וגדל בשכונת נחלאות בירושלים, לבית שדגל בערכים של חסד ונתינה. כבר כילד אהב להסתובב בשוק מחנה יהודה, לעזור לזקנים לשאת את הקניות ולשמוע את סיפורי השכונה. המורים בבית הספר השכונתי זוכרים אותו כמי שתמיד היה מוכן לעזור לחבריו ולשתף את מה שהיה לו.'
+      year: '2022',
+      title: 'התגייסות לגבעתי',
+      description: 'התגייס לגבעתי והגשים את חלום חייו להילחם על הארץ. צוער בגדוד "גפן" בבית הספר לקצינים.'
     },
     {
-      year: '1976',
-      title: 'הקמת משפחה',
-      description: 'נישא לאסתר, אהבת חייו, והקים יחד איתה בית חם ומכיל. שלושת ילדיהם גדלו באווירה של אהבה, כבוד וצחוק. הבית שלהם היה תמיד פתוח לאורחים, לחברים ולמשפחה הרחבה. שמואל ואסתר היו זוג מושלם - משלימים זה את זה, תומכים זה בזה ומאירים זה את זה.'
+      year: '2023',
+      title: 'נפילה בקרב',
+      description: 'נפל בקרב בצפון רצועת עזה ב-20/12/23, תוך ביצוע מעשי גבורה – הסתער לתוך האש כדי להציל את חברו שנפגע מאש מחבלים. בן 20 במותו.'
     },
     {
-      year: '1992',
-      title: 'מפעל חייו',
-      description: 'ייסד עמותה לקידום נוער במצוקה והקים מרכז העשרה וחונכות שהשפיע על מאות בני נוער ברחבי העיר. "כל ילד הוא עולם ומלואו" - כך נהג לומר. הוא האמין בכל אחד מהם, גם כשלא האמינו בעצמם. רבים מהם הפכו לאנשים טובים יותר בזכותו, וזוכרים אותו באהבה ובכבוד.'
+      year: 'תיכון',
+      title: 'אמי"ת בר אילן גבעת שמואל',
+      description: 'מרכזי החינוך אמונים בגבעתיים ותיכון אמי"ת בר אילן הטמיעו בו ערכי תורה ועבודה, אהבת הארץ, מצוינות, תרומה לחברה ואמונה בנצח ישראל.'
     },
     {
-      year: '2015',
-      title: 'שנות הסבאות',
-      description: 'התמסר לנכדיו בכל ליבו ונפשו. ארגן מפגשי שבת משפחתיים מלאי שמחה, סיפורים ושירים. תמיד הגיע עם חיוך רחב, חיבוקים חמים ומדליק נרות לזכר יקיריו הקודמים במשפחה. הנכדים זוכרים את הסיפורים שלו, את הצחוק המשותף ואת האהבה הבלתי מותנית. "סבא היה הכי טוב בעולם" - כך אמרו כולם.'
+      year: 'התנדבות',
+      title: 'משטרת ישראל וקהילה',
+      description: 'כנער התנדב באופן קבוע במשטרת ישראל וניצל כל זמן לתרומה לקהילה. בלווייתו באו נציגים מכל תחנות חייו – מהגננת ועד מנהלי בתי הספר – לחלוק לו כבוד.'
     }
   ],
   tehilimChapters: '23,103,130',
   mishnayot: 'ברכות א, ברכות ב, שבת א',
-  backgroundMusic: '/audio/sad-vibes.mp3',
-  cemeteryName: 'בית הקברות הר הזיתים',
-  cemeteryAddress: 'רחוב הר הזיתים, ירושלים',
-  latitude: '31.7784',
-  longitude: '35.2434'
+  backgroundMusic: '/audio/Quiet-Honor-7.mp3',
+  cemeteryName: '',
+  cemeteryAddress: '',
+  latitude: '',
+  longitude: '',
+  event_title: 'ערב זיכרון לסגן יעקב אליאן ז"ל',
+  event_date: 'כ\' בכסלו',
+  event_place: '',
+  event_description: '',
+  event_url: '',
+  qrCodePath: null
 };
 
 function MemorialExample() {
@@ -68,7 +85,95 @@ function MemorialExample() {
   const [showCondolences, setShowCondolences] = useState(false);
   const [condolenceForm, setCondolenceForm] = useState({ name: '', message: '' });
   const [submittingCondolence, setSubmittingCondolence] = useState(false);
+  const [fullscreenImageIndex, setFullscreenImageIndex] = useState(null);
+  const [lang, setLang] = useState('he');
+  const [fontSizeMode, setFontSizeMode] = useState('large');
+  const [backgroundMode, setBackgroundMode] = useState('default');
+  const [showShareMenu, setShowShareMenu] = useState(false);
+  const [showBackgroundMenu, setShowBackgroundMenu] = useState(false);
+  const [reminderEmail, setReminderEmail] = useState('');
+  const [remindOnDay, setRemindOnDay] = useState(true);
+  const [remind10DaysBefore, setRemind10DaysBefore] = useState(false);
+  const [remindBirthday, setRemindBirthday] = useState(false);
+  const [reminderSubmitting, setReminderSubmitting] = useState(false);
+  const [reminderSubmitted, setReminderSubmitted] = useState(false);
+  const [yizkorCopied, setYizkorCopied] = useState(false);
+  const [elMaleCopied, setElMaleCopied] = useState(false);
+  const [candleName, setCandleName] = useState('');
   const audioRef = useRef(null);
+
+  const t = memorialPageTranslations[lang];
+  const setLangAndSave = (l) => setLang(l);
+  const setFontSizeAndSave = (m) => setFontSizeMode(m);
+  const setBackgroundAndSave = (id) => { setBackgroundMode(id); setShowBackgroundMenu(false); };
+
+  const shareUrl = EXAMPLE_PAGE_URL;
+  const shareTitle = `דף זיכרון - ${exampleMemorial.name}`;
+  const shareText = exampleMemorial.heroSummary
+    ? `${exampleMemorial.name}: ${exampleMemorial.heroSummary.slice(0, 80)}...`
+    : `דף זיכרון לזכר ${exampleMemorial.name}`;
+
+  const copyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      alert(lang === 'he' ? 'הקישור הועתק ללוח.' : 'Link copied.');
+      setShowShareMenu(false);
+    } catch {
+      alert(lang === 'he' ? 'לא ניתן להעתיק.' : 'Could not copy.');
+    }
+  };
+  const shareViaWhatsApp = () => {
+    window.open(`https://wa.me/?text=${encodeURIComponent(shareText + '\n' + shareUrl)}`, '_blank');
+    setShowShareMenu(false);
+  };
+  const shareViaEmail = () => {
+    window.location.href = `mailto:?subject=${encodeURIComponent(shareTitle)}&body=${encodeURIComponent(shareText + '\n\n' + shareUrl)}`;
+    setShowShareMenu(false);
+  };
+  const shareNative = async () => {
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: shareTitle, text: shareText, url: shareUrl });
+        alert(lang === 'he' ? 'הקישור שותף.' : 'Shared.');
+      } else copyLink();
+      setShowShareMenu(false);
+    } catch (e) { if (e.name !== 'AbortError') copyLink(); }
+  };
+  const printMemorial = () => window.print();
+
+  const copyPrayer = async (text, which) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      if (which === 'yizkor') setYizkorCopied(true); else setElMaleCopied(true);
+      setTimeout(() => { setYizkorCopied(false); setElMaleCopied(false); }, 2000);
+    } catch {}
+  };
+
+  const submitReminder = (e) => {
+    e.preventDefault();
+    if (!reminderEmail.trim()) { alert(lang === 'he' ? 'נא להזין אימייל' : 'Enter email'); return; }
+    if (!remindOnDay && !remind10DaysBefore && !remindBirthday) { alert(lang === 'he' ? 'נא לבחור תזכורת' : 'Choose a reminder'); return; }
+    setReminderSubmitting(true);
+    setTimeout(() => { setReminderSubmitted(true); setReminderSubmitting(false); }, 500);
+  };
+
+  let yahrzeitBanner = null;
+  if (exampleMemorial.deathDate && exampleMemorial.deathDate.trim()) {
+    try {
+      const death = new Date(exampleMemorial.deathDate);
+      if (!isNaN(death.getTime())) {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const thisYear = new Date(today.getFullYear(), death.getMonth(), death.getDate());
+        let nextYahrzeit = thisYear < today ? new Date(today.getFullYear() + 1, death.getMonth(), death.getDate()) : thisYear;
+        const diffDays = Math.ceil((nextYahrzeit - today) / (1000 * 60 * 60 * 24));
+        const hebrewDate = nextYahrzeit.toLocaleDateString('he-IL', { day: 'numeric', month: 'long', year: 'numeric' });
+        if (diffDays === 0) yahrzeitBanner = t.yahrzeitToday;
+        else if (diffDays === 1) yahrzeitBanner = (t.yahrzeitTomorrow || 'מועד האזכרה מחר').replace('{date}', hebrewDate);
+        else yahrzeitBanner = (t.yahrzeitInDays || 'מועד האזכרה בעוד {days} ימים').replace('{days}', diffDays).replace('{date}', hebrewDate);
+      }
+    } catch {}
+  }
 
   const formatDate = (dateStr) => {
     if (!dateStr) return '';
@@ -107,7 +212,7 @@ function MemorialExample() {
 
     const newCandle = {
       id: Date.now(),
-      litBy: 'אנונימי',
+      litBy: (candleName && candleName.trim()) ? candleName.trim() : (lang === 'en' ? 'Anonymous' : 'אנונימי'),
       createdAt: new Date().toISOString()
     };
 
@@ -156,7 +261,14 @@ function MemorialExample() {
   ) : [];
 
   return (
-    <div className="memorial-page">
+    <div className={`memorial-page memorial-page--bg-${backgroundMode}`}>
+      {/* Yahrzeit Banner */}
+      {yahrzeitBanner && (
+        <div className="yahrzeit-banner no-print">
+          <FaCalendarAlt /> {yahrzeitBanner}
+        </div>
+      )}
+
       {/* Background Music Player */}
       {memorial?.backgroundMusic && (
         <>
@@ -178,14 +290,48 @@ function MemorialExample() {
       <div className="memorial-header">
         <div className="header-overlay">
           <div className="container">
-            <Link to="/" className="home-link">
-              <FaHome /> דף הבית
-            </Link>
+            <div className="header-links no-print">
+              <Link to="/" className="home-link">
+                <FaHome /> {t.home}
+              </Link>
+              <div className="share-dropdown-wrap">
+                <button type="button" className="btn-share" onClick={() => setShowShareMenu((v) => !v)} title={t.share} aria-expanded={showShareMenu}>
+                  <FaShareAlt /> {t.share}
+                </button>
+                {showShareMenu && (
+                  <div className="share-menu" role="menu">
+                    <button type="button" role="menuitem" onClick={shareNative}><FaShareAlt /> {t.shareSystem}</button>
+                    <button type="button" role="menuitem" onClick={shareViaWhatsApp}>WhatsApp</button>
+                    <button type="button" role="menuitem" onClick={shareViaEmail}><FaEnvelope /> {t.email}</button>
+                    <button type="button" role="menuitem" onClick={copyLink}><FaCopy /> {t.copyLink}</button>
+                  </div>
+                )}
+              </div>
+              <button type="button" className="btn-print no-print" onClick={printMemorial} title={t.print}>
+                <FaPrint /> {t.print}
+              </button>
+              <div className="background-dropdown no-print">
+                <button type="button" className="btn-background" onClick={() => setShowBackgroundMenu((v) => !v)} title={t.background} aria-expanded={showBackgroundMenu}>
+                  <FaPalette /> {t.background}
+                </button>
+                {showBackgroundMenu && (
+                  <div className="background-menu" role="menu">
+                    {BACKGROUND_OPTIONS.map((opt) => (
+                      <button key={opt.id} type="button" role="menuitem" className={backgroundMode === opt.id ? 'active' : ''} onClick={() => setBackgroundAndSave(opt.id)} title={opt.title}>
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div className="lang-toggle no-print" role="group" aria-label="Language">
+                <button type="button" className={`lang-btn ${lang === 'he' ? 'active' : ''}`} onClick={() => setLangAndSave('he')} aria-pressed={lang === 'he'}>עב</button>
+                <button type="button" className={`lang-btn ${lang === 'en' ? 'active' : ''}`} onClick={() => setLangAndSave('en')} aria-pressed={lang === 'en'}>EN</button>
+              </div>
+            </div>
             <div className="memorial-title-section">
               <h1 className="memorial-name">{memorial.name}</h1>
-              {memorial.hebrewName && (
-                <p className="hebrew-name">{memorial.hebrewName}</p>
-              )}
+              {memorial.hebrewName && <p className="hebrew-name">{memorial.hebrewName}</p>}
               <div className="dates">
                 {memorial.birthDate && (
                   <span>{formatDate(memorial.birthDate)}</span>
@@ -217,12 +363,12 @@ function MemorialExample() {
         </div>
       </div>
 
-      <div className="container memorial-content">
+      <div className={`container memorial-content ${fontSizeMode === 'xlarge' ? 'memorial-content--font-xlarge' : 'memorial-content--font-large'}`}>
         {/* Media Gallery */}
         {allMedia.length > 0 && (
           <section className="media-section">
             <h2 className="section-title">
-              <FaHeart /> גלריית זיכרונות
+              <FaHeart /> {t.gallery}
             </h2>
             <div className="media-gallery">
               <Swiper
@@ -238,7 +384,22 @@ function MemorialExample() {
                   <SwiperSlide key={index}>
                     <div className="media-slide">
                       {media.type === 'image' ? (
-                        <img src={media.url} alt={`זיכרון ${index + 1}`} />
+                        <>
+                          <button
+                            type="button"
+                            className="media-slide-expand-btn"
+                            onClick={() => setFullscreenImageIndex(index)}
+                            title="הגדל למסך מלא"
+                            aria-label="הגדל למסך מלא"
+                          >
+                            <FaExpand />
+                          </button>
+                          <img
+                            src={media.url}
+                            alt={`זיכרון ${index + 1}`}
+                            onClick={() => setFullscreenImageIndex(index)}
+                          />
+                        </>
                       ) : (
                         <video src={media.url} controls />
                       )}
@@ -247,13 +408,37 @@ function MemorialExample() {
                 ))}
               </Swiper>
             </div>
+            {fullscreenImageIndex !== null && allMedia[fullscreenImageIndex]?.type === 'image' && (
+              <div
+                className="gallery-fullscreen-overlay"
+                onClick={() => setFullscreenImageIndex(null)}
+                role="dialog"
+                aria-modal="true"
+                aria-label="תמונה במסך מלא"
+              >
+                <button
+                  type="button"
+                  className="gallery-fullscreen-close"
+                  onClick={(e) => { e.stopPropagation(); setFullscreenImageIndex(null); }}
+                  aria-label="סגור"
+                >
+                  <FaTimes />
+                </button>
+                <img
+                  src={allMedia[fullscreenImageIndex].url}
+                  alt={`זיכרון ${fullscreenImageIndex + 1}`}
+                  onClick={(e) => e.stopPropagation()}
+                  draggable={false}
+                />
+              </div>
+            )}
           </section>
         )}
 
         {/* Biography */}
         {memorial.biography && (
           <section className="biography-section">
-            <h2 className="section-title">סיפור חיים</h2>
+            <h2 className="section-title">{t.biography}</h2>
             <div className="biography-content">
               <p>{memorial.biography}</p>
             </div>
@@ -264,7 +449,7 @@ function MemorialExample() {
         {timelineEvents.length > 0 && (
           <section className="timeline-section">
             <h2 className="section-title">
-              <FaHistory /> ציר חיים
+              <FaHistory /> {t.timeline}
             </h2>
             <ol className="timeline-list">
               {timelineEvents.map((event, index) => {
@@ -291,7 +476,7 @@ function MemorialExample() {
           <section className="tehilim-section">
             <div className="tehilim-header">
               <h2 className="section-title">
-                <FaBook /> פרקי תהילים
+                <FaBook /> {t.tehilim}
               </h2>
               <button
                 className="btn btn-primary"
@@ -311,7 +496,7 @@ function MemorialExample() {
           <section className="mishnayot-section">
             <div className="tehilim-header">
               <h2 className="section-title">
-                <FaBook /> משניות
+                <FaBook /> {t.mishnayot}
               </h2>
               <button
                 className="btn btn-primary"
@@ -363,7 +548,7 @@ function MemorialExample() {
         {/* Virtual Candle Section */}
         <section className="candle-section">
           <h2 className="section-title">
-            <FaFire /> נר זיכרון
+            <FaFire /> {t.candle}
           </h2>
           <div className="candle-content">
             {!hasLitCandle ? (
@@ -381,16 +566,24 @@ function MemorialExample() {
               </div>
             )}
             <div className="candle-info">
-              <p className="candle-count">{candles.length} נרות דולקים</p>
-              <p className="candle-text">
-                {hasLitCandle ? 'הדלקת נר זיכרון' : 'לחץ להדלקת נר זיכרון'}
-              </p>
+              <p className="candle-count">{candles.length} {t.candlesLit}</p>
+              <p className="candle-text">{hasLitCandle ? t.youLitCandle : t.lightCandle}</p>
+              <div className="candle-name-input">
+                <label htmlFor="example-candle-name">{t.candleLighterName}</label>
+                <input
+                  id="example-candle-name"
+                  type="text"
+                  value={candleName}
+                  onChange={(e) => setCandleName(e.target.value)}
+                  placeholder={lang === 'en' ? 'Optional' : 'אופציונלי'}
+                />
+              </div>
             </div>
           </div>
           
           {candles.length > 0 && (
             <div className="candles-list">
-              <h3>נרות שהודלקו ({candles.length})</h3>
+              <h3>{t.candlesList} ({candles.length})</h3>
               <div className="candles-grid">
                 {candles.map((candle) => (
                   <div key={candle.id} className="candle-item">
@@ -399,7 +592,7 @@ function MemorialExample() {
                       <div className="candle-body small"></div>
                     </div>
                     <div className="candle-item-info">
-                      <p className="candle-item-name">{candle.litBy || 'אנונימי'}</p>
+                      <p className="candle-item-name">{candle.litBy || (lang === 'en' ? 'Anonymous' : 'אנונימי')}</p>
                       <p className="candle-item-date">
                         {new Date(candle.createdAt).toLocaleDateString('he-IL')}
                       </p>
@@ -415,13 +608,13 @@ function MemorialExample() {
         <section className="condolences-section">
           <div className="condolences-header">
             <h2 className="section-title">
-              <FaComment /> הודעות תנחומים
+              <FaComment /> {t.condolenceTitle}
             </h2>
             <button
               className="btn btn-secondary"
               onClick={() => setShowCondolences(!showCondolences)}
             >
-              {showCondolences ? 'סגור' : 'הצג הודעות'}
+              {showCondolences ? t.close : t.showCondolences}
             </button>
           </div>
 
@@ -479,11 +672,126 @@ function MemorialExample() {
             </>
           )}
         </section>
+
+        {/* אירועים לזכרו */}
+        {(memorial.event_title || memorial.event_date || memorial.event_place || memorial.event_url || (memorial.event_description && memorial.event_description.trim())) && (
+          <section className="event-section">
+            <h2 className="section-title">
+              <FaCalendarAlt /> אירועים לזכרו
+            </h2>
+            <div className="event-content">
+              {memorial.event_title && <h3 className="event-title">{memorial.event_title}</h3>}
+              {(memorial.event_date || memorial.event_place) && (
+                <div className="event-meta">
+                  {memorial.event_date && <span className="event-date">{memorial.event_date}</span>}
+                  {memorial.event_date && memorial.event_place && ' · '}
+                  {memorial.event_place && <span className="event-place">{memorial.event_place}</span>}
+                </div>
+              )}
+              {memorial.event_description && memorial.event_description.trim() && (
+                <p className="event-description">{memorial.event_description.trim()}</p>
+              )}
+              {memorial.event_url && (
+                <a href={memorial.event_url} target="_blank" rel="noopener noreferrer" className="btn btn-primary event-link">
+                  פרטים ורישום
+                </a>
+              )}
+            </div>
+          </section>
+        )}
+
+        {/* תזכורות */}
+        <section className="reminder-section">
+          <h2 className="section-title">
+            <FaBell /> {t.reminders}
+          </h2>
+          <div className="reminder-content">
+            <p className="reminder-description">{t.reminderDesc}</p>
+            {reminderSubmitted ? (
+              <p className="reminder-success">{t.reminderSuccess}</p>
+            ) : (
+              <form onSubmit={submitReminder} className="reminder-form-inner">
+                <div className="reminder-checkboxes">
+                  {memorial.deathDate && memorial.deathDate.trim() !== '' && (
+                    <>
+                      <label>
+                        <input type="checkbox" checked={remindOnDay} onChange={(e) => setRemindOnDay(e.target.checked)} />
+                        {t.remindDeath}
+                      </label>
+                      <label>
+                        <input type="checkbox" checked={remind10DaysBefore} onChange={(e) => setRemind10DaysBefore(e.target.checked)} />
+                        {t.remind10Before}
+                      </label>
+                    </>
+                  )}
+                  {memorial.birthDate && memorial.birthDate.trim() !== '' && (
+                    <label>
+                      <input type="checkbox" checked={remindBirthday} onChange={(e) => setRemindBirthday(e.target.checked)} />
+                      {t.remindBirthday}
+                    </label>
+                  )}
+                </div>
+                <div className="reminder-form">
+                  <input
+                    type="email"
+                    value={reminderEmail}
+                    onChange={(e) => setReminderEmail(e.target.value)}
+                    placeholder={lang === 'he' ? 'האימייל שלך' : 'Your email'}
+                    className="reminder-email-input"
+                    disabled={reminderSubmitting}
+                  />
+                  <button type="submit" className="btn btn-primary" disabled={reminderSubmitting}>
+                    <FaEnvelope /> {reminderSubmitting ? (lang === 'en' ? 'Subscribing...' : 'נרשם...') : t.subscribeReminder}
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        </section>
+
+        {/* תפילות יזכור והנצחה */}
+        <section className="yizkor-section">
+          <h2 className="section-title">{t.yizkorPrayers}</h2>
+          <div className="yizkor-grid">
+            <div className="yizkor-card">
+              <div className="yizkor-card-header">
+                <h3>{t.yizkorTitle}</h3>
+                <button type="button" className="btn btn-outline btn-sm" onClick={() => copyPrayer(yizkorText, 'yizkor')}>
+                  {yizkorCopied ? t.copied : t.copyPrayer}
+                </button>
+              </div>
+              <p className="yizkor-text">{yizkorText}</p>
+            </div>
+            <div className="yizkor-card">
+              <div className="yizkor-card-header">
+                <h3>{t.elMaleTitle}</h3>
+                <button type="button" className="btn btn-outline btn-sm" onClick={() => copyPrayer(elMaleRachamimText, 'elMale')}>
+                  {elMaleCopied ? t.copied : t.copyPrayer}
+                </button>
+              </div>
+              <p className="yizkor-text">{elMaleRachamimText}</p>
+            </div>
+          </div>
+        </section>
+
+        {/* QR Code – בדוגמה רק הסבר */}
+        <section className="qr-section">
+          <h2 className="section-title">{t.qrCode}</h2>
+          <div className="qr-content">
+            <div className="qr-image" style={{ background: '#f0f0f0', borderRadius: '12px', padding: '24px', textAlign: 'center', color: '#666' }}>
+              <p style={{ margin: 0 }}>בדף זיכרון אמיתי יופיע כאן קוד QR להדפסה והצבה על המצבה. סריקה תוביל ישירות לדף.</p>
+            </div>
+            <div className="qr-info">
+              <p>סרוק קוד זה כדי לגשת לדף הזיכרון במהירות</p>
+            </div>
+          </div>
+        </section>
       </div>
 
       {/* Footer */}
       <footer className="memorial-footer">
         <p>תהא נשמתו צרורה בצרור החיים</p>
+        <Link to="/support" className="memorial-footer-support-link">משאבים למשפחות</Link>
       </footer>
     </div>
   );

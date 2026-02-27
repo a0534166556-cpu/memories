@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link, useSearchParams } from 'react-router-dom'
 import { FaHeart, FaCrown, FaCheckCircle, FaClock, FaSpinner, FaUser } from 'react-icons/fa';
 import axios from 'axios';
 import { getApiEndpoint } from '../config';
+import { memorialPageFeatures } from '../data/memorialFeatures';
 import './SaveMemorial.css';
 
 // כשנפתח מהאפליקציה (TWA) עם ?in_app=1 – לא להציג תשלום חיצוני (מדיניות Google Play)
@@ -80,10 +81,9 @@ function SaveMemorial() {
 
     try {
       const plans = {
-        'monthly': { price: 15, name: 'מנוי חודשי' },
-        'annual': { price: 120, name: 'שמירה שנתית' },
-        'lifetime': { price: 399, name: 'הנצחה חד פעמית (עם עריכה)' },
-        'lifetime-premium': { price: 549, name: 'הנצחה פרימיום (3 גיגה)' }
+        'monthly': { price: 12, name: 'מנוי חודשי' },
+        'annual': { price: 100, name: 'שמירה שנתית' },
+        'lifetime': { price: 399, name: 'הנצחה חד פעמית (עם עריכה)' }
       };
 
       const plan = plans[planType];
@@ -143,8 +143,8 @@ function SaveMemorial() {
   };
 
   const plansForStripe = {
-    monthly: { price: 15 },
-    annual: { price: 120 },
+    monthly: { price: 12 },
+    annual: { price: 100 },
     lifetime: { price: 399 },
     'lifetime-premium': { price: 549 }
   };
@@ -279,6 +279,7 @@ function SaveMemorial() {
               <h2>שמירה זמנית</h2>
             </div>
             <div className="option-content">
+              <p className="save-option-memorial-note">אם תבחר לשמור — הדף יכלול את כל האפשרויות המפורטות בתוכניות למטה.</p>
               <ul className="option-features">
                 <li>הדף פעיל ל-24 שעות</li>
                 <li>ללא עריכה עתידית</li>
@@ -321,9 +322,29 @@ function SaveMemorial() {
             </div>
             <div className="option-content">
               <div className="option-price">
-                <span className="price-amount">₪15</span>
+                <span className="price-amount">₪12</span>
                 <span className="price-period">לחודש</span>
               </div>
+              <div className="save-option-memorial-features">
+                <h4 className="save-option-memorial-features-title">
+                  <span className="memorial-features-title-emoji">✨</span>
+                  מה כלול בדף הזיכרון
+                </h4>
+                <ul className="option-features memorial-features-inline">
+                  {memorialPageFeatures.map((f, i) => {
+                    const FeatureIcon = f.Icon;
+                    return (
+                      <li key={i} className="memorial-feature-row">
+                        <span className="save-feature-icon-wrap">
+                          <FeatureIcon className="save-feature-icon" />
+                        </span>
+                        <span>{f.label}</span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+              <h4 className="save-option-plan-benefits-title">יתרונות התוכנית:</h4>
               <ul className="option-features">
                 <li>✅ הדף נשמר</li>
                 <li>✅ אפשר לערוך ולהוסיף תכנים</li>
@@ -390,9 +411,29 @@ function SaveMemorial() {
             </div>
             <div className="option-content">
               <div className="option-price">
-                <span className="price-amount">₪120</span>
+                <span className="price-amount">₪100</span>
                 <span className="price-period">לשנה</span>
               </div>
+              <div className="save-option-memorial-features">
+                <h4 className="save-option-memorial-features-title">
+                  <span className="memorial-features-title-emoji">✨</span>
+                  מה כלול בדף הזיכרון
+                </h4>
+                <ul className="option-features memorial-features-inline">
+                  {memorialPageFeatures.map((f, i) => {
+                    const FeatureIcon = f.Icon;
+                    return (
+                      <li key={i} className="memorial-feature-row">
+                        <span className="save-feature-icon-wrap">
+                          <FeatureIcon className="save-feature-icon" />
+                        </span>
+                        <span>{f.label}</span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+              <h4 className="save-option-plan-benefits-title">יתרונות התוכנית:</h4>
               <ul className="option-features">
                 <li>✅ הדף נשמר</li>
                 <li>✅ אפשר לערוך ולהוסיף תכנים</li>
@@ -464,12 +505,30 @@ function SaveMemorial() {
                 <span className="price-amount">₪399</span>
                 <span className="price-period">חד-פעמי</span>
               </div>
+              <div className="save-option-memorial-features">
+                <h4 className="save-option-memorial-features-title">
+                  <span className="memorial-features-title-emoji">✨</span>
+                  מה כלול בדף הזיכרון
+                </h4>
+                <ul className="option-features memorial-features-inline">
+                  {memorialPageFeatures.map((f, i) => {
+                    const FeatureIcon = f.Icon;
+                    return (
+                      <li key={i} className="memorial-feature-row">
+                        <span className="save-feature-icon-wrap">
+                          <FeatureIcon className="save-feature-icon" />
+                        </span>
+                        <span>{f.label}</span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+              <h4 className="save-option-plan-benefits-title">יתרונות התוכנית:</h4>
               <ul className="option-features">
                 <li>✅ שמירה קבועה</li>
                 <li>✅ עריכה חופשית</li>
                 <li>✅ תחזוקת אתר 15₪ לשנה (חינם בשנתיים הראשונות, מתחייב מהשנה השלישית)</li>
-                <li>✅ עד גיגה אחד תמונות וסרטונים (כ־1,000 תמונות או עשרות דקות וידאו)</li>
-                <li>✅ ניתן לרכוש תוספת גיגה בכל עת (100₪ לגיגה)</li>
                 <li>✅ גיבוי • תמיכה מלאה</li>
               </ul>
             </div>
@@ -524,77 +583,6 @@ function SaveMemorial() {
             )}
           </div>
 
-          {/* Option 4 - Lifetime Premium 3GB */}
-          <div className="save-option lifetime-premium">
-            <div className="option-header">
-              <FaCrown className="option-icon" />
-              <h2>הנצחה פרימיום</h2>
-              <p className="option-subtitle">עם עוד הרבה תמונות וסרטונים עד 3 גיגה איחסון</p>
-            </div>
-            <div className="option-content">
-              <div className="option-price">
-                <span className="price-amount">₪549</span>
-                <span className="price-period">חד-פעמי</span>
-              </div>
-              <ul className="option-features">
-                <li>✅ שמירה קבועה</li>
-                <li>✅ עריכה חופשית</li>
-                <li>✅ תחזוקת אתר 15₪ לשנה (חינם בשנתיים הראשונות, מתחייב מהשנה השלישית)</li>
-                <li>✅ עד 3 גיגה תמונות וסרטונים (כ־3,000 תמונות או מאות דקות וידאו)</li>
-                <li>✅ ניתן לרכוש תוספת גיגה בכל עת (100₪ לגיגה)</li>
-                <li>✅ גיבוי • תמיכה מלאה</li>
-              </ul>
-            </div>
-            {hideExternalPayment ? (
-              <p className="save-option-or" style={{ marginTop: '12px' }}>
-                תשלום זמין בדפדפן.{' '}
-                <a href="https://memoriesman.netlify.app" target="_blank" rel="noopener">גלשו לאתר</a>
-              </p>
-            ) : (
-              <>
-                <button
-                  className="btn btn-primary btn-full"
-                  onClick={() => handleSelectOption('lifetime-premium')}
-                  disabled={processing}
-                >
-                  הנצחה פרימיום
-                </button>
-                {payplusAvailable && (
-                  <>
-                    <button
-                      type="button"
-                      className="btn btn-outline btn-full"
-                      style={{ marginTop: '8px', fontSize: '0.9rem' }}
-                      onClick={() => handlePayPlusPayment('lifetime-premium')}
-                      disabled={processing}
-                    >
-                      או: כרטיס אשראי / Google Pay / Apple Pay (PayPlus)
-                    </button>
-                    <button
-                      type="button"
-                      className="btn btn-outline btn-full"
-                      style={{ marginTop: '6px', fontSize: '0.9rem' }}
-                      onClick={() => handlePayPlusPayment('lifetime-premium', true)}
-                      disabled={processing}
-                    >
-                      או: ביט
-                    </button>
-                  </>
-                )}
-                {stripeAvailable && (
-                  <button
-                    type="button"
-                    className="btn btn-outline btn-full"
-                    style={{ marginTop: '8px', fontSize: '0.9rem' }}
-                    onClick={() => handleStripePayment('lifetime-premium')}
-                    disabled={processing}
-                  >
-                    או: כרטיס אשראי / Google Pay / Apple Pay
-                  </button>
-                )}
-              </>
-            )}
-          </div>
         </div>
 
         {stripeModal && StripeModalComponent && (

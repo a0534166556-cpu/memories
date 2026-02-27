@@ -122,7 +122,7 @@ function About() {
                 <div className="step-number">3</div>
                 <div className="step-content">
                   <h3>בחרו תוכנית שמירה</h3>
-                  <p>מנוי חודשי (15₪), שנתי (120₪), הנצחה לכל החיים עם גיגה (399₪), או פרימיום 3 גיגה (549₪). תחזוקה 15₪ לשנה מהשנה השלישית. ניתן לרכוש תוספת גיגה בכל עת.</p>
+                  <p>מנוי חודשי (12₪), שנתי (100₪), הנצחה חד־פעמית (399₪). תחזוקה 15₪ לשנה מהשנה השלישית.</p>
                 </div>
               </div>
               <div className="step-item">
@@ -181,6 +181,7 @@ function About() {
             <Link to="/">דף הבית</Link>
             <Link to="/about">אודות</Link>
             <Link to="/privacy">מדיניות פרטיות</Link>
+            <Link to="/support">משאבים למשפחות</Link>
           </div>
         </div>
       </footer>

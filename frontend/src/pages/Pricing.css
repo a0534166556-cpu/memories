@@ -149,11 +149,95 @@
   color: #666;
 }
 
+.plan-features-block {
+  flex-grow: 1;
+}
+
+.memorial-features-in-plan {
+  margin-bottom: 22px;
+  padding: 18px 16px;
+  border-radius: 14px;
+  background: linear-gradient(145deg, rgba(102, 126, 234, 0.08) 0%, rgba(118, 75, 162, 0.06) 100%);
+  border: 1px solid rgba(102, 126, 234, 0.18);
+}
+
+.memorial-features-title,
+.plan-specific-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #444;
+  margin: 0 0 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.memorial-features-title-icon {
+  font-size: 1.15rem;
+}
+
+.plan-specific-title-icon {
+  color: #28a745;
+  font-weight: 800;
+}
+
+.memorial-features-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.memorial-features-list .feature-item-with-icon {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  font-size: 0.9rem;
+  color: #333;
+  transition: background 0.2s ease;
+}
+
+.memorial-features-list .feature-item-with-icon:hover {
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.feature-icon-wrap {
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.35);
+}
+
+.feature-icon {
+  font-size: 1rem;
+}
+
+.feature-text {
+  line-height: 1.4;
+}
+
+.plan-specific-title {
+  padding-top: 4px;
+}
+
+.pricing-card .plan-features-block > .features-list:not(.memorial-features-list) {
+  padding: 14px 12px;
+  border-radius: 12px;
+  background: rgba(40, 167, 69, 0.06);
+  border: 1px solid rgba(40, 167, 69, 0.15);
+}
+
 .features-list {
   list-style: none;
   padding: 0;
   margin: 0 0 30px;
-  flex-grow: 1;
 }
 
 .feature-item {

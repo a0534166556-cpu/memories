@@ -233,6 +233,78 @@
   font-weight: 600;
 }
 
+.save-option-memorial-note {
+  font-size: 0.95rem;
+  color: #555;
+  margin: 0 0 14px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #eee;
+}
+
+.save-option-memorial-features {
+  margin-bottom: 18px;
+  padding: 16px 14px;
+  border-radius: 14px;
+  background: linear-gradient(145deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.07) 100%);
+  border: 1px solid rgba(102, 126, 234, 0.2);
+  border-bottom: 1px solid #eee;
+}
+
+.save-option-memorial-features-title,
+.save-option-plan-benefits-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #444;
+  margin: 0 0 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.memorial-features-title-emoji {
+  font-size: 1.1rem;
+}
+
+.save-option-memorial-features .memorial-features-inline {
+  max-height: 220px;
+  overflow-y: auto;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.memorial-feature-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  font-size: 0.88rem;
+  color: #333;
+  transition: background 0.2s ease;
+}
+
+.memorial-feature-row:hover {
+  background: rgba(255, 255, 255, 0.75);
+}
+
+.save-feature-icon-wrap {
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 6px rgba(102, 126, 234, 0.35);
+}
+
+.save-feature-icon {
+  font-size: 0.95rem;
+}
+
 .btn-full {
   width: 100%;
   padding: 15px;

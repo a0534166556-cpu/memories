@@ -67,13 +67,12 @@ async function getFileUrl(file) {
   return `/${file.path.replace(/\\/g, '/')}`;
 }
 
-// הגבלת מדיה למסלולים בתשלום (לכל דף יש media_limit_bytes; ברירת מחדל 1GB)
-const DEFAULT_MEDIA_LIMIT_1GB = 1 * 1024 * 1024 * 1024;
-const MEDIA_LIMIT_3GB = 3 * 1024 * 1024 * 1024;
+// הגבלת מדיה למסלולים בתשלום – כל התוכניות: גיגה וחצי
+const DEFAULT_MEDIA_LIMIT_BYTES = Math.floor(1.5 * 1024 * 1024 * 1024);
 function getMemorialMediaLimitBytes(row) {
   if (!row || row.status === 'temporary') return 0;
   const limit = Number(row.media_limit_bytes);
-  return Number.isFinite(limit) && limit > 0 ? limit : DEFAULT_MEDIA_LIMIT_1GB;
+  return Number.isFinite(limit) && limit > 0 ? limit : DEFAULT_MEDIA_LIMIT_BYTES;
 }
 /** תאריך תפוגה למנוי חודשי: היום + חודש, עם התאמה לסוף חודש (למשל 31 בינואר -> 28 בפברואר) */
 function addOneMonth(fromDate) {
@@ -558,7 +557,37 @@ async function initDatabase() {
         throw err;
       }
     }
-    
+    try {
+      await db.execute(`ALTER TABLE memorials ADD COLUMN event_title VARCHAR(255) NULL`);
+      console.log('✅ Added event_title column to memorials');
+    } catch (err) {
+      if (err.code === 'ER_DUP_FIELDNAME') { /* already exists */ } else { throw err; }
+    }
+    try {
+      await db.execute(`ALTER TABLE memorials ADD COLUMN event_date VARCHAR(100) NULL`);
+      console.log('✅ Added event_date column to memorials');
+    } catch (err) {
+      if (err.code === 'ER_DUP_FIELDNAME') { /* already exists */ } else { throw err; }
+    }
+    try {
+      await db.execute(`ALTER TABLE memorials ADD COLUMN event_place VARCHAR(255) NULL`);
+      console.log('✅ Added event_place column to memorials');
+    } catch (err) {
+      if (err.code === 'ER_DUP_FIELDNAME') { /* already exists */ } else { throw err; }
+    }
+    try {
+      await db.execute(`ALTER TABLE memorials ADD COLUMN event_url VARCHAR(500) NULL`);
+      console.log('✅ Added event_url column to memorials');
+    } catch (err) {
+      if (err.code === 'ER_DUP_FIELDNAME') { /* already exists */ } else { throw err; }
+    }
+    try {
+      await db.execute(`ALTER TABLE memorials ADD COLUMN event_description TEXT NULL`);
+      console.log('✅ Added event_description column to memorials');
+    } catch (err) {
+      if (err.code === 'ER_DUP_FIELDNAME') { /* already exists */ } else { throw err; }
+    }
+
     // Create condolences table
     await db.execute(`CREATE TABLE IF NOT EXISTS condolences (
       id VARCHAR(255) PRIMARY KEY,
@@ -711,6 +740,8 @@ async function initDatabase() {
     try { await db.execute('ALTER TABLE memorial_reminders ADD COLUMN remindOnDay INT DEFAULT 1'); } catch (e) { if (e.code !== 'ER_DUP_FIELDNAME' && e.errno !== 1060) throw e; }
     try { await db.execute('ALTER TABLE memorial_reminders ADD COLUMN remind10DaysBefore INT DEFAULT 0'); } catch (e) { if (e.code !== 'ER_DUP_FIELDNAME' && e.errno !== 1060) throw e; }
     try { await db.execute('ALTER TABLE memorial_reminders ADD COLUMN lastSentYear10 INT NULL'); } catch (e) { if (e.code !== 'ER_DUP_FIELDNAME' && e.errno !== 1060) throw e; }
+    try { await db.execute('ALTER TABLE memorial_reminders ADD COLUMN remindBirthday INT DEFAULT 0'); } catch (e) { if (e.code !== 'ER_DUP_FIELDNAME' && e.errno !== 1060) throw e; }
+    try { await db.execute('ALTER TABLE memorial_reminders ADD COLUMN lastSentBirthdayYear INT NULL'); } catch (e) { if (e.code !== 'ER_DUP_FIELDNAME' && e.errno !== 1060) throw e; }
     console.log('✅ Memorial reminders table ready');
     
     console.log('✅ Database initialization complete!');
@@ -1163,6 +1194,46 @@ async function sendPasswordResetEmail(toEmail, resetLink) {
   return false;
 }
 
+async function sendBirthdayReminderEmail(toEmail, memorialName, memorialUrl, birthDateDisplay) {
+  const fromEmail = process.env.RESET_EMAIL_FROM || process.env.SMTP_USER || process.env.RESEND_FROM || 'onboarding@resend.dev';
+  const subject = `תזכורת – יום ההולדת של ${memorialName} | דפי זיכרון דיגיטליים`;
+  const intro = `היום הוא יום ההולדת של ${memorialName}${birthDateDisplay ? ' (' + birthDateDisplay + ')' : ''}.`;
+  const textBody = `שלום,\n\n${intro}\n\nלחץ כאן כדי להיכנס לדף הזיכרון:\n${memorialUrl}\n\nדפי זיכרון דיגיטליים`;
+  const htmlBody = `<p>שלום,</p><p>${intro}</p><p><a href="${memorialUrl}">לחץ כאן כדי להיכנס לדף הזיכרון</a></p><p>דפי זיכרון דיגיטליים</p>`;
+
+  if (mailTransport) {
+    await mailTransport.sendMail({ from: fromEmail, to: toEmail, subject, text: textBody, html: htmlBody });
+    return true;
+  }
+  if (RESEND_API_KEY) {
+    try {
+      const axios = require('axios');
+      const resendFrom = process.env.RESEND_FROM || 'onboarding@resend.dev';
+      await axios.post('https://api.resend.com/emails', { from: resendFrom, to: [toEmail], subject, html: htmlBody }, { headers: { 'Authorization': `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' } });
+      return true;
+    } catch (err) {
+      console.error('Resend birthday reminder error:', err.response?.data || err.message);
+      return false;
+    }
+  }
+  if (SENDGRID_API_KEY) {
+    try {
+      const axios = require('axios');
+      await axios.post('https://api.sendgrid.com/v3/mail/send', {
+        personalizations: [{ to: [{ email: toEmail }] }],
+        from: { email: fromEmail, name: 'דפי זיכרון דיגיטליים' },
+        subject,
+        content: [{ type: 'text/plain', value: textBody }, { type: 'text/html', value: htmlBody }]
+      }, { headers: { 'Authorization': `Bearer ${SENDGRID_API_KEY}`, 'Content-Type': 'application/json' } });
+      return true;
+    } catch (err) {
+      console.error('SendGrid birthday reminder error:', err.response?.data || err.message);
+      return false;
+    }
+  }
+  return false;
+}
+
 async function sendYahrzeitReminderEmail(toEmail, memorialName, memorialUrl, deathDateDisplay, is10DaysBefore) {
   const fromEmail = process.env.RESET_EMAIL_FROM || process.env.SMTP_USER || process.env.RESEND_FROM || 'onboarding@resend.dev';
   const subject = is10DaysBefore
@@ -1312,7 +1383,7 @@ app.post('/api/payments/create', checkDbReady, authenticateToken, async (req, re
       return res.status(400).json({ success: false, message: 'סוג תוכנית וסכום נדרשים' });
     }
     let additionalGb = null;
-    const allowedAmounts = { annual: 120, monthly: 15, lifetime: 399, 'lifetime-premium': 549, maintenance: 15 };
+    const allowedAmounts = { annual: 100, monthly: 12, lifetime: 399, maintenance: 15 };
     if (planType === 'storage-addon') {
       additionalGb = Math.max(1, Math.min(10, parseInt(req.body.additionalGb, 10) || 1));
       const expectedAmount = 100 * additionalGb;
@@ -1357,7 +1428,7 @@ app.post('/api/payments/create', checkDbReady, authenticateToken, async (req, re
           currency_code: 'ILS',
           value: amount.toString()
         },
-        description: `תשלום עבור ${planType === 'lifetime' ? 'הנצחה לכל החיים (עם עריכה)' : planType === 'lifetime-no-edit' ? 'הנצחה לכל החיים (בלי עריכה)' : planType === 'lifetime-premium' ? 'הנצחה פרימיום 3 גיגה' : planType === 'storage-addon' ? `תוספת אחסון ${additionalGb} גיגה` : planType === 'maintenance' ? 'תחזוקת אתר לשנה' : planType === 'annual' ? 'שמירה שנתית' : planType === 'monthly' ? 'מנוי חודשי' : 'דף זיכרון'}`
+        description: `תשלום עבור ${planType === 'lifetime' ? 'הנצחה לכל החיים (עם עריכה)' : planType === 'lifetime-no-edit' ? 'הנצחה לכל החיים (בלי עריכה)' : planType === 'lifetime-premium' ? 'הנצחה פרימיום' : planType === 'storage-addon' ? `תוספת אחסון ${additionalGb} גיגה` : planType === 'maintenance' ? 'תחזוקת אתר לשנה' : planType === 'annual' ? 'שמירה שנתית' : planType === 'monthly' ? 'מנוי חודשי' : 'דף זיכרון'}`
       }],
       application_context: {
         brand_name: 'דפי זיכרון דיגיטליים',
@@ -1447,7 +1518,7 @@ app.post('/api/payments/confirm', checkDbReady, authenticateToken, async (req, r
             );
             await db.execute(
               'UPDATE memorials SET media_limit_bytes = ? WHERE id = ?',
-              [DEFAULT_MEDIA_LIMIT_1GB, payment.memorialId]
+              [DEFAULT_MEDIA_LIMIT_BYTES, payment.memorialId]
             );
           } else if (payment.planType === 'monthly') {
             const expiryDate = addOneMonth(new Date());
@@ -1462,22 +1533,22 @@ app.post('/api/payments/confirm', checkDbReady, authenticateToken, async (req, r
             );
             await db.execute(
               'UPDATE memorials SET media_limit_bytes = ? WHERE id = ?',
-              [DEFAULT_MEDIA_LIMIT_1GB, payment.memorialId]
+              [DEFAULT_MEDIA_LIMIT_BYTES, payment.memorialId]
             );
           } else if (payment.planType === 'lifetime') {
             await db.execute(
               'UPDATE memorials SET status = ?, expiryDate = NULL, canEdit = TRUE, media_limit_bytes = ?, maintenance_paid_until = DATE_ADD(NOW(), INTERVAL 2 YEAR) WHERE id = ?',
-              ['active', DEFAULT_MEDIA_LIMIT_1GB, payment.memorialId]
+              ['active', DEFAULT_MEDIA_LIMIT_BYTES, payment.memorialId]
             );
           } else if (payment.planType === 'lifetime-no-edit') {
             await db.execute(
               'UPDATE memorials SET status = ?, expiryDate = NULL, canEdit = FALSE, media_limit_bytes = ?, maintenance_paid_until = DATE_ADD(NOW(), INTERVAL 2 YEAR) WHERE id = ?',
-              ['active', DEFAULT_MEDIA_LIMIT_1GB, payment.memorialId]
+              ['active', DEFAULT_MEDIA_LIMIT_BYTES, payment.memorialId]
             );
           } else if (payment.planType === 'lifetime-premium') {
             await db.execute(
               'UPDATE memorials SET status = ?, expiryDate = NULL, canEdit = TRUE, media_limit_bytes = ?, maintenance_paid_until = DATE_ADD(NOW(), INTERVAL 2 YEAR) WHERE id = ?',
-              ['active', MEDIA_LIMIT_3GB, payment.memorialId]
+              ['active', DEFAULT_MEDIA_LIMIT_BYTES, payment.memorialId]
             );
           } else if (payment.planType === 'maintenance' && payment.memorialId) {
             await db.execute(
@@ -1488,7 +1559,7 @@ app.post('/api/payments/confirm', checkDbReady, authenticateToken, async (req, r
             const addBytes = Number(payment.additional_gb) * 1024 * 1024 * 1024;
             await db.execute(
               'UPDATE memorials SET media_limit_bytes = COALESCE(media_limit_bytes, ?) + ? WHERE id = ?',
-              [DEFAULT_MEDIA_LIMIT_1GB, addBytes, payment.memorialId]
+              [DEFAULT_MEDIA_LIMIT_BYTES, addBytes, payment.memorialId]
             );
           }
         }
@@ -1528,7 +1599,7 @@ app.post('/api/payments/create-intent', checkDbReady, authenticateToken, async (
       return res.status(400).json({ success: false, message: 'סוג תוכנית וסכום נדרשים' });
     }
     let additionalGb = null;
-    const allowedAmounts = { annual: 120, monthly: 15, lifetime: 399, 'lifetime-premium': 549, maintenance: 15 };
+    const allowedAmounts = { annual: 100, monthly: 12, lifetime: 399, maintenance: 15 };
     if (planType === 'storage-addon') {
       additionalGb = Math.max(1, Math.min(10, parseInt(req.body.additionalGb, 10) || 1));
       const expectedAmount = 100 * additionalGb;
@@ -1621,7 +1692,7 @@ app.post('/api/payments/confirm-stripe', checkDbReady, authenticateToken, async 
         );
         await db.execute(
           'UPDATE memorials SET media_limit_bytes = ? WHERE id = ?',
-          [DEFAULT_MEDIA_LIMIT_1GB, payment.memorialId]
+          [DEFAULT_MEDIA_LIMIT_BYTES, payment.memorialId]
         );
       } else if (payment.planType === 'monthly') {
         const expiryDate = addOneMonth(new Date());
@@ -1636,22 +1707,22 @@ app.post('/api/payments/confirm-stripe', checkDbReady, authenticateToken, async 
         );
         await db.execute(
           'UPDATE memorials SET media_limit_bytes = ? WHERE id = ?',
-          [DEFAULT_MEDIA_LIMIT_1GB, payment.memorialId]
+          [DEFAULT_MEDIA_LIMIT_BYTES, payment.memorialId]
         );
       } else if (payment.planType === 'lifetime') {
         await db.execute(
           'UPDATE memorials SET status = ?, expiryDate = NULL, canEdit = TRUE, media_limit_bytes = ?, maintenance_paid_until = DATE_ADD(NOW(), INTERVAL 2 YEAR) WHERE id = ?',
-          ['active', DEFAULT_MEDIA_LIMIT_1GB, payment.memorialId]
+          ['active', DEFAULT_MEDIA_LIMIT_BYTES, payment.memorialId]
         );
       } else if (payment.planType === 'lifetime-no-edit') {
         await db.execute(
           'UPDATE memorials SET status = ?, expiryDate = NULL, canEdit = FALSE, media_limit_bytes = ?, maintenance_paid_until = DATE_ADD(NOW(), INTERVAL 2 YEAR) WHERE id = ?',
-          ['active', DEFAULT_MEDIA_LIMIT_1GB, payment.memorialId]
+          ['active', DEFAULT_MEDIA_LIMIT_BYTES, payment.memorialId]
         );
       } else if (payment.planType === 'lifetime-premium') {
         await db.execute(
           'UPDATE memorials SET status = ?, expiryDate = NULL, canEdit = TRUE, media_limit_bytes = ?, maintenance_paid_until = DATE_ADD(NOW(), INTERVAL 2 YEAR) WHERE id = ?',
-          ['active', MEDIA_LIMIT_3GB, payment.memorialId]
+          ['active', DEFAULT_MEDIA_LIMIT_BYTES, payment.memorialId]
         );
       } else if (payment.planType === 'maintenance' && payment.memorialId) {
         await db.execute(
@@ -1662,7 +1733,7 @@ app.post('/api/payments/confirm-stripe', checkDbReady, authenticateToken, async 
         const addBytes = Number(payment.additional_gb) * 1024 * 1024 * 1024;
         await db.execute(
           'UPDATE memorials SET media_limit_bytes = COALESCE(media_limit_bytes, ?) + ? WHERE id = ?',
-          [DEFAULT_MEDIA_LIMIT_1GB, addBytes, payment.memorialId]
+          [DEFAULT_MEDIA_LIMIT_BYTES, addBytes, payment.memorialId]
         );
       }
     }
@@ -1696,7 +1767,7 @@ app.post('/api/payments/create-payplus', checkDbReady, authenticateToken, async 
       return res.status(400).json({ success: false, message: 'סוג תוכנית וסכום נדרשים' });
     }
     let additionalGb = null;
-    const allowedAmounts = { annual: 120, monthly: 15, lifetime: 399, 'lifetime-premium': 549, maintenance: 15 };
+    const allowedAmounts = { annual: 100, monthly: 12, lifetime: 399, maintenance: 15 };
     if (planType === 'storage-addon') {
       additionalGb = Math.max(1, Math.min(10, parseInt(req.body.additionalGb, 10) || 1));
       const expectedAmount = 100 * additionalGb;
@@ -1822,7 +1893,7 @@ async function runPayPlusCallback(paymentId, req, res) {
         );
         await db.execute(
           'UPDATE memorials SET media_limit_bytes = ? WHERE id = ?',
-          [DEFAULT_MEDIA_LIMIT_1GB, payment.memorialId]
+          [DEFAULT_MEDIA_LIMIT_BYTES, payment.memorialId]
         );
       } else if (payment.planType === 'monthly') {
         const expiryDate = addOneMonth(new Date());
@@ -1837,22 +1908,22 @@ async function runPayPlusCallback(paymentId, req, res) {
         );
         await db.execute(
           'UPDATE memorials SET media_limit_bytes = ? WHERE id = ?',
-          [DEFAULT_MEDIA_LIMIT_1GB, payment.memorialId]
+          [DEFAULT_MEDIA_LIMIT_BYTES, payment.memorialId]
         );
       } else if (payment.planType === 'lifetime') {
         await db.execute(
           'UPDATE memorials SET status = ?, expiryDate = NULL, canEdit = TRUE, media_limit_bytes = ?, maintenance_paid_until = DATE_ADD(NOW(), INTERVAL 2 YEAR) WHERE id = ?',
-          ['active', DEFAULT_MEDIA_LIMIT_1GB, payment.memorialId]
+          ['active', DEFAULT_MEDIA_LIMIT_BYTES, payment.memorialId]
         );
       } else if (payment.planType === 'lifetime-no-edit') {
         await db.execute(
           'UPDATE memorials SET status = ?, expiryDate = NULL, canEdit = FALSE, media_limit_bytes = ?, maintenance_paid_until = DATE_ADD(NOW(), INTERVAL 2 YEAR) WHERE id = ?',
-          ['active', DEFAULT_MEDIA_LIMIT_1GB, payment.memorialId]
+          ['active', DEFAULT_MEDIA_LIMIT_BYTES, payment.memorialId]
         );
       } else if (payment.planType === 'lifetime-premium') {
         await db.execute(
           'UPDATE memorials SET status = ?, expiryDate = NULL, canEdit = TRUE, media_limit_bytes = ?, maintenance_paid_until = DATE_ADD(NOW(), INTERVAL 2 YEAR) WHERE id = ?',
-          ['active', MEDIA_LIMIT_3GB, payment.memorialId]
+          ['active', DEFAULT_MEDIA_LIMIT_BYTES, payment.memorialId]
         );
       } else if (payment.planType === 'maintenance' && payment.memorialId) {
         await db.execute(
@@ -1863,7 +1934,7 @@ async function runPayPlusCallback(paymentId, req, res) {
         const addBytes = Number(payment.additional_gb) * 1024 * 1024 * 1024;
         await db.execute(
           'UPDATE memorials SET media_limit_bytes = COALESCE(media_limit_bytes, ?) + ? WHERE id = ?',
-          [DEFAULT_MEDIA_LIMIT_1GB, addBytes, payment.memorialId]
+          [DEFAULT_MEDIA_LIMIT_BYTES, addBytes, payment.memorialId]
         );
       }
     }
@@ -1958,7 +2029,12 @@ app.post('/api/memorials', checkDbReady, optionalAuth, validateInput, upload.fie
       cemeteryName,
       cemeteryAddress,
       latitude,
-      longitude
+      longitude,
+      event_title,
+      event_date,
+      event_place,
+      event_url,
+      event_description
     } = req.body;
     const id = uuidv4();
     let timeline = [];
@@ -2059,8 +2135,8 @@ app.post('/api/memorials', checkDbReady, optionalAuth, validateInput, upload.fie
       expiryDate.setHours(expiryDate.getHours() + 24); // 24 hours from now
 
       await db.execute(`
-      INSERT INTO memorials (id, userId, name, hebrewName, birthDate, deathDate, biography, images, videos, backgroundMusic, heroImage, heroSummary, timeline, tehilimChapters, mishnayot, qrCodePath, status, expiryDate, canEdit, cemeteryName, cemeteryAddress, latitude, longitude)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO memorials (id, userId, name, hebrewName, birthDate, deathDate, biography, images, videos, backgroundMusic, heroImage, heroSummary, timeline, tehilimChapters, mishnayot, qrCodePath, status, expiryDate, canEdit, cemeteryName, cemeteryAddress, latitude, longitude, event_title, event_date, event_place, event_url, event_description)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `, [
       id,
       userId,
@@ -2084,7 +2160,12 @@ app.post('/api/memorials', checkDbReady, optionalAuth, validateInput, upload.fie
       cemeteryName || null,
       cemeteryAddress || null,
       latitude ? parseFloat(latitude) : null,
-      longitude ? parseFloat(longitude) : null
+      longitude ? parseFloat(longitude) : null,
+      (event_title && String(event_title).trim()) || null,
+      (event_date && String(event_date).trim()) || null,
+      (event_place && String(event_place).trim()) || null,
+      (event_url && String(event_url).trim()) || null,
+      (event_description && String(event_description).trim()) || null
       ]);
       if (newMediaBytes > 0) {
         await db.execute('UPDATE memorials SET media_used_bytes = ? WHERE id = ?', [newMediaBytes, id]);
@@ -2333,29 +2414,196 @@ app.get('/api/memorials', checkDbReady, async (req, res) => {
   }
 });
 
-// מחיקה רק כשמנהל מריץ במפורש – לא מוחקים דפים אוטומטית בגלל פג תוקף.
-// Cleanup זה מוחק רק דפי בדיקה שלא שויכו למשתמש (userId ריק), רק כשמנהל קורא ל-endpoint.
+// עוזר: מחיקת קבצי מדיה (תמונות / וידאו / אודיו / QR) עבור דף מסוים
+async function deleteMemorialFiles(row) {
+  try {
+    if (!row) return;
+    const paths = new Set();
+    const addPath = (p) => {
+      if (!p || typeof p !== 'string') return;
+      if (p.startsWith('http://') || p.startsWith('https://')) return; // קבצים בענן לא מוחקים מפה
+      paths.add(p);
+    };
+
+    try {
+      const images = JSON.parse(row.images || '[]');
+      if (Array.isArray(images)) images.forEach(addPath);
+    } catch (e) {
+      console.warn('Failed to parse images JSON for memorial', row.id, e.message);
+    }
+
+    try {
+      const videos = JSON.parse(row.videos || '[]');
+      if (Array.isArray(videos)) videos.forEach(addPath);
+    } catch (e) {
+      console.warn('Failed to parse videos JSON for memorial', row.id, e.message);
+    }
+
+    addPath(row.heroImage);
+    addPath(row.backgroundMusic);
+    addPath(row.qrCodePath);
+
+    for (const p of paths) {
+      let rel = p.trim();
+      if (!rel) continue;
+      if (rel.startsWith('http://') || rel.startsWith('https://')) continue;
+      if (rel.startsWith('/')) rel = rel.slice(1);
+
+      let fullPath = null;
+
+      if (rel.startsWith('uploads/images/')) {
+        const fileName = rel.replace(/^uploads[\\/]+images[\\/]+/, '');
+        fullPath = storageDir('uploads', 'images', fileName);
+      } else if (rel.startsWith('uploads/videos/')) {
+        const fileName = rel.replace(/^uploads[\\/]+videos[\\/]+/, '');
+        fullPath = storageDir('uploads', 'videos', fileName);
+      } else if (rel.startsWith('uploads/audio/')) {
+        const fileName = rel.replace(/^uploads[\\/]+audio[\\/]+/, '');
+        fullPath = storageDir('uploads', 'audio', fileName);
+      } else if (rel.startsWith('qrcodes/')) {
+        const fileName = rel.replace(/^qrcodes[\\/]+/, '');
+        fullPath = storageDir('qrcodes', fileName);
+      } else if (rel.startsWith('uploads/')) {
+        // גיבוי כללי – אם מסיבה כלשהי הנתיב הוא רק uploads/...
+        const fileName = rel.replace(/^uploads[\\/]+/, '');
+        fullPath = storageDir('uploads', fileName);
+      }
+
+      if (fullPath) {
+        try {
+          if (fs.existsSync(fullPath)) {
+            fs.unlinkSync(fullPath);
+          }
+        } catch (e) {
+          console.warn('Failed to delete media file', fullPath, e.message);
+        }
+      }
+    }
+  } catch (err) {
+    console.error('Error deleting memorial files for row', row && row.id, err);
+  }
+}
+
+// מחיקה אוטומטית של דפים זמניים שפג תוקפם לפני יותר מ-X ימים (ברירת מחדל: 3 ימים)
+async function cleanupExpiredTemporaryMemorials(days = 3) {
+  try {
+    await ensureDbConnection();
+    const [rows] = await db.execute(
+      'SELECT id, images, videos, heroImage, backgroundMusic, qrCodePath FROM memorials WHERE status = ? AND expiryDate IS NOT NULL AND expiryDate < DATE_SUB(NOW(), INTERVAL ? DAY)',
+      ['temporary', days]
+    );
+
+    if (!rows || rows.length === 0) {
+      return 0;
+    }
+
+    for (const row of rows) {
+      await deleteMemorialFiles(row);
+      try {
+        await db.execute('DELETE FROM memorials WHERE id = ?', [row.id]);
+      } catch (e) {
+        console.error('Error deleting expired temporary memorial from DB', row.id, e);
+      }
+    }
+
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`🧹 Cleaned up ${rows.length} expired temporary memorials (older than ${days} days past expiry)`);
+    }
+
+    return rows.length;
+  } catch (err) {
+    console.error('Error during cleanupExpiredTemporaryMemorials:', err);
+    return 0;
+  }
+}
+
+// מחיקה רק כשמנהל מריץ במפורש – לא מוחקים דפים אוטומטית בגלל פג תוקף עבור דפים בתשלום.
+// Cleanup זה מוחק רק דפי בדיקה שלא שויכו למשתמש (userId ריק), ורק כשמנהל קורא ל-endpoint.
 app.delete('/api/memorials/cleanup/test', checkDbReady, authenticateToken, async (req, res) => {
   try {
     if (!isAdmin(req.user)) {
       return res.status(403).json({ success: false, message: 'רק מנהל יכול למחוק דפי בדיקה ישנים' });
     }
     await ensureDbConnection();
-    // רק דפים ללא userId (דפי בדיקה ישנים) – לא מוחקים לפי תאריך תפוגה
-    const [result] = await db.execute('DELETE FROM memorials WHERE userId IS NULL OR userId = ""');
-    
-    const deletedCount = result.affectedRows || 0;
-    
-    res.json({ 
-      success: true, 
-      message: `נמחקו ${deletedCount} דפי בדיקה ישנים`,
-      deletedCount: deletedCount
+    // דפים ללא משתמש: NULL, ריק, או רווחים בלבד (תאימות ל-MySQL)
+    const [rows] = await db.execute(
+      "SELECT id, images, videos, heroImage, backgroundMusic, qrCodePath FROM memorials WHERE (userId IS NULL OR TRIM(COALESCE(userId, '')) = '')"
+    );
+
+    for (const row of rows) {
+      await deleteMemorialFiles(row);
+      await db.execute('DELETE FROM memorials WHERE id = ?', [row.id]);
+    }
+
+    const deletedCount = rows.length;
+    res.json({
+      success: true,
+      message: deletedCount ? `נמחקו ${deletedCount} דפי בדיקה ישנים (כולל קבצי מדיה מקומיים)` : 'לא נמצאו דפי בדיקה ישנים (ללא משתמש) למחיקה',
+      deletedCount
     });
   } catch (err) {
     console.error('Error cleaning up test memorials:', err);
     handleDbError(err, res);
   }
 });
+
+// מחיקת כל דפי הזיכרון במערכת – רק מנהל, עם אישור מפורש בצד הלקוח
+app.delete('/api/memorials/cleanup/all', checkDbReady, authenticateToken, async (req, res) => {
+  try {
+    if (!isAdmin(req.user)) {
+      return res.status(403).json({ success: false, message: 'רק מנהל יכול למחוק את כל דפי הזיכרון' });
+    }
+    await ensureDbConnection();
+    const [[{ count }]] = await db.execute('SELECT COUNT(*) AS count FROM memorials');
+    const total = Number(count) || 0;
+    if (total === 0) {
+      return res.json({
+        success: true,
+        message: 'אין דפי זיכרון במערכת',
+        deletedCount: 0
+      });
+    }
+    // קרא קודם לניקוי דפים זמניים שפגו מזמן (מעל 3 ימים אחרי תוקף)
+    await cleanupExpiredTemporaryMemorials(3);
+    await db.execute('DELETE FROM memorials');
+    res.json({
+      success: true,
+      message: `נמחקו ${total} דפי זיכרון`,
+      deletedCount: total
+    });
+  } catch (err) {
+    console.error('Error deleting all memorials:', err);
+    handleDbError(err, res);
+  }
+});
+
+// ניקוי יזום של דפים זמניים שפג תוקפם לפני יותר מ-3 ימים (לשימוש מנהל / Cron חיצוני)
+app.delete('/api/memorials/cleanup/expired-temporary', checkDbReady, authenticateToken, async (req, res) => {
+  try {
+    if (!isAdmin(req.user)) {
+      return res.status(403).json({ success: false, message: 'רק מנהל יכול לנקות דפים זמניים שפג תוקפם' });
+    }
+    const deletedCount = await cleanupExpiredTemporaryMemorials(3);
+    res.json({
+      success: true,
+      message: deletedCount
+        ? `נמחקו ${deletedCount} דפים זמניים שפג תוקפם לפני יותר משלושה ימים (כולל קבצי מדיה מקומיים)`
+        : 'לא נמצאו דפים זמניים שפג תוקפם לפני יותר משלושה ימים',
+      deletedCount
+    });
+  } catch (err) {
+    console.error('Error cleaning up expired temporary memorials:', err);
+    handleDbError(err, res);
+  }
+});
+
+// ניקוי אוטומטי ברקע – פעם בכמה שעות, דפים זמניים שפג תוקפם מזמן (רק כאלה שלא שודרגו ולא שולמו)
+const CLEANUP_INTERVAL_HOURS = 6;
+setInterval(() => {
+  cleanupExpiredTemporaryMemorials(3).catch((err) => {
+    console.error('Background cleanup error:', err);
+  });
+}, CLEANUP_INTERVAL_HOURS * 60 * 60 * 1000);
 
 // Get all memorials for the authenticated user (or all for admin)
 app.get('/api/memorials/user/my', checkDbReady, authenticateToken, async (req, res) => {
@@ -2596,7 +2844,7 @@ app.patch('/api/memorials/:id/grant-lifetime', checkDbReady, authenticateToken, 
 
     await db.execute(
       'UPDATE memorials SET status = ?, expiryDate = NULL, canEdit = 1, media_limit_bytes = ?, maintenance_paid_until = DATE_ADD(NOW(), INTERVAL 2 YEAR) WHERE id = ?',
-      ['lifetime', DEFAULT_MEDIA_LIMIT_1GB, id]
+      ['lifetime', DEFAULT_MEDIA_LIMIT_BYTES, id]
     );
 
     if (process.env.NODE_ENV === 'development') {
@@ -2668,7 +2916,12 @@ app.put('/api/memorials/:id', checkDbReady, authenticateToken, validateInput, up
       cemeteryName,
       cemeteryAddress,
       latitude,
-      longitude
+      longitude,
+      event_title,
+      event_date,
+      event_place,
+      event_url,
+      event_description
     } = req.body;
     
     let timeline = [];
@@ -2730,7 +2983,8 @@ app.put('/api/memorials/:id', checkDbReady, authenticateToken, validateInput, up
       SET name = ?, hebrewName = ?, birthDate = ?, deathDate = ?, biography = ?, 
           images = ?, videos = ?, backgroundMusic = ?, heroImage = ?, heroSummary = ?, 
           timeline = ?, tehilimChapters = ?, mishnayot = ?,
-          cemeteryName = ?, cemeteryAddress = ?, latitude = ?, longitude = ?
+          cemeteryName = ?, cemeteryAddress = ?, latitude = ?, longitude = ?,
+          event_title = ?, event_date = ?, event_place = ?, event_url = ?, event_description = ?
       WHERE id = ? AND userId = ?
     `, [
       name,
@@ -2750,6 +3004,11 @@ app.put('/api/memorials/:id', checkDbReady, authenticateToken, validateInput, up
       cemeteryAddress || null,
       latitude ? parseFloat(latitude) : null,
       longitude ? parseFloat(longitude) : null,
+      (event_title && String(event_title).trim()) || null,
+      (event_date && String(event_date).trim()) || null,
+      (event_place && String(event_place).trim()) || null,
+      (event_url && String(event_url).trim()) || null,
+      (event_description && String(event_description).trim()) || null,
       id,
       req.user.id
     ]);
@@ -2950,43 +3209,47 @@ app.get('/api/memorials/:id/candles', checkDbReady, async (req, res) => {
   }
 });
 
-// Subscribe to yahrzeit reminder (email on death anniversary, optional 10 days before)
+// Subscribe to reminders (yahrzeit + birthday)
 app.post('/api/memorials/:id/remind', checkDbReady, async (req, res) => {
   const { id } = req.params;
-  const { email, remindOnDay, remind10DaysBefore } = req.body || {};
+  const { email, remindOnDay, remind10DaysBefore, remindBirthday } = req.body || {};
   const trimmedEmail = typeof email === 'string' ? email.trim().toLowerCase() : '';
   if (!trimmedEmail) {
     return res.status(400).json({ success: false, message: 'נא להזין כתובת אימייל' });
   }
   const onDay = remindOnDay !== false && remindOnDay !== 0;
   const tenDays = !!remind10DaysBefore;
-  if (!onDay && !tenDays) {
+  const birthday = !!remindBirthday;
+  if (!onDay && !tenDays && !birthday) {
     return res.status(400).json({ success: false, message: 'נא לבחור לפחות תזכורת אחת.' });
   }
   try {
     await ensureDbConnection();
     const [memorials] = await db.execute(
-      'SELECT id, name, deathDate FROM memorials WHERE id = ?',
+      'SELECT id, name, deathDate, birthDate FROM memorials WHERE id = ?',
       [id]
     );
     if (memorials.length === 0) {
       return res.status(404).json({ success: false, message: 'דף זיכרון לא נמצא' });
     }
     const memorial = memorials[0];
-    if (!memorial.deathDate || memorial.deathDate.trim() === '') {
-      return res.status(400).json({ success: false, message: 'לדף זיכרון זה לא מוגדר תאריך פטירה – לא ניתן להפעיל תזכורת.' });
+    if ((onDay || tenDays) && (!memorial.deathDate || memorial.deathDate.trim() === '')) {
+      return res.status(400).json({ success: false, message: 'לדף זיכרון זה לא מוגדר תאריך פטירה – לא ניתן להפעיל תזכורת ביום הפטירה.' });
+    }
+    if (birthday && (!memorial.birthDate || memorial.birthDate.trim() === '')) {
+      return res.status(400).json({ success: false, message: 'לדף זיכרון זה לא מוגדר תאריך לידה – לא ניתן להפעיל תזכורת ביום ההולדת.' });
     }
     const reminderId = uuidv4();
     try {
       await db.execute(
-        'INSERT INTO memorial_reminders (id, memorialId, email, remindOnDay, remind10DaysBefore) VALUES (?, ?, ?, ?, ?)',
-        [reminderId, id, trimmedEmail, onDay ? 1 : 0, tenDays ? 1 : 0]
+        'INSERT INTO memorial_reminders (id, memorialId, email, remindOnDay, remind10DaysBefore, remindBirthday) VALUES (?, ?, ?, ?, ?, ?)',
+        [reminderId, id, trimmedEmail, onDay ? 1 : 0, tenDays ? 1 : 0, birthday ? 1 : 0]
       );
     } catch (insErr) {
       if (insErr.code === 'ER_DUP_ENTRY' || insErr.errno === 1062) {
         await db.execute(
-          'UPDATE memorial_reminders SET remindOnDay = ?, remind10DaysBefore = ? WHERE memorialId = ? AND email = ?',
-          [onDay ? 1 : 0, tenDays ? 1 : 0, id, trimmedEmail]
+          'UPDATE memorial_reminders SET remindOnDay = ?, remind10DaysBefore = ?, remindBirthday = ? WHERE memorialId = ? AND email = ?',
+          [onDay ? 1 : 0, tenDays ? 1 : 0, birthday ? 1 : 0, id, trimmedEmail]
         );
       } else {
         throw insErr;
@@ -3000,6 +3263,7 @@ app.post('/api/memorials/:id/remind', checkDbReady, async (req, res) => {
   const parts = [];
   if (onDay) parts.push('ביום הפטירה');
   if (tenDays) parts.push('10 ימים לפני');
+  if (birthday) parts.push('ביום ההולדת');
   res.json({
     success: true,
     message: 'נרשמת לתזכורת במייל (' + parts.join(' ו־') + '). נשלח אליך אימייל בכל שנה.'
@@ -3076,7 +3340,34 @@ app.get('/api/cron/send-yahrzeit-reminders', (req, res) => {
         }
       }
 
-      res.json({ success: true, sent, memorialsToday: memorialsToday.length, memorials10Days: memorials10Days.length });
+      // Birthday reminders – תזכורת ביום ההולדת
+      const [allWithBirth] = await db.execute(
+        'SELECT id, name, birthDate FROM memorials WHERE birthDate IS NOT NULL AND birthDate != ""'
+      );
+      const memorialsBirthdayToday = (allWithBirth || []).filter((m) => {
+        const d = m.birthDate;
+        if (!d) return false;
+        const parsed = new Date(d);
+        if (isNaN(parsed.getTime())) return false;
+        return (parsed.getMonth() + 1) === todayMonth && parsed.getDate() === todayDay;
+      });
+      for (const m of memorialsBirthdayToday) {
+        const [subs] = await db.execute(
+          'SELECT id, email FROM memorial_reminders WHERE memorialId = ? AND remindBirthday = 1 AND (lastSentBirthdayYear IS NULL OR lastSentBirthdayYear < ?)',
+          [m.id, year]
+        );
+        const birthD = m.birthDate ? new Date(m.birthDate).toLocaleDateString('he-IL', { day: 'numeric', month: 'long', year: 'numeric' }) : '';
+        const memorialUrl = `${baseUrl}/memorial/${m.id}`;
+        for (const sub of subs) {
+          const ok = await sendBirthdayReminderEmail(sub.email, m.name, memorialUrl, birthD);
+          if (ok) {
+            await db.execute('UPDATE memorial_reminders SET lastSentBirthdayYear = ? WHERE id = ?', [year, sub.id]);
+            sent++;
+          }
+        }
+      }
+
+      res.json({ success: true, sent, memorialsToday: memorialsToday.length, memorials10Days: memorials10Days.length, memorialsBirthdayToday: memorialsBirthdayToday.length });
     } catch (err) {
       console.error('Yahrzeit cron error:', err);
       res.status(500).json({ success: false, error: err.message });

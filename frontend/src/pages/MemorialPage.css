@@ -2,6 +2,141 @@
   min-height: 100vh;
   background: #f8f9fa;
   position: relative;
+  transition: background 0.4s ease;
+}
+
+/* באנר מועד האזכרה – בראש הדף */
+.yahrzeit-banner {
+  width: 100%;
+  background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+  color: #fff;
+  text-align: center;
+  padding: 12px 16px;
+}
+
+.yahrzeit-banner-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  font-size: 1.05rem;
+  font-weight: 500;
+}
+
+/* רקעים לבחירה */
+.memorial-page--bg-default {
+  background: #f8f9fa;
+}
+
+.memorial-page--bg-paper {
+  background: #f5f0e8;
+}
+
+.memorial-page--bg-warm {
+  background: #f0e6dc;
+}
+
+.memorial-page--bg-sky {
+  background: #e8f4fc;
+}
+
+.memorial-page--bg-nature {
+  background: #e8f5e9;
+}
+
+.memorial-page--bg-gradient {
+  background: linear-gradient(160deg, #e8e0f0 0%, #f5e0e8 50%, #e0e8f0 100%);
+}
+
+.memorial-page--bg-dark {
+  background: #2d2d35;
+}
+
+.memorial-page--bg-dark .memorial-content,
+.memorial-page--bg-dark .memorial-content .section-title,
+.memorial-page--bg-dark .media-section,
+.memorial-page--bg-dark .biography-section,
+.memorial-page--bg-dark .timeline-section,
+.memorial-page--bg-dark .tehilim-section,
+.memorial-page--bg-dark .mishnayot-section,
+.memorial-page--bg-dark .candle-section,
+.memorial-page--bg-dark .condolences-section,
+.memorial-page--bg-dark .location-section,
+.memorial-page--bg-dark .event-section,
+.memorial-page--bg-dark .reminder-section,
+.memorial-page--bg-dark .qr-section {
+  background: rgba(255, 255, 255, 0.06);
+  color: #e8e8e8;
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.memorial-page--bg-dark .memorial-content .section-title,
+.memorial-page--bg-dark .memorial-hero-summary,
+.memorial-page--bg-dark .biography-content p,
+.memorial-page--bg-dark .timeline-item__body {
+  color: #e8e8e8;
+}
+
+.memorial-page--bg-dark .timeline-item::before,
+.memorial-page--bg-dark .timeline-item__year {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+/* תפריט בחירת רקע */
+.background-dropdown {
+  position: relative;
+}
+
+.btn-background {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: white;
+  padding: 8px 16px;
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  border-radius: 20px;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: background 0.3s ease;
+}
+
+.btn-background:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.background-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 8px;
+  min-width: 140px;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+  padding: 8px 0;
+  z-index: 100;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.background-menu button {
+  display: block;
+  width: 100%;
+  padding: 10px 16px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 1rem;
+  color: #333;
+  text-align: right;
+  transition: background 0.2s;
+}
+
+.background-menu button:hover,
+.background-menu button.active {
+  background: #f0f0f0;
+}
+
+.background-menu button.active {
+  font-weight: 600;
 }
 
 .expiry-warning {
@@ -211,25 +346,218 @@
   background: rgba(255, 255, 255, 0.3);
 }
 
+.share-dropdown-wrap {
+  position: relative;
+}
+
+.share-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 8px;
+  min-width: 180px;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+  padding: 8px 0;
+  z-index: 100;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.share-menu button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 16px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 1rem;
+  color: #333;
+  text-align: right;
+  transition: background 0.2s;
+}
+
+.share-menu button:hover {
+  background: #f0f0f0;
+}
+
+.btn-print {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: white;
+  padding: 8px 16px;
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  border-radius: 20px;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: background 0.3s ease;
+}
+
+.btn-print:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.a11y-font {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.a11y-font .a11y-btn {
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: bold;
+  transition: background 0.2s;
+}
+
+.a11y-font .a11y-btn-large {
+  font-size: 1.25rem;
+}
+
+.a11y-font .a11y-btn-xlarge {
+  font-size: 1.5rem;
+}
+
+.a11y-font .a11y-btn:hover,
+.a11y-font .a11y-btn[aria-pressed="true"] {
+  background: rgba(255, 255, 255, 0.4);
+}
+
+.lang-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.lang-toggle .lang-btn {
+  width: 40px;
+  height: 32px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
+  transition: background 0.2s;
+}
+
+.lang-toggle .lang-btn.active,
+.lang-toggle .lang-btn[aria-pressed="true"],
+.lang-toggle .lang-btn:hover {
+  background: rgba(255, 255, 255, 0.4);
+}
+
+.memorial-content--font-large {
+  font-size: 1.15rem;
+}
+
+.memorial-content--font-large .section-title,
+.memorial-content--font-large .memorial-hero-summary,
+.memorial-content--font-large .biography-text,
+.memorial-content--font-large .timeline-content {
+  font-size: inherit;
+}
+
+.memorial-content--font-xlarge {
+  font-size: 1.35rem;
+}
+
+.memorial-content--font-xlarge .section-title,
+.memorial-content--font-xlarge .memorial-hero-summary,
+.memorial-content--font-xlarge .biography-text,
+.memorial-content--font-xlarge .timeline-content {
+  font-size: inherit;
+}
+
+.candle-name-input {
+  margin-top: 10px;
+}
+
+.candle-name-input label {
+  display: block;
+  font-size: 0.9rem;
+  color: #666;
+  margin-bottom: 4px;
+}
+
+.candle-name-input input {
+  width: 100%;
+  max-width: 260px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  font-size: 0.95rem;
+}
+
+.yizkor-section {
+  margin-top: 40px;
+}
+
+.yizkor-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 20px;
+}
+
+.yizkor-card {
+  background: #fff;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
+}
+
+.yizkor-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.yizkor-text {
+  white-space: pre-wrap;
+  line-height: 1.7;
+  font-size: 0.95rem;
+}
+
 .memorial-title-section {
   text-align: center;
 }
 
 .memorial-name {
   font-size: 3rem;
+  font-weight: 700;
+  color: #ffffff;
   margin-bottom: 10px;
-  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.4), 0 0 20px rgba(0, 0, 0, 0.2);
 }
 
 .hebrew-name {
   font-size: 1.5rem;
-  opacity: 0.95;
+  color: rgba(255, 255, 255, 0.98);
+  opacity: 1;
   margin-bottom: 10px;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
 }
 
 .dates {
   font-size: 1.2rem;
-  opacity: 0.9;
+  color: rgba(255, 255, 255, 0.95);
+  opacity: 1;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 
 .memorial-hero-intro {
@@ -284,6 +612,8 @@
 .media-section,
 .biography-section,
 .tehilim-section,
+.location-section,
+.event-section,
 .reminder-section {
   background: white;
   border-radius: 12px;
@@ -291,6 +621,37 @@
   margin-bottom: 30px;
   box-shadow: 0 2px 15px rgba(0, 0, 0, 0.08);
 }
+
+.event-content {
+  margin-top: 12px;
+}
+
+.event-title {
+  font-size: 1.25rem;
+  margin: 0 0 8px;
+  color: #2c3e50;
+}
+
+.event-meta {
+  color: #666;
+  margin-bottom: 10px;
+  font-size: 0.95rem;
+}
+
+.event-description {
+  color: #555;
+  line-height: 1.55;
+  margin: 0 0 14px;
+}
+
+.event-link {
+  display: inline-block;
+  margin-top: 8px;
+}
+
+.memorial-page--bg-dark .event-title { color: #e8e8e8; }
+.memorial-page--bg-dark .event-meta,
+.memorial-page--bg-dark .event-description { color: rgba(255, 255, 255, 0.8); }
 
 .reminder-content {
   max-width: 500px;
@@ -351,6 +712,7 @@
   background: #000;
   display: flex;
   align-items: center;
+  cursor: pointer;
   justify-content: center;
 }
 
@@ -373,6 +735,75 @@
 }
 .media-slide .media-placeholder.show {
   display: flex;
+}
+
+.media-slide-expand-btn {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 2;
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  border: none;
+  background: rgba(0, 0, 0, 0.5);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.media-slide-expand-btn:hover {
+  background: rgba(0, 0, 0, 0.75);
+}
+
+.gallery-fullscreen-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.92);
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px;
+  cursor: pointer;
+}
+
+.gallery-fullscreen-overlay img {
+  max-width: 98vw;
+  max-height: 98vh;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  cursor: default;
+  pointer-events: none;
+}
+
+.gallery-fullscreen-close {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  z-index: 10001;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  font-size: 1.5rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s, color 0.2s;
+}
+
+.gallery-fullscreen-close:hover {
+  background: rgba(255, 255, 255, 0.35);
+  color: white;
 }
 
 .biography-content {
@@ -504,6 +935,21 @@
   font-size: 1.5rem;
   font-family: 'Frank Ruhl Libre', serif;
   margin: 0;
+}
+
+.memorial-footer-support-link {
+  display: inline-block;
+  margin-top: 16px;
+  font-size: 0.95rem;
+  color: rgba(255, 255, 255, 0.9);
+  text-decoration: none;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.5);
+  transition: color 0.2s, border-color 0.2s;
+}
+
+.memorial-footer-support-link:hover {
+  color: white;
+  border-bottom-color: white;
 }
 
 /* Candle Section */
@@ -862,6 +1308,29 @@
   .timeline-item::after {
     right: auto;
     left: -7px;
+  }
+}
+
+/* Print: hide header actions, show only memorial content */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+
+  .memorial-header .header-links {
+    margin-bottom: 12px;
+  }
+
+  .memorial-page {
+    background: #fff;
+  }
+
+  .memorial-content {
+    max-width: 100%;
+  }
+
+  a[href]::after {
+    content: none;
   }
 }
 

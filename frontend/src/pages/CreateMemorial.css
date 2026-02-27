@@ -65,6 +65,27 @@
   font-size: 0.9rem;
 }
 
+.form-group small.date-hint {
+  margin-top: 4px;
+}
+
+.form-group small.form-hint-inline {
+  margin-top: 8px;
+  max-width: 520px;
+  line-height: 1.45;
+}
+
+.dropzone-status {
+  margin-bottom: 8px;
+  font-size: 0.95rem;
+  color: #666;
+}
+
+.music-format-hint {
+  display: block;
+  margin-top: 6px;
+}
+
 /* תזכורת ביום הפטירה – דף יצירה */
 .reminder-section-create {
   background: #f8f9fa;
@@ -370,6 +391,13 @@
   background: #f9f9f9;
   border-radius: 8px;
   border: 2px dashed var(--border-color);
+}
+
+.music-eulogy-hint {
+  font-size: 0.9rem;
+  color: #555;
+  margin: 6px 0 14px 0;
+  line-height: 1.5;
 }
 
 .music-mode-selector {
