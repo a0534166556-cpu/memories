@@ -1,10 +1,41 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { FaPlus, FaQrcode, FaHeart, FaImages, FaBook, FaHistory, FaShareAlt, FaPrint, FaMusic, FaMapMarkerAlt, FaBell, FaFire, FaCalendarAlt, FaHandsHelping } from 'react-icons/fa';
+import { Helmet } from 'react-helmet-async';
+import { FaPlus, FaQrcode, FaHeart, FaImages, FaBook, FaHistory, FaShareAlt, FaPrint, FaMusic, FaMapMarkerAlt, FaBell, FaFire, FaCalendarAlt, FaHandsHelping, FaChevronDown } from 'react-icons/fa';
 import './Home.css';
 
+const FAQ_ITEMS = [
+  {
+    question: 'מה זה דף זיכרון דיגיטלי?',
+    answer: 'דף זיכרון דיגיטלי הוא אתר קטן המוקדש להנצחת יקירכם. אפשר להוסיף תמונות, סרטונים, סיפור חיים, ציר זמן, פרקי תהילים ומשניות, מיקום הקבר, אירועים שנתיים לזכר, והדלקת נר וירטואלי. המבקרים נכנסים דרך קישור או סריקת קוד QR על המצבה.'
+  },
+  {
+    question: 'כמה עולה ליצור דף זיכרון?',
+    answer: 'ניתן ליצור דף זיכרון בחינם – הוא יהיה פעיל 24 שעות (שמירה זמנית). לשמירה לאורך זמן יש תוכניות בתשלום: מנוי חודשי, שנתי, או הנצחה לכל החיים. המחירים מופיעים בדף יצירת הדף ובעמוד "תוכניות ומחירים".'
+  },
+  {
+    question: 'האם אפשר לערוך את הדף אחרי שיצרתי אותו?',
+    answer: 'כן. אם בחרת בתוכנית שמירה (מנוי או הנצחה) ואת/ה מחובר/ת לחשבון – אפשר לערוך את הדף בכל עת מדף "ניהול דפי זיכרון": לעדכן תמונות, טקסטים, אירועים ועוד.'
+  },
+  {
+    question: 'איך משתפים את דף הזיכרון?',
+    answer: 'בכל דף זיכרון יש כפתור "שתף" – אפשר לשלוח בוואטסאפ, באימייל או להעתיק את הקישור. בנוסף מקבלים קוד QR להדפסה ולהצבה על המצבה, כדי שמבקרים יוכלו לסרוק ולהגיע ישירות לדף.'
+  },
+  {
+    question: 'האם הנתונים שלי בטוחים?',
+    answer: 'התכנים שמועלים (תמונות, טקסטים) מאוחסנים בשרת מאובטח. לא נשתף את המידע עם צדדים שלישיים. לפרטים נוספים ראו את מדיניות הפרטיות באתר.'
+  }
+];
+
 function Home() {
+  const [openFaqIndex, setOpenFaqIndex] = useState(null);
   return (
     <main className="home" role="main">
+      <Helmet>
+        <meta property="og:url" content={typeof window !== 'undefined' ? window.location.origin + '/' : 'https://memoriesman.netlify.app/'} />
+        <meta property="og:title" content="דפי זיכרון דיגיטליים" />
+        <meta property="og:description" content="אנחנו כאן כדי לעזור לכם לשמור את הזיכרון בצורה מכובדת וברורה. צרו דף זיכרון – תמונות, סיפורים, תהילים ו־QR על המצבה." />
+      </Helmet>
       {/* Navigation Header */}
       <nav className="top-navigation">
         <div className="container">
@@ -38,9 +69,11 @@ function Home() {
       <header className="hero">
         <div className="hero-content">
           <h1 className="hero-title">דפי זיכרון דיגיטליים</h1>
+          <p className="hero-tagline">אנחנו כאן כדי לעזור לכם לשמור את הזיכרון בצורה מכובדת וברורה</p>
           <p className="hero-subtitle">
-            שמרו את זכרם של יקיריכם לנצח עם דף זיכרון דיגיטלי המשלב תמונות, סרטונים, היסטוריה ופרקי תהילים
+            דף זיכרון אחד, נגיש תמיד – תמונות, סרטונים, סיפור חיים ופרקי תהילים. המבקרים יכולים לצפות, להדליק נר וירטואלי ולהשאיר תנחומים.
           </p>
+          <p className="hero-reassure">בכמה דקות תוכלו ליצור דף שכל המשפחה יכולה לצפות בו ולשתף. אפשר להתחיל בחינם.</p>
           <div className="hero-buttons">
             <Link to="/create" className="btn btn-primary">
               <FaPlus /> צור דף זיכרון עכשיו
@@ -55,29 +88,33 @@ function Home() {
       <section className="features" aria-labelledby="features-heading">
         <div className="container">
           <h2 id="features-heading" className="section-title">איך זה עובד?</h2>
+          <p className="how-intro">התהליך פשוט ומכבד. אתם מובילים – אנחנו מספקים את הכלים. שלושה צעדים קצרים ומגיעים לדף זיכרון מוכן לשיתוף.</p>
           <div className="features-grid">
             <div className="feature-card">
+              <span className="feature-step" aria-hidden="true">1</span>
               <div className="feature-icon">
                 <FaHeart />
               </div>
               <h3>צור דף זיכרון</h3>
-              <p>העלה תמונות, סרטונים, וספר את סיפור חייהם של יקיריך</p>
+              <p>העלו תמונות, סרטונים וספרו את סיפור חייהם של יקיריכם. אפשר להשלים בהדרגה ולחזור לערוך.</p>
             </div>
 
             <div className="feature-card">
+              <span className="feature-step" aria-hidden="true">2</span>
               <div className="feature-icon">
                 <FaQrcode />
               </div>
-              <h3>קבל QR Code</h3>
-              <p>הדפס את ה-QR code והצב אותו על המצבה</p>
+              <h3>קבל קוד QR</h3>
+              <p>הדפיסו את קוד ה-QR והציבו על המצבה. מבקרים סורקים ונגישים ישירות לדף עם תהילים וכל התכנים.</p>
             </div>
 
             <div className="feature-card">
+              <span className="feature-step" aria-hidden="true">3</span>
               <div className="feature-icon">
                 📖
               </div>
-              <h3>גישה מהירה</h3>
-              <p>סרוק את הקוד בטלפון ונווט ישירות לדף הזיכרון עם פרקי תהילים</p>
+              <h3>שתפו והנציחו</h3>
+              <p>שלחו את הקישור למשפחה וחברים. הדף נשאר זמין – לתמיד או לפי התוכנית שבחרתם.</p>
             </div>
           </div>
         </div>
@@ -87,7 +124,7 @@ function Home() {
         <div className="container">
           <h2 id="memorial-detail-heading" className="section-title">מה יש בדף זיכרון?</h2>
           <p className="memorial-detail-intro">
-            כל דף זיכרון יכול לכלול את כל האפשרויות הבאות — בהתאם למה שבחרת להעלות ולהגדיר. המבקרים יראו דף מסודר, נוח לצפייה ולשיתוף.
+            בכל התוכניות – זמנית, חודשית, שנתית או לצמיתות – יש את אותן התכונות. ההבדל הוא רק במשך השמירה: 24 שעות בחינם, או שמירה מתמשכת בתשלום. המבקרים יראו דף מסודר, נוח לצפייה ולשיתוף.
           </p>
           <div className="memorial-detail-grid">
             <div className="memorial-detail-card">
@@ -169,11 +206,51 @@ function Home() {
         </div>
       </section>
 
+      <section className="faq-section" aria-labelledby="faq-heading">
+        <div className="container">
+          <h2 id="faq-heading" className="section-title">שאלות נפוצות</h2>
+          <div className="faq-list">
+            {FAQ_ITEMS.map((item, index) => {
+              const isOpen = openFaqIndex === index;
+              return (
+                <div
+                  key={index}
+                  className={`faq-item ${isOpen ? 'faq-item--open' : ''}`}
+                >
+                  <button
+                    type="button"
+                    className="faq-question-btn"
+                    onClick={() => setOpenFaqIndex(isOpen ? null : index)}
+                    aria-expanded={isOpen}
+                    aria-controls={`faq-answer-${index}`}
+                    id={`faq-question-${index}`}
+                  >
+                    <span className="faq-question-text">{item.question}</span>
+                    <span className="faq-question-icon" aria-hidden="true">
+                      <FaChevronDown />
+                    </span>
+                  </button>
+                  <div
+                    id={`faq-answer-${index}`}
+                    className="faq-answer-wrap"
+                    role="region"
+                    aria-labelledby={`faq-question-${index}`}
+                    hidden={!isOpen}
+                  >
+                    <p className="faq-answer">{item.answer}</p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
       <section className="cta-section" aria-labelledby="cta-heading">
         <div className="container">
           <h2 id="cta-heading">התחל עכשיו</h2>
-          <p>צור דף זיכרון משמעותי בכמה דקות</p>
-          <Link to="/create" className="btn btn-primary">
+          <p className="cta-reassure">צור דף זיכרון משמעותי בכמה דקות. אפשר להתחיל בחינם – הדף יהיה פעיל 24 שעות, ולבחור שמירה ארוכה כשתחליטו.</p>
+          <Link to="/create" className="btn btn-primary btn-cta-main">
             יצירת דף זיכרון
           </Link>
         </div>

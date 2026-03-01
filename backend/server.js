@@ -587,6 +587,12 @@ async function initDatabase() {
     } catch (err) {
       if (err.code === 'ER_DUP_FIELDNAME') { /* already exists */ } else { throw err; }
     }
+    try {
+      await db.execute(`ALTER TABLE memorials ADD COLUMN events TEXT NULL`);
+      console.log('✅ Added events column to memorials');
+    } catch (err) {
+      if (err.code === 'ER_DUP_FIELDNAME') { /* already exists */ } else { throw err; }
+    }
 
     // Create condolences table
     await db.execute(`CREATE TABLE IF NOT EXISTS condolences (
@@ -816,6 +822,36 @@ function parseTimeline(rawValue) {
     console.warn('Failed to parse stored timeline', error);
     return [];
   }
+}
+
+function parseEvents(row) {
+  if (!row) return [];
+  if (row.events) {
+    try {
+      const parsed = JSON.parse(row.events);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed.map(e => ({
+          title: e.title || e.event_title || '',
+          date: e.date || e.event_date || '',
+          place: e.place || e.event_place || '',
+          url: e.url || e.event_url || '',
+          description: e.description || e.event_description || ''
+        }));
+      }
+    } catch (e) {
+      console.warn('Failed to parse events', e.message);
+    }
+  }
+  if (row.event_title || row.event_date || row.event_place || row.event_url || (row.event_description && String(row.event_description).trim())) {
+    return [{
+      title: row.event_title || '',
+      date: row.event_date || '',
+      place: row.event_place || '',
+      url: row.event_url || '',
+      description: row.event_description || ''
+    }];
+  }
+  return [];
 }
 
 // Helper function to handle database errors
@@ -1383,7 +1419,7 @@ app.post('/api/payments/create', checkDbReady, authenticateToken, async (req, re
       return res.status(400).json({ success: false, message: 'סוג תוכנית וסכום נדרשים' });
     }
     let additionalGb = null;
-    const allowedAmounts = { annual: 100, monthly: 12, lifetime: 399, maintenance: 15 };
+    const allowedAmounts = { annual: 100, monthly: 12, lifetime: 399, 'lifetime-premium': 549, maintenance: 15 };
     if (planType === 'storage-addon') {
       additionalGb = Math.max(1, Math.min(10, parseInt(req.body.additionalGb, 10) || 1));
       const expectedAmount = 100 * additionalGb;
@@ -1428,7 +1464,7 @@ app.post('/api/payments/create', checkDbReady, authenticateToken, async (req, re
           currency_code: 'ILS',
           value: amount.toString()
         },
-        description: `תשלום עבור ${planType === 'lifetime' ? 'הנצחה לכל החיים (עם עריכה)' : planType === 'lifetime-no-edit' ? 'הנצחה לכל החיים (בלי עריכה)' : planType === 'lifetime-premium' ? 'הנצחה פרימיום' : planType === 'storage-addon' ? `תוספת אחסון ${additionalGb} גיגה` : planType === 'maintenance' ? 'תחזוקת אתר לשנה' : planType === 'annual' ? 'שמירה שנתית' : planType === 'monthly' ? 'מנוי חודשי' : 'דף זיכרון'}`
+        description: `תשלום עבור ${planType === 'lifetime' ? 'תשלום חד פעמי (עם עריכה)' : planType === 'lifetime-no-edit' ? 'תשלום חד פעמי (בלי עריכה)' : planType === 'lifetime-premium' ? 'תשלום חד פעמי פרימיום' : planType === 'storage-addon' ? `תוספת אחסון ${additionalGb} גיגה` : planType === 'maintenance' ? 'תחזוקת אתר לשנה' : planType === 'annual' ? 'שמירה שנתית' : planType === 'monthly' ? 'מנוי חודשי' : 'דף זיכרון'}`
       }],
       application_context: {
         brand_name: 'דפי זיכרון דיגיטליים',
@@ -1599,7 +1635,7 @@ app.post('/api/payments/create-intent', checkDbReady, authenticateToken, async (
       return res.status(400).json({ success: false, message: 'סוג תוכנית וסכום נדרשים' });
     }
     let additionalGb = null;
-    const allowedAmounts = { annual: 100, monthly: 12, lifetime: 399, maintenance: 15 };
+    const allowedAmounts = { annual: 100, monthly: 12, lifetime: 399, 'lifetime-premium': 549, maintenance: 15 };
     if (planType === 'storage-addon') {
       additionalGb = Math.max(1, Math.min(10, parseInt(req.body.additionalGb, 10) || 1));
       const expectedAmount = 100 * additionalGb;
@@ -1767,7 +1803,7 @@ app.post('/api/payments/create-payplus', checkDbReady, authenticateToken, async 
       return res.status(400).json({ success: false, message: 'סוג תוכנית וסכום נדרשים' });
     }
     let additionalGb = null;
-    const allowedAmounts = { annual: 100, monthly: 12, lifetime: 399, maintenance: 15 };
+    const allowedAmounts = { annual: 100, monthly: 12, lifetime: 399, 'lifetime-premium': 549, maintenance: 15 };
     if (planType === 'storage-addon') {
       additionalGb = Math.max(1, Math.min(10, parseInt(req.body.additionalGb, 10) || 1));
       const expectedAmount = 100 * additionalGb;
@@ -2038,6 +2074,24 @@ app.post('/api/memorials', checkDbReady, optionalAuth, validateInput, upload.fie
     } = req.body;
     const id = uuidv4();
     let timeline = [];
+    let eventsJson = null;
+    if (req.body.events) {
+      try {
+        const parsed = typeof req.body.events === 'string' ? JSON.parse(req.body.events) : req.body.events;
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          eventsJson = JSON.stringify(parsed.slice(0, 20).map(e => ({
+            title: e.title || '',
+            date: e.date || '',
+            place: e.place || '',
+            url: e.url || '',
+            description: e.description || ''
+          })));
+        }
+      } catch (e) { /* ignore */ }
+    }
+    if (!eventsJson && (event_title || event_date || event_place || event_url || event_description)) {
+      eventsJson = JSON.stringify([{ title: event_title || '', date: event_date || '', place: event_place || '', url: event_url || '', description: event_description || '' }]);
+    }
 
     if (req.body.timeline) {
       try {
@@ -2135,8 +2189,8 @@ app.post('/api/memorials', checkDbReady, optionalAuth, validateInput, upload.fie
       expiryDate.setHours(expiryDate.getHours() + 24); // 24 hours from now
 
       await db.execute(`
-      INSERT INTO memorials (id, userId, name, hebrewName, birthDate, deathDate, biography, images, videos, backgroundMusic, heroImage, heroSummary, timeline, tehilimChapters, mishnayot, qrCodePath, status, expiryDate, canEdit, cemeteryName, cemeteryAddress, latitude, longitude, event_title, event_date, event_place, event_url, event_description)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO memorials (id, userId, name, hebrewName, birthDate, deathDate, biography, images, videos, backgroundMusic, heroImage, heroSummary, timeline, tehilimChapters, mishnayot, qrCodePath, status, expiryDate, canEdit, cemeteryName, cemeteryAddress, latitude, longitude, event_title, event_date, event_place, event_url, event_description, events)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `, [
       id,
       userId,
@@ -2165,7 +2219,8 @@ app.post('/api/memorials', checkDbReady, optionalAuth, validateInput, upload.fie
       (event_date && String(event_date).trim()) || null,
       (event_place && String(event_place).trim()) || null,
       (event_url && String(event_url).trim()) || null,
-      (event_description && String(event_description).trim()) || null
+      (event_description && String(event_description).trim()) || null,
+      eventsJson
       ]);
       if (newMediaBytes > 0) {
         await db.execute('UPDATE memorials SET media_used_bytes = ? WHERE id = ?', [newMediaBytes, id]);
@@ -2314,7 +2369,8 @@ app.get('/api/memorials/:id', checkDbReady, optionalAuth, async (req, res) => {
         heroImage: row.heroImage || '',
         heroSummary: row.heroSummary || '',
         timeline: parseTimeline(row.timeline),
-        mishnayot: row.mishnayot || ''
+        mishnayot: row.mishnayot || '',
+        events: parseEvents(row)
       }
     });
   } catch (err) {
@@ -2942,10 +2998,41 @@ app.put('/api/memorials/:id', checkDbReady, authenticateToken, validateInput, up
         console.warn('Failed to parse timeline payload', error);
       }
     }
+
+    let eventsJson = null;
+    if (req.body.events) {
+      try {
+        const parsed = typeof req.body.events === 'string' ? JSON.parse(req.body.events) : req.body.events;
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          eventsJson = JSON.stringify(parsed.slice(0, 20).map(e => ({
+            title: e.title || '',
+            date: e.date || '',
+            place: e.place || '',
+            url: e.url || '',
+            description: e.description || ''
+          })));
+        }
+      } catch (e) { /* ignore */ }
+    }
+    if (!eventsJson && (event_title || event_date || event_place || event_url || event_description)) {
+      eventsJson = JSON.stringify([{ title: event_title || '', date: event_date || '', place: event_place || '', url: event_url || '', description: event_description || '' }]);
+    }
     
-    // Process uploaded files
+    // Process uploaded files – use client-sent existing lists if provided (so removed images stay removed)
     let images = JSON.parse(existingMemorial.images || '[]');
+    if (req.body.existingImages !== undefined && req.body.existingImages !== null) {
+      try {
+        const parsed = typeof req.body.existingImages === 'string' ? JSON.parse(req.body.existingImages) : req.body.existingImages;
+        if (Array.isArray(parsed)) images = parsed;
+      } catch (e) { /* ignore */ }
+    }
     let videos = JSON.parse(existingMemorial.videos || '[]');
+    if (req.body.existingVideos !== undefined && req.body.existingVideos !== null) {
+      try {
+        const parsed = typeof req.body.existingVideos === 'string' ? JSON.parse(req.body.existingVideos) : req.body.existingVideos;
+        if (Array.isArray(parsed)) videos = parsed;
+      } catch (e) { /* ignore */ }
+    }
     let backgroundMusic = req.body.backgroundMusicPath || existingMemorial.backgroundMusic || '';
     let heroImage = existingMemorial.heroImage || '';
     const currentMediaBytes = Number(existingMemorial.media_used_bytes) || 0;
@@ -2973,8 +3060,12 @@ app.put('/api/memorials/:id', checkDbReady, authenticateToken, validateInput, up
     // Process header image
     if (req.files && req.files.headerImage && req.files.headerImage.length > 0) {
       heroImage = await getFileUrl(req.files.headerImage[0]);
-    } else if (heroImageIndex !== undefined && heroImageIndex !== null && images[heroImageIndex]) {
+    } else if (heroImageIndex !== undefined && heroImageIndex !== null && heroImageIndex !== '' && images[parseInt(heroImageIndex)]) {
       heroImage = images[parseInt(heroImageIndex)];
+    } else if (images.includes(existingMemorial.heroImage || '')) {
+      heroImage = existingMemorial.heroImage || '';
+    } else {
+      heroImage = images[0] || '';
     }
     
     // Update database
@@ -2984,7 +3075,8 @@ app.put('/api/memorials/:id', checkDbReady, authenticateToken, validateInput, up
           images = ?, videos = ?, backgroundMusic = ?, heroImage = ?, heroSummary = ?, 
           timeline = ?, tehilimChapters = ?, mishnayot = ?,
           cemeteryName = ?, cemeteryAddress = ?, latitude = ?, longitude = ?,
-          event_title = ?, event_date = ?, event_place = ?, event_url = ?, event_description = ?
+          event_title = ?, event_date = ?, event_place = ?, event_url = ?, event_description = ?,
+          events = ?
       WHERE id = ? AND userId = ?
     `, [
       name,
@@ -3009,6 +3101,7 @@ app.put('/api/memorials/:id', checkDbReady, authenticateToken, validateInput, up
       (event_place && String(event_place).trim()) || null,
       (event_url && String(event_url).trim()) || null,
       (event_description && String(event_description).trim()) || null,
+      eventsJson,
       id,
       req.user.id
     ]);

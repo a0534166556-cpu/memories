@@ -5,7 +5,7 @@ import axios from 'axios';
 import { getApiEndpoint } from '../config';
 import { Swiper, SwiperSlide } from 'swiper/react';
 import { Navigation, Pagination, Autoplay } from 'swiper/modules';
-import { FaHome, FaDownload, FaBook, FaHeart, FaPlay, FaPause, FaVolumeUp, FaHistory, FaFire, FaComment, FaExclamationTriangle, FaClock, FaMapMarkerAlt, FaShareAlt, FaEnvelope, FaBell, FaPrint, FaCopy, FaPalette, FaTimes, FaExpand } from 'react-icons/fa';
+import { FaHome, FaDownload, FaBook, FaHeart, FaPlay, FaPause, FaVolumeUp, FaHistory, FaFire, FaComment, FaExclamationTriangle, FaClock, FaMapMarkerAlt, FaShareAlt, FaEnvelope, FaBell, FaPrint, FaCopy, FaPalette, FaTimes, FaExpand, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
 import TehilimReader from '../components/TehilimReader';
 import MishnayotReader from '../components/MishnayotReader';
 import { memorialPageTranslations, LANG_KEY } from '../i18n/memorialPage';
@@ -507,7 +507,7 @@ function MemorialPage() {
             {error && error.includes('פג תוקף') && (
               <div style={{ marginTop: '20px', padding: '20px', background: '#f8d7da', borderRadius: '8px', color: '#721c24', border: '1px solid #f5c6cb' }}>
                 <p>⏰ דף הזיכרון פג תוקף.</p>
-                <p style={{ marginTop: '10px' }}>💡 כדי לשמור את הדף (חד פעמי), יש לשדרג לשמירה קבועה.</p>
+                <p style={{ marginTop: '10px' }}>💡 כדי לשמור את הדף בתשלום חד פעמי, יש לשדרג לשמירה קבועה.</p>
                 <p style={{ marginTop: '10px' }}>אם אתה הבעלים של הדף, התחבר כדי לשדרג.</p>
               </div>
             )}
@@ -555,9 +555,13 @@ function MemorialPage() {
   ) : [];
 
   const pageUrl = `${SITE_URL}/memorial/${id}`;
+  const apiBase = (import.meta.env.VITE_API_URL || '').trim().replace(/\/$/, '');
   const ogImage = memorial.heroImage
-    ? (memorial.heroImage.startsWith('http') ? memorial.heroImage : `${SITE_URL}${memorial.heroImage.startsWith('/') ? '' : '/'}${memorial.heroImage}`)
+    ? (memorial.heroImage.startsWith('http')
+        ? memorial.heroImage
+        : (apiBase ? apiBase + (memorial.heroImage.startsWith('/') ? '' : '/') + memorial.heroImage : SITE_URL + (memorial.heroImage.startsWith('/') ? '' : '/') + memorial.heroImage))
     : null;
+  const ogDescription = memorial.heroSummary || `דף זיכרון להנצחת ${memorial.name}. תהא נשמתו צרורה בצרור החיים.`;
 
   // מועד האזכרה הבא – כמה ימים נשארו ותאריך עברי
   let yahrzeitBanner = null;
@@ -592,16 +596,26 @@ function MemorialPage() {
     <div className={`memorial-page memorial-page--bg-${backgroundMode}`}>
       <Helmet>
         <title>דף זיכרון - {memorial.name} | דפי זיכרון דיגיטליים</title>
-        <meta name="description" content={memorial.heroSummary || `דף זיכרון להנצחת ${memorial.name}. תהא נשמתו צרורה בצרור החיים.`} />
+        <meta name="description" content={ogDescription} />
         <link rel="canonical" href={pageUrl} />
         <meta property="og:title" content={`דף זיכרון - ${memorial.name}`} />
-        <meta property="og:description" content={memorial.heroSummary || `דף זיכרון להנצחת ${memorial.name}`} />
+        <meta property="og:description" content={ogDescription} />
         <meta property="og:url" content={pageUrl} />
         <meta property="og:type" content="website" />
         <meta property="og:locale" content="he_IL" />
-        {ogImage && <meta property="og:image" content={ogImage} />}
+        <meta property="og:site_name" content="דפי זיכרון דיגיטליים" />
+        {ogImage && (
+          <>
+            <meta property="og:image" content={ogImage} />
+            <meta property="og:image:width" content="1200" />
+            <meta property="og:image:height" content="630" />
+            <meta property="og:image:alt" content={`דף זיכרון - ${memorial.name}`} />
+          </>
+        )}
         <meta name="twitter:card" content={ogImage ? 'summary_large_image' : 'summary'} />
         <meta name="twitter:title" content={`דף זיכרון - ${memorial.name}`} />
+        <meta name="twitter:description" content={ogDescription} />
+        {ogImage && <meta name="twitter:image" content={ogImage} />}
       </Helmet>
       {/* באנר מועד האזכרה – למעלה */}
       {yahrzeitBanner && (
@@ -621,7 +635,7 @@ function MemorialPage() {
                   <FaExclamationTriangle className="warning-icon" />
                   <div className="warning-text">
                     <h3>הדף פג תוקף</h3>
-                    <p>דף הזיכרון הזה לא פעיל יותר. לשמירה חד פעמית, אנא בחר תוכנית שמירה.</p>
+                    <p>דף הזיכרון הזה לא פעיל יותר. לתשלום חד פעמי, אנא בחר תוכנית שמירה.</p>
                   </div>
                   <Link to={`/save/${id}`} className="btn btn-primary">
                     שמור את הדף
@@ -632,7 +646,7 @@ function MemorialPage() {
                   <FaExclamationTriangle className="warning-icon urgent" />
                   <div className="warning-text">
                     <h3>הדף יפוג בקרוב!</h3>
-                    <p>נשארו {hoursUntilExpiry} שעות עד שהדף יפוג. לשמירה חד פעמית, אנא בחר תוכנית שמירה.</p>
+                    <p>נשארו {hoursUntilExpiry} שעות עד שהדף יפוג. לתשלום חד פעמי, אנא בחר תוכנית שמירה.</p>
                   </div>
                   <Link to={`/save/${id}`} className="btn btn-primary">
                     שמור עכשיו
@@ -643,7 +657,7 @@ function MemorialPage() {
                   <FaClock className="warning-icon" />
                   <div className="warning-text">
                     <h3>דף זמני - שמירה זמנית</h3>
-                    <p>דף זיכרון זה פעיל זמנית. לשמירה חד פעמית, אנא בחר תוכנית שמירה.</p>
+                    <p>דף זיכרון זה פעיל זמנית. לתשלום חד פעמי, אנא בחר תוכנית שמירה.</p>
                     {expiryDate && (
                       <p className="expiry-date">יפוג ב-{expiryDate.toLocaleDateString('he-IL', { 
                         day: 'numeric', 
@@ -827,30 +841,56 @@ function MemorialPage() {
                 ))}
               </Swiper>
             </div>
-            {fullscreenImageIndex !== null && allMedia[fullscreenImageIndex]?.type === 'image' && (
-              <div
-                className="gallery-fullscreen-overlay"
-                onClick={() => setFullscreenImageIndex(null)}
-                role="dialog"
-                aria-modal="true"
-                aria-label="תמונה במסך מלא"
-              >
-                <button
-                  type="button"
-                  className="gallery-fullscreen-close"
-                  onClick={(e) => { e.stopPropagation(); setFullscreenImageIndex(null); }}
-                  aria-label="סגור"
+            {fullscreenImageIndex !== null && allMedia[fullscreenImageIndex]?.type === 'image' && (() => {
+              const imageIndices = allMedia.map((m, i) => m.type === 'image' ? i : null).filter(i => i !== null);
+              const currentPos = imageIndices.indexOf(fullscreenImageIndex);
+              const prevImageIndex = currentPos > 0 ? imageIndices[currentPos - 1] : null;
+              const nextImageIndex = currentPos >= 0 && currentPos < imageIndices.length - 1 ? imageIndices[currentPos + 1] : null;
+              return (
+                <div
+                  className="gallery-fullscreen-overlay"
+                  onClick={() => setFullscreenImageIndex(null)}
+                  role="dialog"
+                  aria-modal="true"
+                  aria-label="תמונה במסך מלא"
                 >
-                  <FaTimes />
-                </button>
-                <img
-                  src={allMedia[fullscreenImageIndex].url}
-                  alt={`זיכרון ${fullscreenImageIndex + 1}`}
-                  onClick={(e) => e.stopPropagation()}
-                  draggable={false}
-                />
-              </div>
-            )}
+                  <button
+                    type="button"
+                    className="gallery-fullscreen-close"
+                    onClick={(e) => { e.stopPropagation(); setFullscreenImageIndex(null); }}
+                    aria-label="סגור"
+                  >
+                    <FaTimes />
+                  </button>
+                  {prevImageIndex !== null && (
+                    <button
+                      type="button"
+                      className="gallery-fullscreen-prev"
+                      onClick={(e) => { e.stopPropagation(); setFullscreenImageIndex(prevImageIndex); }}
+                      aria-label="התמונה הקודמת"
+                    >
+                      <FaChevronRight />
+                    </button>
+                  )}
+                  <img
+                    src={allMedia[fullscreenImageIndex].url}
+                    alt={`זיכרון ${fullscreenImageIndex + 1}`}
+                    onClick={(e) => e.stopPropagation()}
+                    draggable={false}
+                  />
+                  {nextImageIndex !== null && (
+                    <button
+                      type="button"
+                      className="gallery-fullscreen-next"
+                      onClick={(e) => { e.stopPropagation(); setFullscreenImageIndex(nextImageIndex); }}
+                      aria-label="התמונה הבאה"
+                    >
+                      <FaChevronLeft />
+                    </button>
+                  )}
+                </div>
+              );
+            })()}
           </section>
         )}
 
@@ -1102,37 +1142,47 @@ function MemorialPage() {
           </section>
         )}
 
-        {/* אירוע שנתי לזכרו */}
-        {(memorial.event_title || memorial.event_date || memorial.event_place || memorial.event_url || (memorial.event_description && memorial.event_description.trim())) && (
-          <section className="event-section">
-            <h2 className="section-title">
-              <FaHistory /> אירועים לזכרו
-            </h2>
-            <div className="event-content">
-              {memorial.event_title && <h3 className="event-title">{memorial.event_title}</h3>}
-              {(memorial.event_date || memorial.event_place) && (
-                <div className="event-meta">
-                  {memorial.event_date && <span className="event-date">{memorial.event_date}</span>}
-                  {memorial.event_date && memorial.event_place && ' · '}
-                  {memorial.event_place && <span className="event-place">{memorial.event_place}</span>}
+        {/* אירועים לזכרו – תמיכה במספר אירועים */}
+        {(() => {
+          const eventsList = memorial.events && Array.isArray(memorial.events) && memorial.events.length > 0
+            ? memorial.events
+            : (memorial.event_title || memorial.event_date || memorial.event_place || memorial.event_url || (memorial.event_description && memorial.event_description.trim()))
+              ? [{ title: memorial.event_title, date: memorial.event_date, place: memorial.event_place, url: memorial.event_url, description: memorial.event_description }]
+              : [];
+          if (eventsList.length === 0) return null;
+          return (
+            <section className="event-section">
+              <h2 className="section-title">
+                <FaHistory /> אירועים לזכרו
+              </h2>
+              {eventsList.map((ev, idx) => (
+                <div key={idx} className="event-content event-item">
+                  {ev.title && <h3 className="event-title">{ev.title}</h3>}
+                  {(ev.date || ev.place) && (
+                    <div className="event-meta">
+                      {ev.date && <span className="event-date">{ev.date}</span>}
+                      {ev.date && ev.place && ' · '}
+                      {ev.place && <span className="event-place">{ev.place}</span>}
+                    </div>
+                  )}
+                  {ev.description && String(ev.description).trim() && (
+                    <p className="event-description">{String(ev.description).trim()}</p>
+                  )}
+                  {ev.url && (
+                    <a
+                      href={ev.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn btn-primary event-link"
+                    >
+                      פרטים ורישום
+                    </a>
+                  )}
                 </div>
-              )}
-              {memorial.event_description && memorial.event_description.trim() && (
-                <p className="event-description">{memorial.event_description.trim()}</p>
-              )}
-              {memorial.event_url && (
-                <a
-                  href={memorial.event_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="btn btn-primary event-link"
-                >
-                  פרטים ורישום
-                </a>
-              )}
-            </div>
-          </section>
-        )}
+              ))}
+            </section>
+          );
+        })()}
 
         {/* תזכורות – יום הפטירה ויום ההולדת */}
         {((memorial.deathDate && memorial.deathDate.trim() !== '') || (memorial.birthDate && memorial.birthDate.trim() !== '')) && (

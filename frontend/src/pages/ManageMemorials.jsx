@@ -219,7 +219,7 @@ function ManageMemorials() {
   const handleGrantLifetime = async (memorialId) => {
     const token = localStorage.getItem('token');
     if (!token) return;
-    if (!window.confirm('להעניק שמירה חד פעמית לדף הזיכרון הזה?')) return;
+    if (!window.confirm('להעניק תשלום חד פעמי (שמירה לצמיתות) לדף הזיכרון הזה?')) return;
 
     setGrantingId(memorialId);
     try {
@@ -557,14 +557,14 @@ function ManageMemorials() {
                             color: '#2e7d32',
                             borderColor: '#2e7d32'
                           }}
-                          title="הענק שמירה חד פעמית"
+                          title="הענק תשלום חד פעמי (שמירה לצמיתות)"
                         >
                           {grantingId === memorial.id ? (
                             <>מעניק…</>
                           ) : (
                             <>
                               <FaInfinity style={{ marginLeft: '5px' }} />
-                              חד פעמי
+                              תשלום חד פעמי
                             </>
                           )}
                         </button>

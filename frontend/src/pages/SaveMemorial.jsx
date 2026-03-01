@@ -83,7 +83,7 @@ function SaveMemorial() {
       const plans = {
         'monthly': { price: 12, name: 'מנוי חודשי' },
         'annual': { price: 100, name: 'שמירה שנתית' },
-        'lifetime': { price: 399, name: 'הנצחה חד פעמית (עם עריכה)' }
+        'lifetime': { price: 399, name: 'תשלום חד פעמי (עם עריכה)' }
       };
 
       const plan = plans[planType];
@@ -497,7 +497,7 @@ function SaveMemorial() {
             <div className="popular-badge">המומלץ</div>
             <div className="option-header">
               <FaCrown className="option-icon" />
-              <h2>הנצחה חד פעמית</h2>
+              <h2>תשלום חד פעמי</h2>
               <p className="option-subtitle">עם אפשרות עריכה</p>
             </div>
             <div className="option-content">
@@ -544,7 +544,7 @@ function SaveMemorial() {
                   onClick={() => handleSelectOption('lifetime')}
                   disabled={processing}
                 >
-                  הנצחה חד פעמית
+                  תשלום חד פעמי
                 </button>
                 {payplusAvailable && (
                   <>

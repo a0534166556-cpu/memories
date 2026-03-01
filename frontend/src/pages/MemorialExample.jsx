@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { FaHome, FaPlay, FaPause, FaVolumeUp, FaHeart, FaBook, FaHistory, FaFire, FaComment, FaMapMarkerAlt, FaTimes, FaExpand, FaShareAlt, FaEnvelope, FaCopy, FaPrint, FaPalette, FaBell, FaDownload, FaCalendarAlt } from 'react-icons/fa';
+import { FaHome, FaPlay, FaPause, FaVolumeUp, FaHeart, FaBook, FaHistory, FaFire, FaComment, FaMapMarkerAlt, FaTimes, FaExpand, FaShareAlt, FaEnvelope, FaCopy, FaPrint, FaPalette, FaBell, FaDownload, FaCalendarAlt, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
 import { Swiper, SwiperSlide } from 'swiper/react';
 import { Navigation, Pagination, Autoplay } from 'swiper/modules';
 import TehilimReader from '../components/TehilimReader';
@@ -408,30 +408,56 @@ function MemorialExample() {
                 ))}
               </Swiper>
             </div>
-            {fullscreenImageIndex !== null && allMedia[fullscreenImageIndex]?.type === 'image' && (
-              <div
-                className="gallery-fullscreen-overlay"
-                onClick={() => setFullscreenImageIndex(null)}
-                role="dialog"
-                aria-modal="true"
-                aria-label="תמונה במסך מלא"
-              >
-                <button
-                  type="button"
-                  className="gallery-fullscreen-close"
-                  onClick={(e) => { e.stopPropagation(); setFullscreenImageIndex(null); }}
-                  aria-label="סגור"
+            {fullscreenImageIndex !== null && allMedia[fullscreenImageIndex]?.type === 'image' && (() => {
+              const imageIndices = allMedia.map((m, i) => m.type === 'image' ? i : null).filter(i => i !== null);
+              const currentPos = imageIndices.indexOf(fullscreenImageIndex);
+              const prevImageIndex = currentPos > 0 ? imageIndices[currentPos - 1] : null;
+              const nextImageIndex = currentPos >= 0 && currentPos < imageIndices.length - 1 ? imageIndices[currentPos + 1] : null;
+              return (
+                <div
+                  className="gallery-fullscreen-overlay"
+                  onClick={() => setFullscreenImageIndex(null)}
+                  role="dialog"
+                  aria-modal="true"
+                  aria-label="תמונה במסך מלא"
                 >
-                  <FaTimes />
-                </button>
-                <img
-                  src={allMedia[fullscreenImageIndex].url}
-                  alt={`זיכרון ${fullscreenImageIndex + 1}`}
-                  onClick={(e) => e.stopPropagation()}
-                  draggable={false}
-                />
-              </div>
-            )}
+                  <button
+                    type="button"
+                    className="gallery-fullscreen-close"
+                    onClick={(e) => { e.stopPropagation(); setFullscreenImageIndex(null); }}
+                    aria-label="סגור"
+                  >
+                    <FaTimes />
+                  </button>
+                  {prevImageIndex !== null && (
+                    <button
+                      type="button"
+                      className="gallery-fullscreen-prev"
+                      onClick={(e) => { e.stopPropagation(); setFullscreenImageIndex(prevImageIndex); }}
+                      aria-label="התמונה הקודמת"
+                    >
+                      <FaChevronRight />
+                    </button>
+                  )}
+                  <img
+                    src={allMedia[fullscreenImageIndex].url}
+                    alt={`זיכרון ${fullscreenImageIndex + 1}`}
+                    onClick={(e) => e.stopPropagation()}
+                    draggable={false}
+                  />
+                  {nextImageIndex !== null && (
+                    <button
+                      type="button"
+                      className="gallery-fullscreen-next"
+                      onClick={(e) => { e.stopPropagation(); setFullscreenImageIndex(nextImageIndex); }}
+                      aria-label="התמונה הבאה"
+                    >
+                      <FaChevronLeft />
+                    </button>
+                  )}
+                </div>
+              );
+            })()}
           </section>
         )}
 
@@ -673,32 +699,42 @@ function MemorialExample() {
           )}
         </section>
 
-        {/* אירועים לזכרו */}
-        {(memorial.event_title || memorial.event_date || memorial.event_place || memorial.event_url || (memorial.event_description && memorial.event_description.trim())) && (
-          <section className="event-section">
-            <h2 className="section-title">
-              <FaCalendarAlt /> אירועים לזכרו
-            </h2>
-            <div className="event-content">
-              {memorial.event_title && <h3 className="event-title">{memorial.event_title}</h3>}
-              {(memorial.event_date || memorial.event_place) && (
-                <div className="event-meta">
-                  {memorial.event_date && <span className="event-date">{memorial.event_date}</span>}
-                  {memorial.event_date && memorial.event_place && ' · '}
-                  {memorial.event_place && <span className="event-place">{memorial.event_place}</span>}
+        {/* אירועים לזכרו – תמיכה במספר אירועים */}
+        {(() => {
+          const eventsList = memorial.events && Array.isArray(memorial.events) && memorial.events.length > 0
+            ? memorial.events
+            : (memorial.event_title || memorial.event_date || memorial.event_place || memorial.event_url || (memorial.event_description && memorial.event_description.trim()))
+              ? [{ title: memorial.event_title, date: memorial.event_date, place: memorial.event_place, url: memorial.event_url, description: memorial.event_description }]
+              : [];
+          if (eventsList.length === 0) return null;
+          return (
+            <section className="event-section">
+              <h2 className="section-title">
+                <FaCalendarAlt /> אירועים לזכרו
+              </h2>
+              {eventsList.map((ev, idx) => (
+                <div key={idx} className="event-content event-item">
+                  {ev.title && <h3 className="event-title">{ev.title}</h3>}
+                  {(ev.date || ev.place) && (
+                    <div className="event-meta">
+                      {ev.date && <span className="event-date">{ev.date}</span>}
+                      {ev.date && ev.place && ' · '}
+                      {ev.place && <span className="event-place">{ev.place}</span>}
+                    </div>
+                  )}
+                  {ev.description && String(ev.description).trim() && (
+                    <p className="event-description">{String(ev.description).trim()}</p>
+                  )}
+                  {ev.url && (
+                    <a href={ev.url} target="_blank" rel="noopener noreferrer" className="btn btn-primary event-link">
+                      פרטים ורישום
+                    </a>
+                  )}
                 </div>
-              )}
-              {memorial.event_description && memorial.event_description.trim() && (
-                <p className="event-description">{memorial.event_description.trim()}</p>
-              )}
-              {memorial.event_url && (
-                <a href={memorial.event_url} target="_blank" rel="noopener noreferrer" className="btn btn-primary event-link">
-                  פרטים ורישום
-                </a>
-              )}
-            </div>
-          </section>
-        )}
+              ))}
+            </section>
+          );
+        })()}
 
         {/* תזכורות */}
         <section className="reminder-section">

@@ -25,13 +25,9 @@ function EditMemorial() {
     cemeteryName: '',
     cemeteryAddress: '',
     latitude: '',
-    longitude: '',
-    event_title: '',
-    event_date: '',
-    event_place: '',
-    event_url: '',
-    event_description: ''
+    longitude: ''
   });
+  const [eventEntries, setEventEntries] = useState([]);
   const [files, setFiles] = useState([]);
   const [previews, setPreviews] = useState([]);
   const [existingImages, setExistingImages] = useState([]);
@@ -90,31 +86,53 @@ function EditMemorial() {
             cemeteryName: memorial.cemeteryName || '',
             cemeteryAddress: memorial.cemeteryAddress || '',
             latitude: memorial.latitude ? String(memorial.latitude) : '',
-            longitude: memorial.longitude ? String(memorial.longitude) : '',
-            event_title: memorial.event_title || '',
-            event_date: memorial.event_date || '',
-            event_place: memorial.event_place || '',
-            event_url: memorial.event_url || '',
-            event_description: memorial.event_description || ''
+            longitude: memorial.longitude ? String(memorial.longitude) : ''
           });
 
-          // Set existing media
-          if (memorial.images) {
+          if (memorial.events && Array.isArray(memorial.events) && memorial.events.length > 0) {
+            setEventEntries(memorial.events.map(e => ({
+              title: e.title || '',
+              date: e.date || '',
+              place: e.place || '',
+              url: e.url || '',
+              description: e.description || ''
+            })));
+          } else if (memorial.event_title || memorial.event_date || memorial.event_place || memorial.event_url || memorial.event_description) {
+            setEventEntries([{
+              title: memorial.event_title || '',
+              date: memorial.event_date || '',
+              place: memorial.event_place || '',
+              url: memorial.event_url || '',
+              description: memorial.event_description || ''
+            }]);
+          } else {
+            setEventEntries([]);
+          }
+
+          // Set existing media – images and videos both go into previews so user can remove any of them
+          let imagePreviews = [];
+          let videoPreviews = [];
+          if (memorial.images && memorial.images.length > 0) {
             setExistingImages(memorial.images);
-            const imagePreviews = memorial.images.map(img => ({
-              // Use img path as-is - Netlify handles redirects to Railway
+            imagePreviews = memorial.images.map(img => ({
               url: img.startsWith('http') ? img : img,
               type: 'image/',
               name: 'existing',
               isExisting: true,
               path: img
             }));
-            setPreviews(imagePreviews);
           }
-
-          if (memorial.videos) {
+          if (memorial.videos && memorial.videos.length > 0) {
             setExistingVideos(memorial.videos);
+            videoPreviews = memorial.videos.map(vid => ({
+              url: vid.startsWith('http') ? vid : vid,
+              type: 'video/',
+              name: 'existing',
+              isExisting: true,
+              path: vid
+            }));
           }
+          setPreviews([...imagePreviews, ...videoPreviews]);
 
           if (memorial.backgroundMusic) {
             setSelectedMusicPath(memorial.backgroundMusic);
@@ -266,6 +284,22 @@ function EditMemorial() {
     setTimelineEntries(prev => prev.filter((_, i) => i !== index));
   };
 
+  const addEventEntry = () => {
+    setEventEntries(prev => [...prev, { title: '', date: '', place: '', url: '', description: '' }]);
+  };
+
+  const updateEventEntry = (index, field, value) => {
+    setEventEntries(prev => {
+      const updated = [...prev];
+      updated[index] = { ...updated[index], [field]: value };
+      return updated;
+    });
+  };
+
+  const removeEventEntry = (index) => {
+    setEventEntries(prev => prev.filter((_, i) => i !== index));
+  };
+
   const toggleMishna = (mishna) => {
     setSelectedMishnayot(prev => {
       if (prev.includes(mishna)) {
@@ -331,7 +365,8 @@ function EditMemorial() {
       });
 
       if (heroImageIndex !== null && heroImageIndex !== undefined) {
-        formDataToSend.append('heroImageIndex', heroImageIndex);
+        const imageIndexInForm = previews.slice(0, heroImageIndex + 1).filter(p => p.type.startsWith('image/')).length - 1;
+        if (imageIndexInForm >= 0) formDataToSend.append('heroImageIndex', String(imageIndexInForm));
       }
 
       const sanitizedTimeline = timelineEntries
@@ -343,6 +378,17 @@ function EditMemorial() {
         .filter(entry => entry.year || entry.title || entry.description);
 
       formDataToSend.append('timeline', JSON.stringify(sanitizedTimeline));
+
+      const sanitizedEvents = eventEntries
+        .map(e => ({
+          title: (e.title || '').trim(),
+          date: (e.date || '').trim(),
+          place: (e.place || '').trim(),
+          url: (e.url || '').trim(),
+          description: (e.description || '').trim()
+        }))
+        .filter(e => e.title || e.date || e.place || e.url || e.description);
+      formDataToSend.append('events', JSON.stringify(sanitizedEvents));
 
       // Add new files only
       files.forEach(file => {
@@ -358,6 +404,10 @@ function EditMemorial() {
       } else if (backgroundMusic) {
         formDataToSend.append('files', backgroundMusic);
       }
+
+      // Send current existing images/videos so server can apply removals (user may have removed some)
+      formDataToSend.append('existingImages', JSON.stringify(existingImages));
+      formDataToSend.append('existingVideos', JSON.stringify(existingVideos));
 
       // Get memorial IDs from localStorage to verify ownership for temporary memorials
       const myMemorialIds = JSON.parse(localStorage.getItem('myMemorialIds') || '[]');
@@ -723,129 +773,83 @@ function EditMemorial() {
             </div>
 
           <div className="form-section">
-            <h2>אירוע שנתי לזכרו (אופציונלי)</h2>
-            <p className="form-hint">ערב לימוד, גיוס תרומות, אירוע לזכר וכדומה – יוצגו בדף הזיכרון.</p>
-            <div className="form-group">
-              <label htmlFor="event_title">כותרת האירוע</label>
-              <input
-                type="text"
-                id="event_title"
-                name="event_title"
-                value={formData.event_title}
-                onChange={handleChange}
-                placeholder="לדוגמה: אירוע שנתי לזכר..."
-              />
-            </div>
-            <div className="form-row">
-              <div className="form-group">
-                <label htmlFor="event_date">תאריך</label>
-                <input
-                  type="text"
-                  id="event_date"
-                  name="event_date"
-                  value={formData.event_date}
-                  onChange={handleChange}
-                  placeholder="לדוגמה: 15.5 או א׳ סיון"
-                />
+            <h2>אירועים לזכרו (אופציונלי)</h2>
+            <p className="form-hint">ערב לימוד, גיוס תרומות, אירוע לזכר וכדומה – ניתן להוסיף כמה אירועים. כל אירוע יוצג בדף הזיכרון.</p>
+            {eventEntries.length === 0 && (
+              <div className="timeline-empty">
+                <p>טרם הוספתם אירועים. לחיצה על "הוסף אירוע" תאפשר להוסיף אירוע שנתי או אחר.</p>
               </div>
-              <div className="form-group">
-                <label htmlFor="event_place">מקום</label>
-                <input
-                  type="text"
-                  id="event_place"
-                  name="event_place"
-                  value={formData.event_place}
-                  onChange={handleChange}
-                  placeholder="מקום האירוע"
-                />
+            )}
+            {eventEntries.map((entry, index) => (
+              <div key={index} className="timeline-entry event-entry">
+                <div className="form-group">
+                  <label htmlFor={`event_title_${index}`}>כותרת האירוע</label>
+                  <input
+                    type="text"
+                    id={`event_title_${index}`}
+                    value={entry.title}
+                    onChange={(e) => updateEventEntry(index, 'title', e.target.value)}
+                    placeholder="לדוגמה: ערב לימוד שנתי לזכר..."
+                  />
+                </div>
+                <div className="form-row">
+                  <div className="form-group">
+                    <label htmlFor={`event_date_${index}`}>תאריך</label>
+                    <input
+                      type="text"
+                      id={`event_date_${index}`}
+                      value={entry.date}
+                      onChange={(e) => updateEventEntry(index, 'date', e.target.value)}
+                      placeholder="לדוגמה: 15.5 או א׳ סיון"
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label htmlFor={`event_place_${index}`}>מקום</label>
+                    <input
+                      type="text"
+                      id={`event_place_${index}`}
+                      value={entry.place}
+                      onChange={(e) => updateEventEntry(index, 'place', e.target.value)}
+                      placeholder="מקום האירוע"
+                    />
+                  </div>
+                </div>
+                <div className="form-group">
+                  <label htmlFor={`event_url_${index}`}>קישור (רישום / פרטים)</label>
+                  <input
+                    type="url"
+                    id={`event_url_${index}`}
+                    value={entry.url}
+                    onChange={(e) => updateEventEntry(index, 'url', e.target.value)}
+                    placeholder="https://..."
+                  />
+                </div>
+                <div className="form-group">
+                  <label htmlFor={`event_description_${index}`}>תיאור קצר</label>
+                  <textarea
+                    id={`event_description_${index}`}
+                    value={entry.description}
+                    onChange={(e) => updateEventEntry(index, 'description', e.target.value)}
+                    rows="2"
+                    placeholder="משפט או שניים על האירוע"
+                  />
+                </div>
+                <button
+                  type="button"
+                  className="timeline-remove"
+                  onClick={() => removeEventEntry(index)}
+                >
+                  <FaTrash /> הסרת אירוע
+                </button>
               </div>
-            </div>
-            <div className="form-group">
-              <label htmlFor="event_url">קישור (רישום / פרטים)</label>
-              <input
-                type="url"
-                id="event_url"
-                name="event_url"
-                value={formData.event_url}
-                onChange={handleChange}
-                placeholder="https://..."
-              />
-              <small className="form-hint-inline">כתובת דף באינטרנט של האירוע — דף רישום או דף פרטים (ערב לימוד, גיוס תרומות, אירוע לזכר וכדומה). אם תמלא, יופיע בדף הזיכרון כפתור "פרטים ורישום" שיוביל לכתובת. לא חובה.</small>
-            </div>
-            <div className="form-group">
-              <label htmlFor="event_description">תיאור קצר</label>
-              <textarea
-                id="event_description"
-                name="event_description"
-                value={formData.event_description}
-                onChange={handleChange}
-                rows="2"
-                placeholder="משפט או שניים על האירוע"
-              />
-              </div>
-            </div>
-
-          <div className="form-section">
-            <h2>אירוע שנתי לזכרו (אופציונלי)</h2>
-            <p className="form-hint">ערב לימוד, גיוס תרומות, אירוע לזכר וכדומה – יוצגו בדף הזיכרון.</p>
-            <div className="form-group">
-              <label htmlFor="event_title">כותרת האירוע</label>
-              <input
-                type="text"
-                id="event_title"
-                name="event_title"
-                value={formData.event_title}
-                onChange={handleChange}
-                placeholder="לדוגמה: אירוע שנתי לזכר..."
-              />
-            </div>
-            <div className="form-row">
-              <div className="form-group">
-                <label htmlFor="event_date">תאריך</label>
-                <input
-                  type="text"
-                  id="event_date"
-                  name="event_date"
-                  value={formData.event_date}
-                  onChange={handleChange}
-                  placeholder="לדוגמה: 15.5 או א׳ סיון"
-                />
-              </div>
-              <div className="form-group">
-                <label htmlFor="event_place">מקום</label>
-                <input
-                  type="text"
-                  id="event_place"
-                  name="event_place"
-                  value={formData.event_place}
-                  onChange={handleChange}
-                  placeholder="מקום האירוע"
-                />
-              </div>
-            </div>
-            <div className="form-group">
-              <label htmlFor="event_url">קישור (רישום / פרטים)</label>
-              <input
-                type="url"
-                id="event_url"
-                name="event_url"
-                value={formData.event_url}
-                onChange={handleChange}
-                placeholder="https://..."
-              />
-              <small className="form-hint-inline">כתובת דף באינטרנט של האירוע — דף רישום או דף פרטים (ערב לימוד, גיוס תרומות, אירוע לזכר וכדומה). אם תמלא, יופיע בדף הזיכרון כפתור "פרטים ורישום" שיוביל לכתובת. לא חובה.</small>
-            </div>
-            <div className="form-group">
-              <label htmlFor="event_description">תיאור קצר</label>
-              <textarea
-                id="event_description"
-                name="event_description"
-                value={formData.event_description}
-                onChange={handleChange}
-                rows="2"
-                placeholder="משפט או שניים על האירוע"
-              />
-            </div>
+            ))}
+            <button
+              type="button"
+              className="btn btn-secondary timeline-add"
+              onClick={addEventEntry}
+            >
+              <FaPlus /> הוסף אירוע
+            </button>
           </div>
 
           <div className="form-group">
