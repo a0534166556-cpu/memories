@@ -1,110 +1,140 @@
+/* דף ניהול דפי זיכרון – כחול כהה למעלה, כחול בהיר מתחת */
 .manage-memorials-page {
   min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  padding: 40px 20px;
+  background: #DDE8F4;
   direction: rtl;
 }
 
+/* כותרת עליונה – גרדיאנט כמו דף הבית */
+.manage-hero {
+  background: var(--memorial-gradient);
+  color: white;
+  padding: 48px 20px 56px;
+  text-align: center;
+  box-shadow: 0 4px 20px rgba(29, 53, 84, 0.2);
+}
+
+.manage-hero h1 {
+  font-size: 2.25rem;
+  margin-bottom: 10px;
+  font-weight: 700;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.manage-hero .subtitle {
+  font-size: 1.05rem;
+  opacity: 0.95;
+}
+
+/* אזור התוכן – רקע בהיר */
 .manage-container {
   max-width: 1200px;
   margin: 0 auto;
+  padding: 40px 20px;
 }
 
 .manage-header {
   text-align: center;
-  color: white;
-  margin-bottom: 40px;
+  color: var(--primary-color);
+  margin-bottom: 32px;
 }
 
 .manage-header h1 {
-  font-size: 2.5rem;
-  margin-bottom: 10px;
+  font-size: 1.75rem;
+  margin-bottom: 8px;
   font-weight: 700;
+  color: var(--primary-color);
 }
 
 .manage-header .subtitle {
-  font-size: 1.1rem;
-  opacity: 0.9;
+  font-size: 1rem;
+  color: #555;
 }
 
 .actions-bar {
-  margin-bottom: 30px;
+  margin-bottom: 28px;
   text-align: center;
 }
 
 .error-message {
-  background: #fee;
-  color: #c33;
-  padding: 15px;
-  border-radius: 8px;
+  background: #ffebee;
+  color: #c62828;
+  padding: 16px;
+  border-radius: 12px;
   margin-bottom: 20px;
   text-align: center;
+  border: 1px solid #ffcdd2;
 }
 
 .no-memorials {
-  background: white;
-  padding: 60px 40px;
-  border-radius: 12px;
+  background: #D4DCE8;
+  padding: 56px 32px;
+  border-radius: 16px;
   text-align: center;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 6px 24px rgba(31, 53, 87, 0.12), 0 2px 10px rgba(0, 0, 0, 0.06);
+  border: 1px solid rgba(36, 63, 102, 0.15);
 }
 
 .no-memorials h2 {
-  color: #333;
-  margin-bottom: 15px;
-  font-size: 1.8rem;
+  color: var(--primary-color);
+  margin-bottom: 12px;
+  font-size: 1.75rem;
 }
 
 .no-memorials p {
-  color: #666;
-  margin-bottom: 30px;
-  font-size: 1.1rem;
+  color: #555;
+  margin-bottom: 28px;
+  font-size: 1.05rem;
+  line-height: 1.6;
 }
 
 .memorials-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 20px;
-  margin-top: 20px;
+  gap: 24px;
+  margin-top: 24px;
 }
 
 .memorial-card {
-  background: white;
-  border-radius: 12px;
-  padding: 25px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  transition: transform 0.2s, box-shadow 0.2s;
+  background: #D4DCE8;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 6px 24px rgba(31, 53, 87, 0.12), 0 2px 10px rgba(0, 0, 0, 0.06);
+  border: 1px solid rgba(36, 63, 102, 0.15);
+  transition: transform 0.25s, box-shadow 0.25s;
   display: flex;
   flex-direction: column;
 }
 
 .memorial-card:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 8px 12px rgba(0, 0, 0, 0.15);
+  transform: translateY(-4px);
+  box-shadow: 0 12px 28px rgba(31, 53, 87, 0.1);
+  border-color: rgba(36, 63, 102, 0.12);
 }
 
 .card-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 15px;
-  gap: 10px;
+  margin-bottom: 16px;
+  gap: 12px;
   flex-wrap: wrap;
 }
 
 .card-header h3 {
-  color: #333;
-  font-size: 1.3rem;
+  color: var(--primary-color);
+  font-size: 1.25rem;
   margin: 0;
   flex: 1;
   min-width: 0;
+  font-weight: 700;
 }
 
 .status-badge {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  padding: 6px 12px;
+  gap: 6px;
+  padding: 6px 14px;
   border-radius: 20px;
   font-size: 0.85rem;
   font-weight: 600;
@@ -112,18 +142,18 @@
 }
 
 .status-badge.status-lifetime {
-  background: #e8f5e9;
-  color: #2e7d32;
+  background: rgba(212, 175, 55, 0.15);
+  color: #9a7b20;
 }
 
 .status-badge.status-active {
-  background: #e3f2fd;
-  color: #1976d2;
+  background: rgba(45, 84, 128, 0.12);
+  color: var(--primary-color);
 }
 
 .status-badge.status-temporary {
   background: #fff3e0;
-  color: #f57c00;
+  color: #e65100;
 }
 
 .status-badge.status-expired {
@@ -142,23 +172,23 @@
 }
 
 .memorial-name {
-  color: #666;
-  margin-bottom: 10px;
+  color: #555;
+  margin-bottom: 8px;
   font-size: 1rem;
 }
 
 .created-date {
-  color: #999;
+  color: #888;
   font-size: 0.9rem;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
 }
 
 .no-edit-warning {
-  color: #f57c00;
+  color: #e65100;
   font-size: 0.9rem;
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
   margin-top: 10px;
 }
 
@@ -174,43 +204,46 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 10px 20px;
-  border-radius: 8px;
+  padding: 10px 18px;
+  border-radius: 10px;
   text-decoration: none;
   font-weight: 600;
+  font-size: 0.95rem;
   transition: all 0.2s;
   border: none;
   cursor: pointer;
 }
 
 .btn-outline {
-  background: white;
-  color: #667eea;
-  border: 2px solid #667eea;
+  background: #D4DCE8;
+  color: var(--primary-color);
+  border: 2px solid var(--primary-color);
 }
 
 .btn-outline:hover {
-  background: #f5f5f5;
+  background: #C2CCDC;
+  border-color: var(--primary-color);
 }
 
 .btn-primary {
-  background: #667eea;
+  background: var(--primary-color);
   color: white;
 }
 
 .btn-primary:hover {
-  background: #5568d3;
+  background: var(--secondary-color);
+  color: white;
 }
 
 .btn-disabled {
-  background: #e0e0e0;
+  background: #e8e8e8;
   color: #999;
   cursor: not-allowed;
 }
 
 .spinner-large {
   font-size: 3rem;
-  color: white;
+  color: var(--primary-color);
   animation: spin 1s linear infinite;
   display: block;
   margin: 0 auto 20px;
@@ -222,14 +255,27 @@
 }
 
 @media (max-width: 768px) {
+  .manage-hero {
+    padding: 36px 16px 44px;
+  }
+
+  .manage-hero h1 {
+    font-size: 1.85rem;
+  }
+
+  .manage-container {
+    padding: 28px 16px;
+  }
+
   .memorials-grid {
     grid-template-columns: 1fr;
+    gap: 20px;
   }
-  
+
   .card-header {
     flex-direction: column;
   }
-  
+
   .status-badge {
     align-self: flex-start;
   }

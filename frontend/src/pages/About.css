@@ -4,7 +4,7 @@
 }
 
 .about-hero {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: var(--memorial-gradient);
   color: white;
   padding: 100px 20px 60px;
   text-align: center;
@@ -34,7 +34,7 @@
   background: white;
   border-radius: 16px;
   padding: 40px;
-  box-shadow: 0 2px 15px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(36, 63, 102, 0.06);
 }
 
 .about-section h2 {
@@ -149,7 +149,7 @@
   width: 60px;
   height: 60px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: var(--memorial-gradient);
   color: white;
   display: flex;
   align-items: center;
@@ -239,7 +239,7 @@
 }
 
 .about-footer {
-  background: #2c3e50;
+  background: var(--primary-color);
   color: white;
   padding: 40px 20px;
   text-align: center;

@@ -5,6 +5,8 @@ import { Swiper, SwiperSlide } from 'swiper/react';
 import { Navigation, Pagination, Autoplay } from 'swiper/modules';
 import TehilimReader from '../components/TehilimReader';
 import MishnayotReader from '../components/MishnayotReader';
+import { mishnayotData } from '../data/mishnayot';
+import { tehilimData } from '../data/tehilim';
 import { memorialPageTranslations } from '../i18n/memorialPage';
 import { yizkorText, elMaleRachamimText } from '../data/yizkorPrayers';
 import 'swiper/css';
@@ -69,8 +71,8 @@ const exampleMemorial = {
   event_title: 'ערב זיכרון לסגן יעקב אליאן ז"ל',
   event_date: 'כ\' בכסלו',
   event_place: '',
-  event_description: '',
-  event_url: '',
+  event_description: 'בדף זיכרון אמיתי אפשר להוסיף קישור לפרטים ורישום. כאן הקישור מוביל לדף הבית כדוגמה.',
+  event_url: '/',
   qrCodePath: null
 };
 
@@ -106,6 +108,14 @@ function MemorialExample() {
   const setLangAndSave = (l) => setLang(l);
   const setFontSizeAndSave = (m) => setFontSizeMode(m);
   const setBackgroundAndSave = (id) => { setBackgroundMode(id); setShowBackgroundMenu(false); };
+
+  /* בדף דוגמה: להציג חצי מכל המשניות וחצי מכל פרקי התהילים הזמינים */
+  const allMishnaKeys = Object.keys(mishnayotData);
+  const halfMishnaCount = Math.ceil(allMishnaKeys.length / 2);
+  const exampleMishnayot = allMishnaKeys.slice(0, halfMishnaCount).join(', ');
+  const allTehilimNums = Object.keys(tehilimData).map(Number).sort((a, b) => a - b);
+  const halfTehilimCount = Math.ceil(allTehilimNums.length / 2);
+  const exampleTehilimChapters = allTehilimNums.slice(0, halfTehilimCount).join(',');
 
   const shareUrl = EXAMPLE_PAGE_URL;
   const shareTitle = `דף זיכרון - ${exampleMemorial.name}`;
@@ -512,7 +522,7 @@ function MemorialExample() {
               </button>
             </div>
             {showTehilim && (
-              <TehilimReader chapters={memorial.tehilimChapters} />
+              <TehilimReader chapters={exampleTehilimChapters} />
             )}
           </section>
         )}
@@ -532,7 +542,7 @@ function MemorialExample() {
               </button>
             </div>
             {showMishnayot && (
-              <MishnayotReader mishnayot={memorial.mishnayot} />
+              <MishnayotReader mishnayot={exampleMishnayot} />
             )}
           </section>
         )}

@@ -42,7 +42,7 @@
   background: white;
   border-radius: 16px;
   overflow: hidden;
-  box-shadow: var(--shadow);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(36, 63, 102, 0.06);
   display: grid;
   grid-template-columns: 1fr 1fr;
   margin-bottom: 40px;

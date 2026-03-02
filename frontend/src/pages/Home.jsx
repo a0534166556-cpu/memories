@@ -67,25 +67,46 @@ function Home() {
       </nav>
 
       <header className="hero">
+        <div className="hero-sparkle" aria-hidden="true">
+          {[...Array(48)].map((_, i) => (
+            <span
+              key={i}
+              className={`sparkle-dot sparkle--${(i % 3) + 1}${i % 5 === 0 ? ' sparkle--gold' : ''}`}
+              style={{
+                left: `${5 + (i * 2.1) % 90}%`,
+                top: `${5 + (i * 5.3) % 90}%`,
+                animationDelay: `${(i * 0.12) % 4}s`,
+                animationDuration: `${3.5 + (i % 3) * 0.8}s`
+              }}
+            />
+          ))}
+        </div>
         <div className="hero-content">
-          <h1 className="hero-title">דפי זיכרון דיגיטליים</h1>
-          <p className="hero-tagline">אנחנו כאן כדי לעזור לכם לשמור את הזיכרון בצורה מכובדת וברורה</p>
+          <h1 className="hero-title">
+            ההנצחה הדיגיטלית של <span className="brand">דפי זיכרון</span>
+          </h1>
+          <p className="hero-tagline">דף הנצחה אישי שמחבר אתכם ליקיריכם בכל רגע</p>
           <p className="hero-subtitle">
-            דף זיכרון אחד, נגיש תמיד – תמונות, סרטונים, סיפור חיים ופרקי תהילים. המבקרים יכולים לצפות, להדליק נר וירטואלי ולהשאיר תנחומים.
+            תמונות, סרטונים וטקסטים מרגשים במקום אחד. כרטיס עם קוד QR מחזיר אתכם לזיכרון החי – בכל זמן ובכל מקום.
           </p>
           <p className="hero-reassure">בכמה דקות תוכלו ליצור דף שכל המשפחה יכולה לצפות בו ולשתף. אפשר להתחיל בחינם.</p>
+          <span className="hero-feel">להרגיש.</span>
           <div className="hero-buttons">
-            <Link to="/create" className="btn btn-primary">
+            <Link to="/create" className="btn btn-secondary">
               <FaPlus /> צור דף זיכרון עכשיו
             </Link>
-            <Link to="/gallery/example" className="btn btn-secondary" aria-label="צפה בדף זיכרון לדוגמה">
-              <FaImages /> דף זיכרון לדוגמה
-            </Link>
+            <a href="#how-it-works" className="btn btn-primary">
+              מה זה דף זיכרון ואיך זה עובד?
+            </a>
+          </div>
+          <div className="hero-links">
+            <Link to="/gallery/example" className="hero-link">לדף זיכרון לדוגמה</Link>
+            <Link to="/pricing" className="hero-link">לתוכניות ומחירים</Link>
           </div>
         </div>
       </header>
 
-      <section className="features" aria-labelledby="features-heading">
+      <section id="how-it-works" className="features" aria-labelledby="features-heading">
         <div className="container">
           <h2 id="features-heading" className="section-title">איך זה עובד?</h2>
           <p className="how-intro">התהליך פשוט ומכבד. אתם מובילים – אנחנו מספקים את הכלים. שלושה צעדים קצרים ומגיעים לדף זיכרון מוכן לשיתוף.</p>
@@ -247,6 +268,16 @@ function Home() {
       </section>
 
       <section className="cta-section" aria-labelledby="cta-heading">
+        <div className="cta-candle" aria-hidden="true">
+          <div className="cta-candle-glow" />
+          <div className="cta-candle-body">
+            <div className="cta-candle-wick" />
+            <div className="cta-candle-flame-outer" />
+            <div className="cta-candle-flame-inner" />
+          </div>
+          <div className="cta-candle-base" />
+          <div className="cta-candle-shadow" />
+        </div>
         <div className="container">
           <h2 id="cta-heading">התחל עכשיו</h2>
           <p className="cta-reassure">צור דף זיכרון משמעותי בכמה דקות. אפשר להתחיל בחינם – הדף יהיה פעיל 24 שעות, ולבחור שמירה ארוכה כשתחליטו.</p>

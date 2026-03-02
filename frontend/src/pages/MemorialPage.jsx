@@ -696,6 +696,20 @@ function MemorialPage() {
 
       {/* Header */}
       <div className="memorial-header">
+        <div className="memorial-header-sparkle" aria-hidden="true">
+          {[...Array(20)].map((_, i) => (
+            <span
+              key={i}
+              className="memorial-sparkle-dot"
+              style={{
+                left: `${10 + (i * 4.5) % 80}%`,
+                top: `${15 + (i * 4) % 70}%`,
+                animationDelay: `${(i * 0.25) % 5}s`,
+                animationDuration: `${5 + (i % 2) * 1.5}s`
+              }}
+            />
+          ))}
+        </div>
         <div className="header-overlay">
           <div className="container">
             <div className="header-links no-print">

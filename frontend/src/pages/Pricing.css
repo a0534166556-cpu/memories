@@ -4,7 +4,7 @@
 }
 
 .pricing-hero {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: var(--memorial-gradient);
   color: white;
   padding: 100px 20px 60px;
   text-align: center;
@@ -49,7 +49,7 @@
   background: white;
   border-radius: 16px;
   padding: 40px 30px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(36, 63, 102, 0.06);
   position: relative;
   transition: transform 0.3s ease, box-shadow 0.3s ease;
   display: flex;
@@ -75,7 +75,7 @@
   top: -15px;
   right: 50%;
   transform: translateX(50%);
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: var(--memorial-gradient);
   color: white;
   padding: 8px 20px;
   border-radius: 20px;
@@ -207,7 +207,7 @@
   height: 36px;
   min-width: 36px;
   border-radius: 10px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: var(--memorial-gradient);
   color: white;
   display: flex;
   align-items: center;
@@ -328,7 +328,7 @@
 }
 
 .pricing-footer {
-  background: #2c3e50;
+  background: var(--primary-color);
   color: white;
   padding: 30px 20px;
   text-align: center;

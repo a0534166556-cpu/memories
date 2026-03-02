@@ -1,14 +1,28 @@
 .memorial-page {
   min-height: 100vh;
-  background: #f8f9fa;
+  background: var(--memorial-bg, #e8ecf4);
   position: relative;
   transition: background 0.4s ease;
+}
+
+/* ערכת צבעים לדף זיכרון – כחול פחות כהה (תואם לשאר הדפים) */
+.memorial-page {
+  --memorial-primary: #2d4a6f;
+  --memorial-primary-soft: #3a5d85;
+  --memorial-accent: #d4af37;
+  --memorial-accent-light: #e5c65c;
+  --memorial-bg: #e8ecf4;
+  --memorial-card-shadow: 0 4px 20px rgba(45, 74, 111, 0.08);
+  --memorial-card-border: rgba(45, 74, 111, 0.06);
+  --primary-color: var(--memorial-primary);
+  --accent-color: var(--memorial-accent);
+  --secondary-color: var(--memorial-primary-soft);
 }
 
 /* באנר מועד האזכרה – בראש הדף */
 .yahrzeit-banner {
   width: 100%;
-  background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+  background: var(--memorial-gradient);
   color: #fff;
   text-align: center;
   padding: 12px 16px;
@@ -23,7 +37,7 @@
 
 /* רקעים לבחירה */
 .memorial-page--bg-default {
-  background: #f8f9fa;
+  background: var(--memorial-bg);
 }
 
 .memorial-page--bg-paper {
@@ -47,7 +61,7 @@
 }
 
 .memorial-page--bg-dark {
-  background: #2d2d35;
+  background: #1e2d47;
 }
 
 .memorial-page--bg-dark .memorial-content,
@@ -240,7 +254,7 @@
   width: 60px;
   height: 60px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: var(--memorial-gradient);
   color: white;
   border: none;
   cursor: pointer;
@@ -248,14 +262,15 @@
   align-items: center;
   justify-content: center;
   font-size: 1.2rem;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 4px 20px rgba(31, 53, 87, 0.35);
   z-index: 1000;
   transition: all 0.3s ease;
 }
 
 .music-control:hover {
-  transform: scale(1.1);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+  transform: scale(1.08);
+  box-shadow: 0 6px 24px rgba(31, 53, 87, 0.45);
+  color: var(--memorial-accent-light);
 }
 
 .music-control svg {
@@ -274,23 +289,63 @@
 }
 
 .memorial-header {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: var(--memorial-gradient);
   color: white;
   padding: 60px 20px;
   position: relative;
   overflow: hidden;
 }
 
+/* אפקט ניצנוץ עדין בראש הדף – מכובד */
 .memorial-header::before {
   content: '';
   position: absolute;
-  top: 0;
+  inset: 0;
+  background-image: radial-gradient(circle at 1px 1px, rgba(255, 255, 255, 0.08) 1px, transparent 0);
+  background-size: 36px 36px;
+  pointer-events: none;
+  z-index: 0;
+  animation: memorialSparkleBg 8s ease-in-out infinite;
+}
+
+@keyframes memorialSparkleBg {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+
+.memorial-header::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
   left: 0;
   right: 0;
-  bottom: 0;
-  background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 320"><path fill="rgba(255,255,255,0.1)" d="M0,96L48,112C96,128,192,160,288,160C384,160,480,128,576,112C672,96,768,96,864,112C960,128,1056,160,1152,165.3C1248,171,1344,149,1392,138.7L1440,128L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z"></path></svg>') no-repeat bottom;
+  height: 60px;
+  background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 60"><path fill="rgba(255,255,255,0.06)" d="M0 60h1440V40c-120 15-240 20-360 20S720 55 600 45 480 25 360 25 240 45 120 50 0 55 0 60z"/></svg>') no-repeat center bottom;
   background-size: cover;
-  opacity: 0.3;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.memorial-header-sparkle {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.memorial-sparkle-dot {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.85);
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.5), 0 0 20px rgba(212, 175, 55, 0.2);
+  animation: memorialSparkleMove 6s ease-in-out infinite;
+}
+
+@keyframes memorialSparkleMove {
+  0%, 100% { opacity: 0.3; transform: translate(0, 0) scale(0.9); }
+  50% { opacity: 1; transform: translate(8px, -10px) scale(1.15); }
 }
 
 .header-overlay {
@@ -342,8 +397,10 @@
   transition: background 0.3s ease;
 }
 
-.btn-share:hover {
-  background: rgba(255, 255, 255, 0.3);
+.btn-share:hover,
+.btn-print:hover {
+  background: rgba(255, 255, 255, 0.35);
+  color: var(--memorial-accent-light);
 }
 
 .share-dropdown-wrap {
@@ -398,7 +455,8 @@
 }
 
 .btn-print:hover {
-  background: rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.35);
+  color: var(--memorial-accent-light);
 }
 
 .a11y-font {
@@ -542,7 +600,7 @@
   font-weight: 700;
   color: #ffffff;
   margin-bottom: 10px;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.4), 0 0 20px rgba(0, 0, 0, 0.2);
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.35), 0 0 24px rgba(0, 0, 0, 0.15);
 }
 
 .hebrew-name {
@@ -571,10 +629,11 @@
 .memorial-hero-portrait {
   max-width: 300px;
   width: 100%;
-  border-radius: 12px;
+  border-radius: 16px;
   overflow: hidden;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 8px 32px rgba(31, 53, 87, 0.25);
   margin: 0;
+  border: 3px solid rgba(255, 255, 255, 0.2);
 }
 
 .memorial-hero-portrait img {
@@ -598,15 +657,16 @@
 
 .section-title {
   font-size: 2rem;
-  color: var(--primary-color);
+  color: var(--memorial-primary);
   margin-bottom: 25px;
   display: flex;
   align-items: center;
   gap: 12px;
+  font-weight: 700;
 }
 
 .section-title svg {
-  color: #667eea;
+  color: var(--memorial-accent);
 }
 
 .media-section,
@@ -616,10 +676,11 @@
 .event-section,
 .reminder-section {
   background: white;
-  border-radius: 12px;
+  border-radius: 16px;
   padding: 40px;
   margin-bottom: 30px;
-  box-shadow: 0 2px 15px rgba(0, 0, 0, 0.08);
+  box-shadow: var(--memorial-card-shadow);
+  border: 1px solid var(--memorial-card-border);
 }
 
 .event-content {
@@ -641,7 +702,7 @@
 .event-title {
   font-size: 1.25rem;
   margin: 0 0 8px;
-  color: #2c3e50;
+  color: var(--primary-color);
 }
 
 .event-meta {
@@ -703,10 +764,11 @@
 
 .qr-section {
   background: white;
-  border-radius: 12px;
+  border-radius: 16px;
   padding: 40px;
   margin-bottom: 30px;
-  box-shadow: 0 2px 15px rgba(0, 0, 0, 0.08);
+  box-shadow: var(--memorial-card-shadow);
+  border: 1px solid var(--memorial-card-border);
 }
 
 .media-gallery {
@@ -863,17 +925,18 @@
 
 .timeline-section {
   background: white;
-  border-radius: 12px;
+  border-radius: 16px;
   padding: 40px;
   margin-bottom: 30px;
-  box-shadow: 0 2px 15px rgba(0, 0, 0, 0.08);
+  box-shadow: var(--memorial-card-shadow);
+  border: 1px solid var(--memorial-card-border);
 }
 
 .timeline-list {
   list-style: none;
   padding: 0;
   margin: 0;
-  border-right: 3px solid rgba(139, 115, 85, 0.3);
+  border-right: 3px solid rgba(212, 175, 55, 0.35);
 }
 
 .timeline-item {
@@ -894,8 +957,8 @@
   width: 14px;
   height: 14px;
   border-radius: 50%;
-  background: var(--accent-color);
-  box-shadow: 0 0 0 6px rgba(139, 115, 85, 0.18);
+  background: var(--memorial-accent);
+  box-shadow: 0 0 0 6px rgba(212, 175, 55, 0.2);
 }
 
 .timeline-item + .timeline-item {
@@ -903,20 +966,20 @@
 }
 
 .timeline-item:hover {
-  background: rgba(247, 248, 250, 0.9);
+  background: rgba(232, 236, 244, 0.6);
   transform: translateX(-8px);
 }
 
 .timeline-item__year {
   font-weight: 700;
-  color: var(--accent-color);
+  color: var(--memorial-accent);
   font-size: 1.2rem;
 }
 
 .timeline-item__body h3 {
   font-size: 1.3rem;
   margin-bottom: 8px;
-  color: var(--secondary-color);
+  color: var(--memorial-primary);
 }
 
 .timeline-item__body p {
@@ -972,11 +1035,12 @@
 }
 
 .memorial-footer {
-  background: var(--primary-color);
+  background: var(--memorial-gradient);
   color: white;
   text-align: center;
   padding: 40px 20px;
   margin-top: 40px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .memorial-footer p {
@@ -996,17 +1060,18 @@
 }
 
 .memorial-footer-support-link:hover {
-  color: white;
-  border-bottom-color: white;
+  color: var(--memorial-accent-light);
+  border-bottom-color: var(--memorial-accent-light);
 }
 
 /* Candle Section */
 .candle-section {
   background: white;
-  border-radius: 12px;
+  border-radius: 16px;
   padding: 40px;
   margin-bottom: 30px;
-  box-shadow: 0 2px 15px rgba(0, 0, 0, 0.08);
+  box-shadow: var(--memorial-card-shadow);
+  border: 1px solid var(--memorial-card-border);
   text-align: center;
 }
 
@@ -1054,7 +1119,7 @@
   transform: translateX(-50%);
   width: 40px;
   height: 10px;
-  background: #8b7355;
+  background: var(--accent-color);
   border-radius: 0 0 20px 20px;
 }
 
@@ -1175,19 +1240,21 @@
 /* Condolences Section */
 .condolences-section {
   background: white;
-  border-radius: 12px;
+  border-radius: 16px;
   padding: 40px;
   margin-bottom: 30px;
-  box-shadow: 0 2px 15px rgba(0, 0, 0, 0.08);
+  box-shadow: var(--memorial-card-shadow);
+  border: 1px solid var(--memorial-card-border);
 }
 
 /* Mishnayot Section */
 .mishnayot-section {
   background: white;
-  border-radius: 12px;
+  border-radius: 16px;
   padding: 40px;
   margin-bottom: 30px;
-  box-shadow: 0 2px 15px rgba(0, 0, 0, 0.08);
+  box-shadow: var(--memorial-card-shadow);
+  border: 1px solid var(--memorial-card-border);
 }
 
 .condolences-header {
@@ -1344,7 +1411,7 @@
 
   .timeline-list {
     border-right: none;
-    border-left: 3px solid rgba(139, 115, 85, 0.3);
+    border-left: 3px solid rgba(212, 175, 55, 0.35);
   }
 
   .timeline-item {

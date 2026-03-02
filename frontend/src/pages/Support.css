@@ -1,11 +1,11 @@
 .support-page {
   direction: rtl;
   min-height: 100vh;
-  background: #f8f9fa;
+  background: #F5F7FB;
 }
 
 .support-hero {
-  background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+  background: var(--memorial-gradient);
   color: white;
   padding: 48px 20px 40px;
   text-align: center;
@@ -50,8 +50,8 @@
   background: white;
   border-radius: 12px;
   padding: 24px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
-  border: 1px solid #eee;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(36, 63, 102, 0.06);
+  border: 1px solid rgba(0, 0, 0, 0.04);
 }
 
 .support-card-icon {
@@ -62,7 +62,7 @@
   align-items: center;
   justify-content: center;
   background: #e8f4f8;
-  color: #2c3e50;
+  color: var(--primary-color);
   border-radius: 10px;
   font-size: 1.25rem;
 }
@@ -74,7 +74,7 @@
 .support-card-title {
   font-size: 1.2rem;
   margin: 0 0 8px;
-  color: #2c3e50;
+  color: var(--primary-color);
 }
 
 .support-card-desc {
@@ -96,7 +96,7 @@
 }
 
 .support-footer {
-  background: #2c3e50;
+  background: var(--primary-color);
   color: white;
   padding: 40px 20px;
   text-align: center;

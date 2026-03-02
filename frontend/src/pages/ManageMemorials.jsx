@@ -395,10 +395,14 @@ function ManageMemorials() {
   if (loading) {
     return (
       <div className="manage-memorials-page">
+        <div className="manage-hero">
+          <h1>ניהול דפי זיכרון</h1>
+          <p className="subtitle">כל דפי הזיכרון שיצרת</p>
+        </div>
         <div className="manage-container">
           <div style={{ textAlign: 'center', padding: '60px 20px' }}>
             <FaSpinner className="spinner-large" />
-            <h2 style={{ color: 'white', marginTop: '20px' }}>טוען את דפי הזיכרון שלך...</h2>
+            <h2 style={{ color: 'var(--primary-color)', marginTop: '20px' }}>טוען את דפי הזיכרון שלך...</h2>
           </div>
         </div>
       </div>
@@ -408,6 +412,10 @@ function ManageMemorials() {
   if (error) {
     return (
       <div className="manage-memorials-page">
+        <div className="manage-hero">
+          <h1>ניהול דפי זיכרון</h1>
+          <p className="subtitle">כל דפי הזיכרון שיצרת</p>
+        </div>
         <div className="manage-container">
           <div className="error-message">{error}</div>
           {!localStorage.getItem('token') && (
@@ -424,12 +432,11 @@ function ManageMemorials() {
 
   return (
     <div className="manage-memorials-page">
+      <div className="manage-hero">
+        <h1>ניהול דפי זיכרון</h1>
+        <p className="subtitle">כל דפי הזיכרון שיצרת</p>
+      </div>
       <div className="manage-container">
-        <div className="manage-header">
-          <h1>ניהול דפי זיכרון</h1>
-          <p className="subtitle">כל דפי הזיכרון שיצרת</p>
-        </div>
-
         {memorials.length === 0 ? (
           <div className="no-memorials">
             <h2>עדיין לא יצרת דפי זיכרון</h2>

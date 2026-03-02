@@ -21,14 +21,12 @@ function MishnayotReader({ mishnayot }) {
   const nextMishna = () => {
     if (currentMishnaIndex < mishnaKeys.length - 1) {
       setCurrentMishnaIndex(currentMishnaIndex + 1);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
 
   const prevMishna = () => {
     if (currentMishnaIndex > 0) {
       setCurrentMishnaIndex(currentMishnaIndex - 1);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
 
