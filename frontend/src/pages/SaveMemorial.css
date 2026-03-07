@@ -323,6 +323,49 @@
   cursor: not-allowed;
 }
 
+.save-bank-transfer {
+  margin-top: 36px;
+  padding: 24px;
+  background: #fff;
+  border-radius: 12px;
+  border: 1px solid rgba(45, 74, 111, 0.15);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+  text-align: center;
+}
+
+.save-bank-transfer-title {
+  font-size: 1.2rem;
+  color: var(--primary-color);
+  margin-bottom: 12px;
+  font-weight: 600;
+}
+
+.save-bank-transfer-desc {
+  color: #555;
+  font-size: 1rem;
+  line-height: 1.65;
+  margin-bottom: 16px;
+  max-width: 520px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.save-bank-transfer .btn {
+  margin-top: 4px;
+}
+
+.save-upay-block {
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px dashed rgba(0, 0, 0, 0.08);
+}
+
+.save-upay-text {
+  font-size: 0.9rem;
+  color: #555;
+  margin-bottom: 8px;
+}
+
 .save-footer {
   text-align: center;
   margin-top: 40px;

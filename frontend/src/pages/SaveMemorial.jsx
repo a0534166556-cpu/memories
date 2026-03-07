@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { FaHeart, FaCrown, FaCheckCircle, FaClock, FaSpinner, FaUser } from 'react-icons/fa';
 import axios from 'axios';
-import { getApiEndpoint } from '../config';
+import { getApiEndpoint, UPAY_LIFETIME_URL } from '../config';
 import { memorialPageFeatures } from '../data/memorialFeatures';
 import './SaveMemorial.css';
 
@@ -63,7 +63,7 @@ function SaveMemorial() {
   const handleSelectOption = async (planType) => {
     if (planType === 'skip') {
       // Skip payment - continue to memorial page
-      navigate(`/memorial/${id}`);
+      navigate(`/memorial/${memorial?.slug ? encodeURIComponent(memorial.slug) : id}`);
       return;
     }
 
@@ -528,7 +528,7 @@ function SaveMemorial() {
               <ul className="option-features">
                 <li>✅ שמירה קבועה</li>
                 <li>✅ עריכה חופשית</li>
-                <li>✅ תחזוקת אתר 15₪ לשנה (חינם בשנתיים הראשונות, מתחייב מהשנה השלישית)</li>
+                <li>✅ תחזוקת אתר 12₪ לשנה (חינם בשנתיים הראשונות, מתחייב מהשנה השלישית)</li>
                 <li>✅ גיבוי • תמיכה מלאה</li>
               </ul>
             </div>
@@ -579,11 +579,38 @@ function SaveMemorial() {
                     או: כרטיס אשראי / Google Pay / Apple Pay
                   </button>
                 )}
+
+                <div className="save-upay-block">
+                  <p className="save-upay-text">
+                    סיכמנו טלפונית לשלם דרך Upay? קודם צרו קשר לתיאום, ולאחר מכן אפשר לשלם בקישור התשלום המאובטח:
+                  </p>
+                  <a
+                    href={UPAY_LIFETIME_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="btn btn-outline btn-full"
+                  >
+                    תשלום חד־פעמי 399₪ דרך Upay
+                  </a>
+                </div>
               </>
             )}
           </div>
 
         </div>
+
+        {/* אופציית תשלום בהעברה בנקאית */}
+        {!hideExternalPayment && (
+          <div className="save-bank-transfer">
+            <h3 className="save-bank-transfer-title">או: תשלום בהעברה בנקאית</h3>
+            <p className="save-bank-transfer-desc">
+              מעדיפים לשלם בהעברה מחשבון הבנק? השאירו פרטים ונחזור אליכם טלפונית להסדרת התשלום. אין צורך למלא כאן פרטי חשבון – את כל פרטי ההעברה נסביר בטלפון, ואחרי ביצוע ההעברה נפעיל את השמירה.
+            </p>
+            <Link to="/contact" className="btn btn-outline">
+              להזמנה ותיאום תשלום טלפוני – צור קשר
+            </Link>
+          </div>
+        )}
 
         {stripeModal && StripeModalComponent && (
           <StripeModalComponent
@@ -603,7 +630,7 @@ function SaveMemorial() {
         )}
 
         <div className="save-footer">
-          <Link to={`/memorial/${id}`} className="view-link">
+          <Link to={`/memorial/${memorial?.slug ? encodeURIComponent(memorial.slug) : id}`} className="view-link">
             צפה בדף הזיכרון
           </Link>
         </div>

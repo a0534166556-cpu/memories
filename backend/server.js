@@ -157,8 +157,16 @@ const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-producti
 
 // כתובת דף הזיכרון (הפרונט) – תמיד Netlify, כדי שסריקת ה-QR תפתח תמיד את הדף
 const MEMORIAL_PAGE_BASE_URL = 'https://memoriesman.netlify.app';
-function getMemorialPageUrl(memorialId) {
-  return `${MEMORIAL_PAGE_BASE_URL}/memorial/${memorialId}`;
+function getMemorialPageUrl(memorialId, slug) {
+  const segment = (slug && String(slug).trim()) ? slug : memorialId;
+  return `${MEMORIAL_PAGE_BASE_URL}/memorial/${encodeURIComponent(segment)}`;
+}
+// יצירת slug לכתובת ידידותית על בסיס שם הנפטר (עברית/אנגלית) + סיומת ייחודית
+function generateSlug(name, hebrewName, id) {
+  const raw = (hebrewName && String(hebrewName).trim()) || (name && String(name).trim()) || 'דף-זיכרון';
+  const normalized = raw.trim().replace(/\s+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '').slice(0, 200);
+  const suffix = id ? String(id).slice(0, 8) : '';
+  return suffix ? `${normalized}-${suffix}` : normalized;
 }
 
 // Middleware
@@ -592,6 +600,23 @@ async function initDatabase() {
       console.log('✅ Added events column to memorials');
     } catch (err) {
       if (err.code === 'ER_DUP_FIELDNAME') { /* already exists */ } else { throw err; }
+    }
+    try {
+      await db.execute(`ALTER TABLE memorials ADD COLUMN slug VARCHAR(300) NULL`);
+      console.log('✅ Added slug column to memorials');
+    } catch (err) {
+      if (err.code === 'ER_DUP_FIELDNAME') { /* already exists */ } else { throw err; }
+    }
+    // Backfill slug for existing memorials
+    try {
+      const [rows] = await db.execute('SELECT id, name, hebrewName FROM memorials WHERE slug IS NULL');
+      for (const r of rows) {
+        const slug = generateSlug(r.name, r.hebrewName, r.id);
+        await db.execute('UPDATE memorials SET slug = ? WHERE id = ?', [slug, r.id]);
+      }
+      if (rows.length > 0) console.log('✅ Backfilled slug for', rows.length, 'memorials');
+    } catch (e) {
+      if (e.code !== 'ER_BAD_FIELD_ERROR') console.warn('Slug backfill:', e.message);
     }
 
     // Create condolences table
@@ -1419,7 +1444,7 @@ app.post('/api/payments/create', checkDbReady, authenticateToken, async (req, re
       return res.status(400).json({ success: false, message: 'סוג תוכנית וסכום נדרשים' });
     }
     let additionalGb = null;
-    const allowedAmounts = { annual: 100, monthly: 12, lifetime: 399, 'lifetime-premium': 549, maintenance: 15 };
+    const allowedAmounts = { annual: 100, monthly: 12, lifetime: 399, 'lifetime-premium': 549, maintenance: 12 };
     if (planType === 'storage-addon') {
       additionalGb = Math.max(1, Math.min(10, parseInt(req.body.additionalGb, 10) || 1));
       const expectedAmount = 100 * additionalGb;
@@ -1427,8 +1452,8 @@ app.post('/api/payments/create', checkDbReady, authenticateToken, async (req, re
         return res.status(400).json({ success: false, message: 'סכום או מזהה דף לא תואם' });
       }
     } else if (planType === 'maintenance') {
-      if (Number(amount) !== 15 || !memorialId) {
-        return res.status(400).json({ success: false, message: 'תשלום תחזוקה 15₪ דורש מזהה דף זיכרון' });
+      if (Number(amount) !== 12 || !memorialId) {
+        return res.status(400).json({ success: false, message: 'תשלום תחזוקה 12₪ דורש מזהה דף זיכרון' });
       }
     } else {
       const expectedAmount = allowedAmounts[planType];
@@ -1635,7 +1660,7 @@ app.post('/api/payments/create-intent', checkDbReady, authenticateToken, async (
       return res.status(400).json({ success: false, message: 'סוג תוכנית וסכום נדרשים' });
     }
     let additionalGb = null;
-    const allowedAmounts = { annual: 100, monthly: 12, lifetime: 399, 'lifetime-premium': 549, maintenance: 15 };
+    const allowedAmounts = { annual: 100, monthly: 12, lifetime: 399, 'lifetime-premium': 549, maintenance: 12 };
     if (planType === 'storage-addon') {
       additionalGb = Math.max(1, Math.min(10, parseInt(req.body.additionalGb, 10) || 1));
       const expectedAmount = 100 * additionalGb;
@@ -1643,8 +1668,8 @@ app.post('/api/payments/create-intent', checkDbReady, authenticateToken, async (
         return res.status(400).json({ success: false, message: 'סכום או מזהה דף לא תואם' });
       }
     } else if (planType === 'maintenance') {
-      if (Number(amount) !== 15 || !memorialId) {
-        return res.status(400).json({ success: false, message: 'תשלום תחזוקה 15₪ דורש מזהה דף זיכרון' });
+      if (Number(amount) !== 12 || !memorialId) {
+        return res.status(400).json({ success: false, message: 'תשלום תחזוקה 12₪ דורש מזהה דף זיכרון' });
       }
     } else {
       const expectedAmount = allowedAmounts[planType];
@@ -1803,7 +1828,7 @@ app.post('/api/payments/create-payplus', checkDbReady, authenticateToken, async 
       return res.status(400).json({ success: false, message: 'סוג תוכנית וסכום נדרשים' });
     }
     let additionalGb = null;
-    const allowedAmounts = { annual: 100, monthly: 12, lifetime: 399, 'lifetime-premium': 549, maintenance: 15 };
+    const allowedAmounts = { annual: 100, monthly: 12, lifetime: 399, 'lifetime-premium': 549, maintenance: 12 };
     if (planType === 'storage-addon') {
       additionalGb = Math.max(1, Math.min(10, parseInt(req.body.additionalGb, 10) || 1));
       const expectedAmount = 100 * additionalGb;
@@ -1811,8 +1836,8 @@ app.post('/api/payments/create-payplus', checkDbReady, authenticateToken, async 
         return res.status(400).json({ success: false, message: 'סכום או מזהה דף לא תואם' });
       }
     } else if (planType === 'maintenance') {
-      if (Number(amount) !== 15 || !memorialId) {
-        return res.status(400).json({ success: false, message: 'תשלום תחזוקה 15₪ דורש מזהה דף זיכרון' });
+      if (Number(amount) !== 12 || !memorialId) {
+        return res.status(400).json({ success: false, message: 'תשלום תחזוקה 12₪ דורש מזהה דף זיכרון' });
       }
     } else {
       const expectedAmount = allowedAmounts[planType];
@@ -2150,7 +2175,8 @@ app.post('/api/memorials', checkDbReady, optionalAuth, validateInput, upload.fie
       console.error('❌ ERROR: No memorial ID provided for QR code generation!');
       throw new Error('Memorial ID is required for QR code generation');
     }
-    const memorialUrl = getMemorialPageUrl(id);
+    const slug = generateSlug(name, hebrewName, id);
+    const memorialUrl = getMemorialPageUrl(id, slug);
     console.log('🔗 Memorial ID:', id);
     console.log('🔗 Memorial URL for QR:', memorialUrl);
     const qrCodeFsPath = storageDir('qrcodes', `${id}.png`);
@@ -2189,8 +2215,8 @@ app.post('/api/memorials', checkDbReady, optionalAuth, validateInput, upload.fie
       expiryDate.setHours(expiryDate.getHours() + 24); // 24 hours from now
 
       await db.execute(`
-      INSERT INTO memorials (id, userId, name, hebrewName, birthDate, deathDate, biography, images, videos, backgroundMusic, heroImage, heroSummary, timeline, tehilimChapters, mishnayot, qrCodePath, status, expiryDate, canEdit, cemeteryName, cemeteryAddress, latitude, longitude, event_title, event_date, event_place, event_url, event_description, events)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO memorials (id, userId, name, hebrewName, birthDate, deathDate, biography, images, videos, backgroundMusic, heroImage, heroSummary, timeline, tehilimChapters, mishnayot, qrCodePath, status, expiryDate, canEdit, cemeteryName, cemeteryAddress, latitude, longitude, event_title, event_date, event_place, event_url, event_description, events, slug)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `, [
       id,
       userId,
@@ -2220,7 +2246,8 @@ app.post('/api/memorials', checkDbReady, optionalAuth, validateInput, upload.fie
       (event_place && String(event_place).trim()) || null,
       (event_url && String(event_url).trim()) || null,
       (event_description && String(event_description).trim()) || null,
-      eventsJson
+      eventsJson,
+      slug
       ]);
       if (newMediaBytes > 0) {
         await db.execute('UPDATE memorials SET media_used_bytes = ? WHERE id = ?', [newMediaBytes, id]);
@@ -2230,6 +2257,7 @@ app.post('/api/memorials', checkDbReady, optionalAuth, validateInput, upload.fie
       success: true,
       memorial: {
         id,
+        slug,
         name,
         hebrewName,
         birthDate,
@@ -2289,19 +2317,31 @@ app.post('/api/memorials', checkDbReady, optionalAuth, validateInput, upload.fie
   }
 });
 
-// Get memorial by ID
+// UUID pattern – אם הפרמטר תואם, חיפוש לפי id; אחרת לפי slug
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+async function resolveMemorialId(idOrSlug) {
+  if (!idOrSlug) return null;
+  const byId = UUID_REGEX.test(idOrSlug);
+  const [rows] = byId
+    ? await db.execute('SELECT id FROM memorials WHERE id = ?', [idOrSlug])
+    : await db.execute('SELECT id FROM memorials WHERE slug = ?', [decodeURIComponent(idOrSlug)]);
+  return rows.length ? rows[0].id : null;
+}
+
+// Get memorial by ID or slug (URL on name)
 app.get('/api/memorials/:id', checkDbReady, optionalAuth, async (req, res) => {
-  const { id } = req.params;
-  
-  console.log('🔍 GET /api/memorials/:id - Requested ID:', id);
+  const idOrSlug = req.params.id;
+  const byId = UUID_REGEX.test(idOrSlug);
+
+  console.log('🔍 GET /api/memorials/:id - Requested:', idOrSlug, byId ? '(by id)' : '(by slug)');
   console.log('🔍 User authenticated:', !!req.user);
-  if (req.user) {
-    console.log('🔍 User ID:', req.user.id, 'Email:', req.user.email);
-  }
-  
+
   try {
     await ensureDbConnection();
-    const [rows] = await db.execute('SELECT * FROM memorials WHERE id = ?', [id]);
+    const [rows] = byId
+      ? await db.execute('SELECT * FROM memorials WHERE id = ?', [idOrSlug])
+      : await db.execute('SELECT * FROM memorials WHERE slug = ?', [decodeURIComponent(idOrSlug)]);
     
     if (process.env.NODE_ENV === 'development') {
       console.log('🔍 Found rows:', rows.length);
@@ -2309,7 +2349,7 @@ app.get('/api/memorials/:id', checkDbReady, optionalAuth, async (req, res) => {
     
     if (rows.length === 0) {
       if (process.env.NODE_ENV === 'development') {
-        console.log('❌ Memorial not found for ID:', id);
+        console.log('❌ Memorial not found for:', idOrSlug);
       }
       return res.status(404).json({ success: false, error: 'Memorial not found' });
     }
@@ -2359,10 +2399,9 @@ app.get('/api/memorials/:id', checkDbReady, optionalAuth, async (req, res) => {
       }
     }
 
-    res.json({
-      success: true,
-      memorial: {
+const memorial = {
         ...row,
+        slug: row.slug || null,
         images: JSON.parse(row.images || '[]'),
         videos: JSON.parse(row.videos || '[]'),
         backgroundMusic: row.backgroundMusic || '',
@@ -2371,13 +2410,13 @@ app.get('/api/memorials/:id', checkDbReady, optionalAuth, async (req, res) => {
         timeline: parseTimeline(row.timeline),
         mishnayot: row.mishnayot || '',
         events: parseEvents(row)
-      }
-    });
+      };
+    res.json({ success: true, memorial });
   } catch (err) {
     if (err.code === 'ER_NO_SUCH_TABLE' || err.message.includes('doesn\'t exist')) {
-      return res.status(503).json({ 
-        success: false, 
-        error: 'Database is initializing. Please try again in a moment.' 
+      return res.status(503).json({
+        success: false,
+        error: 'Database is initializing. Please try again in a moment.'
   });
     }
     return res.status(500).json({ success: false, error: err.message });
@@ -2453,20 +2492,51 @@ app.get('/api/memorials', checkDbReady, async (req, res) => {
       };
     }
     
-    res.json(response);
+res.json(response);
   } catch (err) {
     // Ensure CORS headers are set on error
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
-    
+
     if (err.code === 'ER_NO_SUCH_TABLE' || err.message.includes('doesn\'t exist')) {
-      return res.status(503).json({ 
-        success: false, 
-        error: 'Database is initializing. Please try again in a moment.' 
+      return res.status(503).json({
+        success: false,
+        error: 'Database is initializing. Please try again in a moment.'
       });
     }
     return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Sitemap XML for SEO – only public memorials (active/lifetime, not expired)
+app.get('/api/sitemap/memorials', checkDbReady, async (req, res) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  try {
+    const [rows] = await db.execute(
+      `SELECT id, slug, updatedAt FROM memorials
+       WHERE (status = 'lifetime')
+          OR (status = 'active' AND (expiryDate IS NULL OR expiryDate > NOW()))
+       ORDER BY updatedAt DESC`
+    );
+    const baseUrl = MEMORIAL_PAGE_BASE_URL;
+    const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;');
+    const urls = rows.map(row => {
+      const segment = (row.slug && String(row.slug).trim()) ? encodeURIComponent(row.slug) : row.id;
+      const loc = `${baseUrl}/memorial/${segment}`;
+      const lastmod = row.updatedAt ? new Date(row.updatedAt).toISOString().slice(0, 10) : '';
+      return lastmod ? `<url><loc>${esc(loc)}</loc><lastmod>${lastmod}</lastmod><changefreq>monthly</changefreq><priority>0.7</priority></url>` : `<url><loc>${esc(loc)}</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>`;
+    }).join('');
+    const xml = `<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${urls}</urlset>`;
+    res.setHeader('Content-Type', 'application/xml; charset=utf-8');
+    res.send(xml);
+  } catch (err) {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    if (err.code === 'ER_NO_SUCH_TABLE' || err.message?.includes("doesn't exist")) {
+      res.setHeader('Content-Type', 'application/xml; charset=utf-8');
+      return res.send('<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"></urlset>');
+    }
+    return res.status(500).send('<?xml version="1.0"?><error>Server error</error>');
   }
 });
 
@@ -2777,16 +2847,16 @@ app.post('/api/memorials/:id/regenerate-qr', checkDbReady, authenticateToken, as
     }
     
     // Generate new QR code – תמיד אותו URL (Netlify) כדי שסריקת ה-QR תפתח תמיד את הדף
-    const memorialUrl = getMemorialPageUrl(id);
+const memorialUrl = getMemorialPageUrl(id, memorial.slug);
     const qrCodeFsPath = storageDir('qrcodes', `${id}.png`);
     const qrCodePath = `qrcodes/${id}.png`;
-    
+
     try {
       const qrDir = storageDir('qrcodes');
       if (!fs.existsSync(qrDir)) {
         fs.mkdirSync(qrDir, { recursive: true });
       }
-      
+
       await QRCode.toFile(qrCodeFsPath, memorialUrl);
       console.log('✅ QR Code regenerated successfully:', qrCodePath);
       
@@ -3068,6 +3138,7 @@ app.put('/api/memorials/:id', checkDbReady, authenticateToken, validateInput, up
       heroImage = images[0] || '';
     }
     
+    const newSlug = generateSlug(name, hebrewName, id);
     // Update database
     await db.execute(`
       UPDATE memorials 
@@ -3076,7 +3147,7 @@ app.put('/api/memorials/:id', checkDbReady, authenticateToken, validateInput, up
           timeline = ?, tehilimChapters = ?, mishnayot = ?,
           cemeteryName = ?, cemeteryAddress = ?, latitude = ?, longitude = ?,
           event_title = ?, event_date = ?, event_place = ?, event_url = ?, event_description = ?,
-          events = ?
+          events = ?, slug = ?
       WHERE id = ? AND userId = ?
     `, [
       name,
@@ -3102,6 +3173,7 @@ app.put('/api/memorials/:id', checkDbReady, authenticateToken, validateInput, up
       (event_url && String(event_url).trim()) || null,
       (event_description && String(event_description).trim()) || null,
       eventsJson,
+      newSlug,
       id,
       req.user.id
     ]);

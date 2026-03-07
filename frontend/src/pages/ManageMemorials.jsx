@@ -518,7 +518,7 @@ function ManageMemorials() {
                       )}
                       {maintenanceDue && (
                         <div className="no-edit-warning" style={{ color: '#856404', background: '#fff3cd', padding: '6px 10px', borderRadius: '6px', fontSize: '0.9rem' }}>
-                          <span>חייב בתשלום תחזוקה 15₪ לשנה</span>
+                          <span>חייב בתשלום תחזוקה 12₪ לשנה</span>
                         </div>
                       )}
                       {isExpiredPaid && (
@@ -529,7 +529,7 @@ function ManageMemorials() {
                     </div>
                     <div className="card-actions">
                       <Link
-                        to={`/memorial/${memorial.id}`}
+                        to={`/memorial/${memorial.slug ? encodeURIComponent(memorial.slug) : memorial.id}`}
                         className="btn btn-outline"
                         style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                       >
@@ -608,7 +608,7 @@ function ManageMemorials() {
                                 className="btn btn-primary"
                                 style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                               >
-                                {payingMaintenanceId === memorial.id ? 'מעביר לתשלום...' : 'שלם תחזוקה 15₪ (PayPal)'}
+                                {payingMaintenanceId === memorial.id ? 'מעביר לתשלום...' : 'שלם תחזוקה 12₪ (PayPal)'}
                               </button>
                               {isStripeAvailable() && (
                                 <button

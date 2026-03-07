@@ -13,13 +13,13 @@ const BACKEND_PLANS = {
   annual: 100,
   lifetime: 399,
   'lifetime-premium': 549,
-  maintenance: 15,
+  maintenance: 12,
   'storage-addon': null // 100 * additionalGb, 1–10 GB
 };
 
 // מה שהפרונט שולח (SaveMemorial, ManageMemorials)
 const FRONTEND_SAVE_PLANS = { monthly: 12, annual: 100, lifetime: 399, 'lifetime-premium': 549 };
-const FRONTEND_MAINTENANCE = 15;
+const FRONTEND_MAINTENANCE = 12;
 
 let passed = 0;
 let failed = 0;

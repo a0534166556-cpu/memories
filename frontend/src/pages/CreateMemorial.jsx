@@ -8,6 +8,16 @@ import { mishnayotData } from '../data/mishnayot';
 import { FaUpload, FaTrash, FaArrowRight, FaPlus, FaMusic, FaBell, FaEnvelope, FaMapMarkerAlt, FaLink } from 'react-icons/fa';
 import './CreateMemorial.css';
 
+// ברירת מחדל: חצי מרשימת פרקי התהילים והמשניות הזמינים יוצגו בכל דף זיכרון חדש
+const allTehilimChapters = Object.keys(tehilimData)
+  .map(num => parseInt(num, 10))
+  .filter(num => !Number.isNaN(num))
+  .sort((a, b) => a - b);
+const defaultTehilimChapters = allTehilimChapters.slice(0, Math.ceil(allTehilimChapters.length / 2));
+
+const allMishnayotKeys = Object.keys(mishnayotData).sort();
+const defaultMishnayotKeys = allMishnayotKeys.slice(0, Math.ceil(allMishnayotKeys.length / 2));
+
 function CreateMemorial() {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
@@ -16,7 +26,8 @@ function CreateMemorial() {
     birthDate: '',
     deathDate: '',
     biography: '',
-    tehilimChapters: '1,23,121',
+    tehilimChapters: defaultTehilimChapters.join(','),
+    mishnayot: defaultMishnayotKeys.join(', '),
     heroSummary: '',
     cemeteryName: '',
     cemeteryAddress: '',
@@ -36,9 +47,9 @@ function CreateMemorial() {
   const [timelineEntries, setTimelineEntries] = useState([]);
   const [loading, setLoading] = useState(false);
   const [showTehilimSelector, setShowTehilimSelector] = useState(false);
-  const [selectedChapters, setSelectedChapters] = useState([1, 23, 121]);
+  const [selectedChapters, setSelectedChapters] = useState(defaultTehilimChapters);
   const [showMishnayotSelector, setShowMishnayotSelector] = useState(false);
-  const [selectedMishnayot, setSelectedMishnayot] = useState([]);
+  const [selectedMishnayot, setSelectedMishnayot] = useState(defaultMishnayotKeys);
   const [reminderEmail, setReminderEmail] = useState('');
   const [remindOnDay, setRemindOnDay] = useState(true);
   const [remind10DaysBefore, setRemind10DaysBefore] = useState(false);
@@ -298,7 +309,7 @@ function CreateMemorial() {
         if (response.data.redirectTo) {
           navigate(response.data.redirectTo);
         } else {
-          navigate(`/memorial/${response.data.memorial.id}`);
+          navigate(`/memorial/${response.data.memorial.slug ? encodeURIComponent(response.data.memorial.slug) : response.data.memorial.id}`);
         }
       }
     } catch (error) {

@@ -1,8 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { FaCheck, FaTimes, FaCrown, FaHeart, FaSync } from 'react-icons/fa';
-import axios from 'axios';
-import { getApiEndpoint } from '../config';
+import { UPAY_LIFETIME_URL } from '../config';
 import { memorialPageFeatures } from '../data/memorialFeatures';
 import './Pricing.css';
 
@@ -52,7 +51,7 @@ function Pricing() {
       features: [
         'שמירה קבועה',
         'עריכה חופשית',
-        'תחזוקת אתר 15₪ לשנה (חינם בשנתיים הראשונות, מתחייב מהשנה השלישית)',
+        'תחזוקת אתר 12₪ לשנה (חינם בשנתיים הראשונות, מתחייב מהשנה השלישית)',
         'גיבוי',
         'העברת ניהול למשפחה',
         'תמיכה מלאה'
@@ -165,9 +164,31 @@ function Pricing() {
                   >
                     בחר תוכנית
                   </button>
+
+                  {plan.id === 'lifetime' && (
+                    <div className="pricing-upay-note">
+                      <p className="pricing-upay-text">
+                        מעדיפים לשלם בדף תשלום חיצוני (Upay)? קודם צרו קשר טלפוני לתיאום, ולאחר מכן תוכלו לשלם בקישור התשלום המאובטח:
+                      </p>
+                      <a
+                        href={UPAY_LIFETIME_URL}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="btn btn-outline btn-full"
+                      >
+                        תשלום חד־פעמי 399₪ דרך Upay
+                      </a>
+                    </div>
+                  )}
                 </div>
               );
             })}
+          </div>
+
+          <div className="pricing-bank-transfer">
+            <h3>או: תשלום בהעברה בנקאית</h3>
+            <p>מעדיפים לשלם בהעברה מחשבון הבנק? השאירו פרטים ונחזור אליכם טלפונית להסדרת התשלום. אין צורך למלא באתר פרטי חשבון בנק – את כל פרטי ההעברה נסביר בטלפון, ואחרי ההעברה נפעיל את השמירה.</p>
+            <Link to="/contact" className="btn btn-outline">להזמנה ותיאום תשלום טלפוני – צור קשר</Link>
           </div>
 
           <div className="pricing-faq">
@@ -177,14 +198,15 @@ function Pricing() {
                 <h3>מה ההבדל בין התוכניות?</h3>
                 <p>
                   מנוי חודשי (12₪), שנתי (100₪), תשלום חד פעמי (399₪).
-                  תחזוקת אתר 15₪ לשנה – חינם בשנתיים הראשונות במסלול תשלום חד פעמי, מתחייב מהשנה השלישית.
+                  תחזוקת אתר 12₪ לשנה – חינם בשנתיים הראשונות במסלול תשלום חד פעמי, מתחייב מהשנה השלישית.
                 </p>
               </div>
               <div className="faq-item">
                 <h3>איך עובד התשלום?</h3>
                 <p>
-                  התשלום מתבצע באמצעות כרטיס אשראי או העברה (דרך ספקי תשלום מאומתים). 
-                  אחרי התשלום, תקבלו גישה מיידית ליצירת דף הזיכרון.
+                  התשלום מתבצע באמצעות כרטיס אשראי, ביט, או העברה בנקאית. 
+                  בהעברה בנקאית: צרו קשר, נשלח פרטי חשבון והסכום, ואחרי ההעברה נפעיל את השמירה. 
+                  בתשלום בכרטיס – גישה מיידית.
                 </p>
               </div>
               <div className="faq-item">

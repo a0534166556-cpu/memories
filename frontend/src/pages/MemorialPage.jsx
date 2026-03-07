@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import axios from 'axios';
 import { getApiEndpoint } from '../config';
@@ -19,6 +19,7 @@ const SITE_URL = 'https://memoriesman.netlify.app';
 
 function MemorialPage() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const [memorial, setMemorial] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showTehilim, setShowTehilim] = useState(false);
@@ -168,11 +169,15 @@ function MemorialPage() {
         if (memorialData.qrCodePath) {
           memorialData.qrCodePath = normalizePath(memorialData.qrCodePath);
         }
-        if (memorialData.backgroundMusic) {
+if (memorialData.backgroundMusic) {
           memorialData.backgroundMusic = normalizePath(memorialData.backgroundMusic);
         }
-        
+
         setMemorial(memorialData);
+        // אם נכנסו עם מזהה (UUID) ויש slug – מעבירים לכתובת עם השם
+        if (memorialData.slug && id === memorialData.id) {
+          navigate(`/memorial/${encodeURIComponent(memorialData.slug)}`, { replace: true });
+        }
       }
     } catch (error) {
       console.error('Error fetching memorial:', error);

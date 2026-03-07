@@ -3,7 +3,7 @@
 
 const axios = require('axios');
 
-const API_URL = process.env.API_URL || 'https://memories-production-31c0.up.railway.app';
+const API_URL = process.env.API_URL || 'https://memories-production-47ee.up.railway.app';
 
 const colors = {
   reset: '\x1b[0m',

@@ -2,7 +2,7 @@
 const https = require('https');
 const http = require('http');
 
-const API_URL = 'https://memories-production-31c0.up.railway.app';
+const API_URL = 'https://memories-production-47ee.up.railway.app';
 
 function test(url, callback) {
   const client = url.startsWith('https') ? https : http;

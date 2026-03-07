@@ -19,6 +19,7 @@ import AddStorage from './pages/AddStorage';
 import DeleteAccount from './pages/DeleteAccount';
 import Privacy from './pages/Privacy';
 import Support from './pages/Support';
+import Contact from './pages/Contact';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import './App.css';
@@ -81,6 +82,7 @@ function App() {
             <Route path="/delete-account" element={<DeleteAccount />} />
             <Route path="/privacy" element={<Privacy />} />
             <Route path="/support" element={<Support />} />
+            <Route path="/contact" element={<Contact />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/reset-password" element={<ResetPassword />} />
           </Routes>

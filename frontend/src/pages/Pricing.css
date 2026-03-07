@@ -42,7 +42,34 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
   gap: 30px;
-  margin-bottom: 60px;
+  margin-bottom: 40px;
+}
+
+.pricing-bank-transfer {
+  text-align: center;
+  padding: 24px;
+  margin-bottom: 50px;
+  background: white;
+  border-radius: 12px;
+  border: 1px solid rgba(45, 74, 111, 0.12);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+}
+
+.pricing-bank-transfer h3 {
+  font-size: 1.2rem;
+  color: var(--primary-color);
+  margin-bottom: 10px;
+  font-weight: 600;
+}
+
+.pricing-bank-transfer p {
+  color: #555;
+  font-size: 1rem;
+  line-height: 1.65;
+  margin-bottom: 14px;
+  max-width: 520px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .pricing-card {
@@ -271,6 +298,18 @@
   font-size: 1.1rem;
   font-weight: 600;
   margin-top: auto;
+}
+
+.pricing-upay-note {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px dashed rgba(0, 0, 0, 0.12);
+}
+
+.pricing-upay-text {
+  font-size: 0.9rem;
+  color: #555;
+  margin-bottom: 8px;
 }
 
 .pricing-faq {

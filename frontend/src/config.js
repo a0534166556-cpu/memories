@@ -38,9 +38,14 @@ export const apiClient = axios.create({
   },
 });
 
+// קישור לתשלום חד-פעמי (399₪) דרך Upay
+export const UPAY_LIFETIME_URL =
+  'https://app.upay.co.il/API6/clientsecure/redirectpage.php?msg=QktaV2w3UmZISy9LOGhUQXlJVWprZi9xYzJ0VWdXR3BaZ2ZhUG4rdGJBcTBXU0QyVWhobXhQMkJiS3FKUkQ2VDNEekswNk9mYmRnUDBlQ0dQRmNjUzVsYzVZalZzYnUyaDZPWEFYdHpDWVJ3T2Q0aXRva2NEMFQ1OTJpMklFZkhLaytjcXB1VWdQM3JqWWNWanB4bDBQZTRUTVd3ekM5WkVQQnpxZmlhdDA1aFVIOXNIdm1naDIwSWhRRStTRE5Jc1ozb1h6RGtiYVp5Tnc2UEwxam96c1RYTEhtRlRzOVNMMFZrOTZET1VZOTBEL1dlbHI4Qkpub3NTSWNRZnJyM2lhdEhITGI1clpTUXVOWE1qYUlxZTRPZTl6dmV6c1NlRVFydFlnSDVhenN2dlIyZ1JKbWRQYTFhYXJlRjgyaHYequal';
+
 export default {
   API_URL,
   getApiEndpoint,
   apiClient,
+  UPAY_LIFETIME_URL,
 };
 

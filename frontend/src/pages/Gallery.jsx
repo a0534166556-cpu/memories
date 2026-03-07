@@ -86,7 +86,7 @@ function Gallery() {
 
                 return (
                   <article key={memorial.id} className="gallery-card">
-                    <Link to={`/memorial/${memorial.id}`} className="gallery-card__link">
+                    <Link to={`/memorial/${memorial.slug ? encodeURIComponent(memorial.slug) : memorial.id}`} className="gallery-card__link">
                       <img 
                         src={imageUrl} 
                         alt={`דף זיכרון - ${memorial.name}`} 
