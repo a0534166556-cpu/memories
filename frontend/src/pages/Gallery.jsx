@@ -49,12 +49,12 @@ function Gallery() {
             תמונות, סיפורים, וקטעי שמע.
           </p>
           <div className="gallery-hero__actions">
-            <Link to="/gallery/example" className="btn btn-secondary">
+            <Link to="/gallery/example" className="btn btn-primary gallery-example-btn">
               דף זיכרון לדוגמה
             </Link>
-            <Link to="/create" className="btn btn-primary">
-            <FaPlus /> יצירת דף זיכרון משלכם
-          </Link>
+            <Link to="/create" className="btn btn-secondary">
+              <FaPlus /> יצירת דף זיכרון משלכם
+            </Link>
           </div>
         </div>
       </section>

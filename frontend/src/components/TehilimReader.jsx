@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { tehilimData } from '../data/tehilim';
 import './TehilimReader.css';
 
-function TehilimReader({ chapters }) {
+function TehilimReader({ chapters, hideProgressCount = false }) {
   const [currentChapter, setCurrentChapter] = useState(0);
   
   const chapterNumbers = (typeof chapters === 'string' ? chapters : String(chapters || ''))
@@ -45,9 +45,11 @@ function TehilimReader({ chapters }) {
           </button>
           <div className="chapter-number">
             פרק {currentChapterNum}
-            <span className="chapter-count">
-              ({currentChapter + 1} מתוך {chapterNumbers.length})
-            </span>
+            {!hideProgressCount && (
+              <span className="chapter-count">
+                ({currentChapter + 1} מתוך {chapterNumbers.length})
+              </span>
+            )}
           </div>
           <button
             type="button"

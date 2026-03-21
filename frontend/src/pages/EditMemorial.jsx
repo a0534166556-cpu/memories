@@ -5,6 +5,7 @@ import axios from 'axios';
 import { getApiEndpoint } from '../config';
 import { tehilimData } from '../data/tehilim';
 import { mishnayotData } from '../data/mishnayot';
+import { buildAzkaraCeremonyTemplate } from '../data/ceremonyTemplates';
 import { FaUpload, FaTrash, FaArrowRight, FaPlus, FaMusic, FaSpinner, FaMapMarkerAlt, FaLink } from 'react-icons/fa';
 import './CreateMemorial.css';
 
@@ -25,7 +26,14 @@ function EditMemorial() {
     cemeteryName: '',
     cemeteryAddress: '',
     latitude: '',
-    longitude: ''
+    longitude: '',
+    charity_url: '',
+    charity_name: '',
+    ceremony_title: '',
+    ceremony_date: '',
+    ceremony_place: '',
+    ceremony_text: '',
+    ceremony_program: ''
   });
   const [eventEntries, setEventEntries] = useState([]);
   const [files, setFiles] = useState([]);
@@ -86,7 +94,14 @@ function EditMemorial() {
             cemeteryName: memorial.cemeteryName || '',
             cemeteryAddress: memorial.cemeteryAddress || '',
             latitude: memorial.latitude ? String(memorial.latitude) : '',
-            longitude: memorial.longitude ? String(memorial.longitude) : ''
+            longitude: memorial.longitude ? String(memorial.longitude) : '',
+            charity_url: memorial.charity_url || '',
+            charity_name: memorial.charity_name || '',
+            ceremony_title: memorial.ceremony_title || '',
+            ceremony_date: memorial.ceremony_date || '',
+            ceremony_place: memorial.ceremony_place || '',
+            ceremony_text: memorial.ceremony_text || '',
+            ceremony_program: memorial.ceremony_program || ''
           });
 
           if (memorial.events && Array.isArray(memorial.events) && memorial.events.length > 0) {
@@ -298,6 +313,34 @@ function EditMemorial() {
 
   const removeEventEntry = (index) => {
     setEventEntries(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const applyAzkaraTemplate = () => {
+    let deceasedName = String(formData.hebrewName || formData.name || '').trim();
+    if (!deceasedName) {
+      const typedName = window.prompt('כדי להתאים אישית את הטקס, הזן/י שם נפטר/ת:');
+      if (!typedName || !typedName.trim()) {
+        window.alert('לא הוזן שם. התבנית לא מולאה.');
+        return;
+      }
+      deceasedName = typedName.trim();
+    }
+    const hasCeremonyContent = [
+      formData.ceremony_title,
+      formData.ceremony_text,
+      formData.ceremony_program
+    ].some((v) => String(v || '').trim() !== '');
+    if (hasCeremonyContent) {
+      const ok = window.confirm('כבר יש תוכן בטקס האזכרה. להחליף אותו בתבנית?');
+      if (!ok) return;
+    }
+    const template = buildAzkaraCeremonyTemplate(deceasedName);
+    setFormData((prev) => ({
+      ...prev,
+      ceremony_title: template.ceremony_title,
+      ceremony_text: template.ceremony_text,
+      ceremony_program: template.ceremony_program
+    }));
   };
 
   const toggleMishna = (mishna) => {
@@ -773,6 +816,75 @@ function EditMemorial() {
             </div>
 
           <div className="form-section">
+            <h2>טקס אזכרה אישי (ניתן לעריכה מלאה)</h2>
+            <p className="form-hint">אפשר ללחוץ על הכפתור כדי למלא אוטומטית סדר אזכרה מלא, ואז לערוך ולשנות לפי הצורך. כל שדה ניתן לעריכה.</p>
+            <button
+              type="button"
+              className="btn btn-secondary timeline-add"
+              onClick={applyAzkaraTemplate}
+            >
+              <FaPlus /> מלא תבנית סדר אזכרה
+            </button>
+            <div className="form-row">
+              <div className="form-group">
+                <label htmlFor="ceremony_title">כותרת הטקס</label>
+                <input
+                  type="text"
+                  id="ceremony_title"
+                  name="ceremony_title"
+                  value={formData.ceremony_title}
+                  onChange={handleChange}
+                  placeholder="לדוגמה: טקס אזכרה משפחתי"
+                />
+              </div>
+              <div className="form-group">
+                <label htmlFor="ceremony_date">תאריך הטקס</label>
+                <input
+                  type="text"
+                  id="ceremony_date"
+                  name="ceremony_date"
+                  value={formData.ceremony_date}
+                  onChange={handleChange}
+                  placeholder="לדוגמה: י״ב בתשרי תשפ״ז"
+                />
+              </div>
+              <div className="form-group">
+                <label htmlFor="ceremony_place">מקום הטקס</label>
+                <input
+                  type="text"
+                  id="ceremony_place"
+                  name="ceremony_place"
+                  value={formData.ceremony_place}
+                  onChange={handleChange}
+                  placeholder="לדוגמה: בית העלמין ירקון"
+                />
+              </div>
+            </div>
+            <div className="form-group">
+              <label htmlFor="ceremony_text">תיאור הטקס</label>
+              <textarea
+                id="ceremony_text"
+                name="ceremony_text"
+                value={formData.ceremony_text}
+                onChange={handleChange}
+                rows="3"
+                placeholder="תיאור קצר של הטקס, קהל היעד ודגשים חשובים"
+              />
+            </div>
+            <div className="form-group">
+              <label htmlFor="ceremony_program">מהלך הטקס המלא (ניתן לעריכה)</label>
+              <textarea
+                id="ceremony_program"
+                name="ceremony_program"
+                value={formData.ceremony_program}
+                onChange={handleChange}
+                rows="10"
+                placeholder="הטקסט המלא של הטקס – תפילות, פרקי תהילים, קדיש וכו'. ניתן לערוך לגמרי לפי הצורך."
+              />
+            </div>
+          </div>
+
+          <div className="form-section">
             <h2>אירועים לזכרו (אופציונלי)</h2>
             <p className="form-hint">ערב לימוד, גיוס תרומות, אירוע לזכר וכדומה – ניתן להוסיף כמה אירועים. כל אירוע יוצג בדף הזיכרון.</p>
             {eventEntries.length === 0 && (
@@ -850,6 +962,31 @@ function EditMemorial() {
             >
               <FaPlus /> הוסף אירוע
             </button>
+          </div>
+
+          <div className="form-section">
+            <h2>תרומה לזכרו (אופציונלי)</h2>
+            <p className="form-hint">קישור לעמותה או לגיוס תרומות – המבקרים בדף יוכלו להיכנס ולתרום לזכר הנפטר/ת.</p>
+            <div className="form-group">
+              <label htmlFor="charity_name">שם העמותה או הפרויקט</label>
+              <input
+                type="text"
+                id="charity_name"
+                value={formData.charity_name}
+                onChange={(e) => setFormData(prev => ({ ...prev, charity_name: e.target.value }))}
+                placeholder="לדוגמה: עמותת מגן דוד אדום"
+              />
+            </div>
+            <div className="form-group">
+              <label htmlFor="charity_url">קישור לתרומה</label>
+              <input
+                type="url"
+                id="charity_url"
+                value={formData.charity_url}
+                onChange={(e) => setFormData(prev => ({ ...prev, charity_url: e.target.value }))}
+                placeholder="https://..."
+              />
+            </div>
           </div>
 
           <div className="form-group">

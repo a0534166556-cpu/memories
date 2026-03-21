@@ -22,6 +22,7 @@ import Support from './pages/Support';
 import Contact from './pages/Contact';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
+import CeremonyPage from './pages/CeremonyPage';
 import './App.css';
 
 class ErrorBoundary extends Component {
@@ -69,6 +70,7 @@ function App() {
             <Route path="/edit/:id" element={<EditMemorial />} />
             <Route path="/manage" element={<ManageMemorials />} />
             <Route path="/memorial/:id" element={<MemorialPage />} />
+            <Route path="/memorial/:id/ceremony" element={<CeremonyPage />} />
             <Route path="/about" element={<About />} />
             <Route path="/memorial-prayers" element={<MemorialPrayers />} />
             <Route path="/pricing" element={<Pricing />} />

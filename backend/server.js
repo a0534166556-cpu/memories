@@ -213,6 +213,14 @@ const authLimiter = rateLimit({
   legacyHeaders: false
 });
 
+const contactFeedbackLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 12,
+  message: { success: false, message: 'נשלחו יותר מדי הודעות מכתובת זו. נסו שוב בעוד רבע שעה.' },
+  standardHeaders: true,
+  legacyHeaders: false
+});
+
 // Health check for Railway/monitoring (no DB required)
 app.get('/api/health', (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -606,6 +614,33 @@ async function initDatabase() {
       console.log('✅ Added slug column to memorials');
     } catch (err) {
       if (err.code === 'ER_DUP_FIELDNAME') { /* already exists */ } else { throw err; }
+    }
+    try {
+      await db.execute(`ALTER TABLE memorials ADD COLUMN charity_url VARCHAR(500) NULL`);
+      console.log('✅ Added charity_url column to memorials');
+    } catch (err) {
+      if (err.code === 'ER_DUP_FIELDNAME') { /* already exists */ } else { throw err; }
+    }
+    try {
+      await db.execute(`ALTER TABLE memorials ADD COLUMN charity_name VARCHAR(255) NULL`);
+      console.log('✅ Added charity_name column to memorials');
+    } catch (err) {
+      if (err.code === 'ER_DUP_FIELDNAME') { /* already exists */ } else { throw err; }
+    }
+    // Ceremony (טקס אזכרה) columns – fully editable by user
+    for (const col of [
+      ['ceremony_title', 'VARCHAR(255) NULL'],
+      ['ceremony_date', 'VARCHAR(100) NULL'],
+      ['ceremony_place', 'VARCHAR(255) NULL'],
+      ['ceremony_text', 'TEXT NULL'],
+      ['ceremony_program', 'TEXT NULL']
+    ]) {
+      try {
+        await db.execute(`ALTER TABLE memorials ADD COLUMN ${col[0]} ${col[1]}`);
+        console.log(`✅ Added ${col[0]} column to memorials`);
+      } catch (err) {
+        if (err.code === 'ER_DUP_FIELDNAME' || err.errno === 1060) { /* already exists */ } else throw err;
+      }
     }
     // Backfill slug for existing memorials
     try {
@@ -1255,6 +1290,147 @@ async function sendPasswordResetEmail(toEmail, resetLink) {
   return false;
 }
 
+/** משוב מצור קשר – נשלח לבעל האתר; Reply-To לכתובת המבקר */
+async function sendContactFeedbackToAdmin({ name, email, siteSuggestions, memorialFeatures }) {
+  const adminEmail = process.env.CONTACT_INBOX_EMAIL || 'a0534166556@gmail.com';
+  const fromEmail =
+    process.env.RESET_EMAIL_FROM || process.env.SMTP_USER || process.env.RESEND_FROM || 'onboarding@resend.dev';
+  const visitorName = String(name || '').trim().slice(0, 120);
+  const visitorEmail = String(email || '').trim().slice(0, 255);
+  const siteText = String(siteSuggestions || '').trim().slice(0, 8000);
+  const memorialText = String(memorialFeatures || '').trim().slice(0, 8000);
+  const subject = `הצעות לשיפור האתר / דף זיכרון – ${visitorName || visitorEmail}`;
+  const textBody = [
+    `שם: ${visitorName}`,
+    `אימייל לחזרה: ${visitorEmail}`,
+    '',
+    '--- הצעות לשיפור האתר ---',
+    siteText || '(ריק)',
+    '',
+    '--- מה הייתי רוצה שיופיע בדף הזיכרון שלי ---',
+    memorialText || '(ריק)'
+  ].join('\n');
+  const esc = (s) =>
+    String(s || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  const br = (s) => esc(s).replace(/\r\n/g, '\n').split('\n').join('<br/>');
+  const htmlBody = `<p><strong>שם:</strong> ${esc(visitorName)}</p><p><strong>אימייל לחזרה:</strong> <a href="mailto:${esc(visitorEmail)}">${esc(visitorEmail)}</a></p><h3>הצעות לשיפור האתר</h3><p>${br(siteText) || '(ריק)'}</p><h3>מה הייתי רוצה שיופיע בדף הזיכרון שלי</h3><p>${br(memorialText) || '(ריק)'}</p><p>— נשלח מטופס &quot;צור קשר&quot; באתר</p>`;
+
+  if (mailTransport) {
+    await mailTransport.sendMail({
+      from: fromEmail,
+      to: adminEmail,
+      replyTo: visitorEmail,
+      subject,
+      text: textBody,
+      html: htmlBody
+    });
+    return true;
+  }
+  if (RESEND_API_KEY) {
+    try {
+      const axios = require('axios');
+      const resendFrom = process.env.RESEND_FROM || 'onboarding@resend.dev';
+      await axios.post(
+        'https://api.resend.com/emails',
+        {
+          from: resendFrom,
+          to: [adminEmail],
+          reply_to: visitorEmail,
+          subject,
+          html: htmlBody
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${RESEND_API_KEY}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+      return true;
+    } catch (err) {
+      console.error('Resend contact feedback error:', err.response?.data || err.message);
+      return false;
+    }
+  }
+  if (SENDGRID_API_KEY) {
+    try {
+      const axios = require('axios');
+      await axios.post(
+        'https://api.sendgrid.com/v3/mail/send',
+        {
+          personalizations: [{ to: [{ email: adminEmail }] }],
+          from: { email: fromEmail, name: 'דפי זיכרון דיגיטליים' },
+          reply_to: visitorName ? { email: visitorEmail, name: visitorName } : { email: visitorEmail },
+          subject,
+          content: [
+            { type: 'text/plain', value: textBody },
+            { type: 'text/html', value: htmlBody }
+          ]
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${SENDGRID_API_KEY}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+      return true;
+    } catch (err) {
+      console.error('SendGrid contact feedback error:', err.response?.data || err.message);
+      return false;
+    }
+  }
+  return false;
+}
+
+app.post('/api/contact/feedback', contactFeedbackLimiter, async (req, res) => {
+  try {
+    const { name, email, siteSuggestions, memorialFeatures } = req.body || {};
+    const visitorEmail = typeof email === 'string' ? email.trim().toLowerCase() : '';
+    const emailOk = visitorEmail.length > 3 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(visitorEmail);
+    if (!emailOk) {
+      return res.status(400).json({ success: false, message: 'נא למלא כתובת אימייל תקינה כדי שנוכל לחזור אליכם.' });
+    }
+    const siteText = typeof siteSuggestions === 'string' ? siteSuggestions.trim() : '';
+    const memText = typeof memorialFeatures === 'string' ? memorialFeatures.trim() : '';
+    if (siteText.length < 4 && memText.length < 4) {
+      return res.status(400).json({
+        success: false,
+        message: 'נא לכתוב לפחות כמה מילים באחד מהשדות: הצעה לשיפור האתר, או מה תרצו שיופיע בדף הזיכרון שלכם.'
+      });
+    }
+    const visitorName = typeof name === 'string' ? name.trim().slice(0, 120) : '';
+    const sent = await sendContactFeedbackToAdmin({
+      name: visitorName,
+      email: visitorEmail,
+      siteSuggestions: siteText,
+      memorialFeatures: memText
+    });
+    if (!sent) {
+      return res.status(503).json({
+        success: false,
+        message:
+          'שליחת אימייל מהשרת אינה מוגדרת כרגע. אפשר לכתוב לנו ישירות ל־a0534166556@gmail.com או להשתמש בכפתור ״פתיחה במייל״ למטה.',
+        mailtoFallback: true
+      });
+    }
+    return res.json({
+      success: true,
+      message: 'ההודעה נשלחה בהצלחה. תודה רבה — נקרא ונשקול כל הצעה.'
+    });
+  } catch (e) {
+    console.error('contact feedback', e);
+    return res.status(500).json({
+      success: false,
+      message: 'אירעה שגיאה בשליחה. נסו שוב בעוד רגע או שלחו אימייל ישירות.'
+    });
+  }
+});
+
 async function sendBirthdayReminderEmail(toEmail, memorialName, memorialUrl, birthDateDisplay) {
   const fromEmail = process.env.RESET_EMAIL_FROM || process.env.SMTP_USER || process.env.RESEND_FROM || 'onboarding@resend.dev';
   const subject = `תזכורת – יום ההולדת של ${memorialName} | דפי זיכרון דיגיטליים`;
@@ -1444,7 +1620,7 @@ app.post('/api/payments/create', checkDbReady, authenticateToken, async (req, re
       return res.status(400).json({ success: false, message: 'סוג תוכנית וסכום נדרשים' });
     }
     let additionalGb = null;
-    const allowedAmounts = { annual: 100, monthly: 12, lifetime: 399, 'lifetime-premium': 549, maintenance: 12 };
+    const allowedAmounts = { annual: 100, monthly: 12, lifetime: 349, 'lifetime-premium': 549, maintenance: 12 };
     if (planType === 'storage-addon') {
       additionalGb = Math.max(1, Math.min(10, parseInt(req.body.additionalGb, 10) || 1));
       const expectedAmount = 100 * additionalGb;
@@ -1660,7 +1836,7 @@ app.post('/api/payments/create-intent', checkDbReady, authenticateToken, async (
       return res.status(400).json({ success: false, message: 'סוג תוכנית וסכום נדרשים' });
     }
     let additionalGb = null;
-    const allowedAmounts = { annual: 100, monthly: 12, lifetime: 399, 'lifetime-premium': 549, maintenance: 12 };
+    const allowedAmounts = { annual: 100, monthly: 12, lifetime: 349, 'lifetime-premium': 549, maintenance: 12 };
     if (planType === 'storage-addon') {
       additionalGb = Math.max(1, Math.min(10, parseInt(req.body.additionalGb, 10) || 1));
       const expectedAmount = 100 * additionalGb;
@@ -1828,7 +2004,7 @@ app.post('/api/payments/create-payplus', checkDbReady, authenticateToken, async 
       return res.status(400).json({ success: false, message: 'סוג תוכנית וסכום נדרשים' });
     }
     let additionalGb = null;
-    const allowedAmounts = { annual: 100, monthly: 12, lifetime: 399, 'lifetime-premium': 549, maintenance: 12 };
+    const allowedAmounts = { annual: 100, monthly: 12, lifetime: 349, 'lifetime-premium': 549, maintenance: 12 };
     if (planType === 'storage-addon') {
       additionalGb = Math.max(1, Math.min(10, parseInt(req.body.additionalGb, 10) || 1));
       const expectedAmount = 100 * additionalGb;
@@ -2095,7 +2271,14 @@ app.post('/api/memorials', checkDbReady, optionalAuth, validateInput, upload.fie
       event_date,
       event_place,
       event_url,
-      event_description
+      event_description,
+      charity_url,
+      charity_name,
+      ceremony_title,
+      ceremony_date,
+      ceremony_place,
+      ceremony_text,
+      ceremony_program
     } = req.body;
     const id = uuidv4();
     let timeline = [];
@@ -2215,8 +2398,8 @@ app.post('/api/memorials', checkDbReady, optionalAuth, validateInput, upload.fie
       expiryDate.setHours(expiryDate.getHours() + 24); // 24 hours from now
 
       await db.execute(`
-      INSERT INTO memorials (id, userId, name, hebrewName, birthDate, deathDate, biography, images, videos, backgroundMusic, heroImage, heroSummary, timeline, tehilimChapters, mishnayot, qrCodePath, status, expiryDate, canEdit, cemeteryName, cemeteryAddress, latitude, longitude, event_title, event_date, event_place, event_url, event_description, events, slug)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO memorials (id, userId, name, hebrewName, birthDate, deathDate, biography, images, videos, backgroundMusic, heroImage, heroSummary, timeline, tehilimChapters, mishnayot, qrCodePath, status, expiryDate, canEdit, cemeteryName, cemeteryAddress, latitude, longitude, event_title, event_date, event_place, event_url, event_description, events, slug, charity_url, charity_name, ceremony_title, ceremony_date, ceremony_place, ceremony_text, ceremony_program)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `, [
       id,
       userId,
@@ -2247,7 +2430,14 @@ app.post('/api/memorials', checkDbReady, optionalAuth, validateInput, upload.fie
       (event_url && String(event_url).trim()) || null,
       (event_description && String(event_description).trim()) || null,
       eventsJson,
-      slug
+      slug,
+      (charity_url && String(charity_url).trim()) || null,
+      (charity_name && String(charity_name).trim()) || null,
+      (ceremony_title && String(ceremony_title).trim()) || null,
+      (ceremony_date && String(ceremony_date).trim()) || null,
+      (ceremony_place && String(ceremony_place).trim()) || null,
+      (ceremony_text && String(ceremony_text).trim()) || null,
+      (ceremony_program && String(ceremony_program).trim()) || null
       ]);
       if (newMediaBytes > 0) {
         await db.execute('UPDATE memorials SET media_used_bytes = ? WHERE id = ?', [newMediaBytes, id]);
@@ -3047,7 +3237,14 @@ app.put('/api/memorials/:id', checkDbReady, authenticateToken, validateInput, up
       event_date,
       event_place,
       event_url,
-      event_description
+      event_description,
+      charity_url,
+      charity_name,
+      ceremony_title,
+      ceremony_date,
+      ceremony_place,
+      ceremony_text,
+      ceremony_program
     } = req.body;
     
     let timeline = [];
@@ -3147,7 +3344,8 @@ app.put('/api/memorials/:id', checkDbReady, authenticateToken, validateInput, up
           timeline = ?, tehilimChapters = ?, mishnayot = ?,
           cemeteryName = ?, cemeteryAddress = ?, latitude = ?, longitude = ?,
           event_title = ?, event_date = ?, event_place = ?, event_url = ?, event_description = ?,
-          events = ?, slug = ?
+          events = ?, slug = ?, charity_url = ?, charity_name = ?,
+          ceremony_title = ?, ceremony_date = ?, ceremony_place = ?, ceremony_text = ?, ceremony_program = ?
       WHERE id = ? AND userId = ?
     `, [
       name,
@@ -3174,6 +3372,13 @@ app.put('/api/memorials/:id', checkDbReady, authenticateToken, validateInput, up
       (event_description && String(event_description).trim()) || null,
       eventsJson,
       newSlug,
+      (charity_url && String(charity_url).trim()) || null,
+      (charity_name && String(charity_name).trim()) || null,
+      (ceremony_title && String(ceremony_title).trim()) || null,
+      (ceremony_date && String(ceremony_date).trim()) || null,
+      (ceremony_place && String(ceremony_place).trim()) || null,
+      (ceremony_text && String(ceremony_text).trim()) || null,
+      (ceremony_program && String(ceremony_program).trim()) || null,
       id,
       req.user.id
     ]);

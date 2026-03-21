@@ -83,7 +83,7 @@ function SaveMemorial() {
       const plans = {
         'monthly': { price: 12, name: 'מנוי חודשי' },
         'annual': { price: 100, name: 'שמירה שנתית' },
-        'lifetime': { price: 399, name: 'תשלום חד פעמי (עם עריכה)' }
+        'lifetime': { price: 349, name: 'תשלום חד פעמי (עם עריכה)' }
       };
 
       const plan = plans[planType];
@@ -145,7 +145,7 @@ function SaveMemorial() {
   const plansForStripe = {
     monthly: { price: 12 },
     annual: { price: 100 },
-    lifetime: { price: 399 },
+    lifetime: { price: 349 },
     'lifetime-premium': { price: 549 }
   };
 
@@ -502,7 +502,7 @@ function SaveMemorial() {
             </div>
             <div className="option-content">
               <div className="option-price">
-                <span className="price-amount">₪399</span>
+                <span className="price-amount">₪349</span>
                 <span className="price-period">חד-פעמי</span>
               </div>
               <div className="save-option-memorial-features">
@@ -590,7 +590,7 @@ function SaveMemorial() {
                     rel="noopener noreferrer"
                     className="btn btn-outline btn-full"
                   >
-                    תשלום חד־פעמי 399₪ דרך Upay
+                    תשלום חד־פעמי 349₪ דרך Upay
                   </a>
                 </div>
               </>

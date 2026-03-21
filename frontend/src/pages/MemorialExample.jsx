@@ -1,20 +1,19 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { FaHome, FaPlay, FaPause, FaVolumeUp, FaHeart, FaBook, FaHistory, FaFire, FaComment, FaMapMarkerAlt, FaTimes, FaExpand, FaShareAlt, FaEnvelope, FaCopy, FaPrint, FaPalette, FaBell, FaDownload, FaCalendarAlt, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
+import { FaHome, FaPlay, FaPause, FaVolumeUp, FaHeart, FaBook, FaBookOpen, FaHistory, FaFire, FaComment, FaMapMarkerAlt, FaTimes, FaExpand, FaShareAlt, FaEnvelope, FaCopy, FaPrint, FaPalette, FaBell, FaDownload, FaCalendarAlt, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
 import { Swiper, SwiperSlide } from 'swiper/react';
-import { Navigation, Pagination, Autoplay } from 'swiper/modules';
+import { Navigation, Autoplay } from 'swiper/modules';
 import TehilimReader from '../components/TehilimReader';
 import MishnayotReader from '../components/MishnayotReader';
-import { mishnayotData } from '../data/mishnayot';
-import { tehilimData } from '../data/tehilim';
 import { memorialPageTranslations } from '../i18n/memorialPage';
 import { yizkorText, elMaleRachamimText } from '../data/yizkorPrayers';
 import 'swiper/css';
 import 'swiper/css/navigation';
-import 'swiper/css/pagination';
 import './MemorialPage.css';
+import './MemorialExample.css';
 
-const EXAMPLE_PAGE_URL = typeof window !== 'undefined' ? window.location.origin + '/example' : 'https://memoriesman.netlify.app/example';
+const EXAMPLE_PAGE_URL =
+  typeof window !== 'undefined' ? window.location.origin + '/gallery/example' : 'https://memoriesman.netlify.app/gallery/example';
 const BACKGROUND_OPTIONS = [
   { id: 'default', label: 'רגיל', title: 'רקע רגיל' },
   { id: 'paper', label: 'נייר', title: 'רקע נייר שמנת' },
@@ -25,7 +24,7 @@ const BACKGROUND_OPTIONS = [
   { id: 'dark', label: 'כהה', title: 'רקע כהה' },
 ];
 
-// Example memorial data - structured like a real user-created memorial
+// דף לדוגמה — כל השדות והסקשנים כמו בדף זיכרון אמיתי (להמחשה בלבד)
 const exampleMemorial = {
   name: 'סגן יעקב אליאן ז"ל',
   hebrewName: 'יעקב בן יורם וסילביה',
@@ -34,9 +33,9 @@ const exampleMemorial = {
   heroImage: 'https://app.memoriez.co.il/wp-content/uploads/2024/09/c2e0d17f-e7a1-4723-b279-e58e81968de5.jpeg',
   heroSummary: 'התגייס לגבעתי ב-2022 והגשים את חלום חייו להילחם על הארץ. צוער בגדוד "גפן" בבית הספר לקצינים, נפל בקרב בצפון רצועת עזה ב-20/12/23 תוך ביצוע מעשי גבורה כשהסתער לתוך האש כדי להציל את חברו שנפגע מאש מחבלים. בן 20 במותו.',
   biography: 'סגן יעקב אליאן ז"ל התגייס לגבעתי ב-2022 והגשים את חלום חייו להילחם על הארץ. צוער בגדוד "גפן" בבית הספר לקצינים, שנפל בקרב בצפון רצועת עזה ב-20/12/23, תוך ביצוע מעשי גבורה כשהסתער לתוך האש כדי להציל את חברו שנפגע מאש מחבלים. בן 20 במותו.\n\nכל כך צעיר, עניו – חינניות אפיינה אותו ואת מראהו. היה ילד של תרומה לזולת, נתינה אינסופית, תורם לחברה ללא גבולות, מתנדב בקהילה, חבר מופלא, בן מסור להוריו ולמשפחתו, שתמיד היה שם עבור כולם ועבור כל דבר.\n\nכנער התנדב באופן קבוע במשטרת ישראל, ניצל כל זמן שהיה לתרומה לקהילה. בלווייתו היה ניתן להיווכח כיצד בכל תחנות חייו השאיר חותם על מוריו וחבריו – נציגים מכל תחנות חייו באו לחלוק לו כבוד בדרכו האחרונה, החל מהגננת ועד למנהלי בתי הספר בהם למד.\n\nמרכזי החינוך אמונים בגבעתיים ותיכון אמי"ת בר אילן בגבעת שמואל הטמיעו בו את ערכי תורה ועבודה שלהם הם מחנכים: אהבת הארץ, מצוינות, תרומה לחברה ואמונה בנצח ישראל. וכמובן, שמורה להוריו היקרים סילביה ויורם אליאן מלוא ההערכה על גידולו לתפארת של יעקב והטמעת הערכים של ציונות ואהבת המדינה.\n\nיעקב הוא בן יחיד להוריו, אח לאחותו הצעירה קרן. מתגעגעים אלייך יעקב.',
-  // גלריה — תמונות (קישורים)
+  /* תמונות גלריה — לא אותן תמונות שבקולאז' דף הבית */
   images: [
-    'https://app.memoriez.co.il/wp-content/uploads/forminator/1626_7388d296f009d41d0cd8267a6979706c/uploads/OMFlEEo5cWhY-e1bca42b-6646-4ccc-90b3-e82227dd7638.jpeg',
+    'https://app.memoriez.co.il/wp-content/uploads/forminator/1626_7388d296f009d41d0cd8267a6979706c/uploads/OMFlEEo5cWhY-e1bca42b-6646-4ccc-90b3-e82227dd7638.jpeg'
   ],
   videos: ['/demo-gallery-video.mp4'],
   timeline: [
@@ -61,18 +60,36 @@ const exampleMemorial = {
       description: 'כנער התנדב באופן קבוע במשטרת ישראל וניצל כל זמן לתרומה לקהילה. בלווייתו באו נציגים מכל תחנות חייו – מהגננת ועד מנהלי בתי הספר – לחלוק לו כבוד.'
     }
   ],
-  tehilimChapters: '23,103,130',
-  mishnayot: 'ברכות א, ברכות ב, שבת א',
+  tehilimChapters: '1,23,49,91,103,121,130',
+  mishnayot: 'ברכות א, ברכות ב, שבת א, פסחים א',
   backgroundMusic: '/audio/Quiet-Honor-7.mp3',
-  cemeteryName: '',
-  cemeteryAddress: '',
-  latitude: '',
-  longitude: '',
-  event_title: 'ערב זיכרון לסגן יעקב אליאן ז"ל',
-  event_date: 'כ\' בכסלו',
-  event_place: '',
-  event_description: 'בדף זיכרון אמיתי אפשר להוסיף קישור לפרטים ורישום. כאן הקישור מוביל לדף הבית כדוגמה.',
-  event_url: '/',
+  cemeteryName: 'בית העלמין הצבאי בהר הרצל',
+  cemeteryAddress: 'ירושלים',
+  latitude: 31.7735,
+  longitude: 35.1785,
+  ceremony_title: 'סדר תפילות לטקס אזכרה (לדוגמה)',
+  ceremony_date: 'כ״ב בכסלו',
+  ceremony_place: 'בית כנסת הקהילה (להמחשה)',
+  ceremony_text: 'כאן מופיע תיאור קצר של הטקס. בדף אמיתי אפשר למלא תבנית מלאה (יהי רצון, קדיש, תהילים ועוד) ולערוך כל משפט.',
+  ceremony_program:
+    'יהי רצון מלפניך ה\' אלוהינו ואלוהי אבותינו, שיעלה לרצון לימוד זה לשם נשמת... (בדף אמיתי — טקס מלא לעריכה)\n\nפרק תהילים כ״ג — מזמור לדוד\nה\' רועי לא אחסר...\n\nקדיש יתגדל ויתקדש שמיה רבא...',
+  charity_name: 'קרן לדוגמה לזכר הנפטר',
+  charity_url: 'https://www.google.com/search?q=תרומה+לזכר',
+  events: [
+    {
+      title: 'ערב זיכרון לסגן יעקב אליאן ז"ל',
+      date: 'כ׳ בכסלו',
+      place: 'אולם התרבות, גבעתיים',
+      url: 'https://memoriesman.netlify.app/',
+      description: 'ערב זיכרון משפחתי. בדף אמיתי אפשר לקשר לטופס רישום או לדף פרטים.'
+    },
+    {
+      title: 'לימוד משותף לזכרו',
+      date: 'מדי חודש',
+      place: 'בית הכנסת המקומי',
+      description: 'לימוד משניות ותהילים בהמשך שם הנפטר — דוגמה לשני אירועים בדף אחד.'
+    }
+  ],
   qrCodePath: null
 };
 
@@ -103,19 +120,58 @@ function MemorialExample() {
   const [elMaleCopied, setElMaleCopied] = useState(false);
   const [candleName, setCandleName] = useState('');
   const audioRef = useRef(null);
+  const [showIntroScreen, setShowIntroScreen] = useState(false);
+  const [introClosing, setIntroClosing] = useState(false);
+  const introTimerRef = useRef(null);
+  const introCloseStartedRef = useRef(false);
 
   const t = memorialPageTranslations[lang];
   const setLangAndSave = (l) => setLang(l);
   const setFontSizeAndSave = (m) => setFontSizeMode(m);
   const setBackgroundAndSave = (id) => { setBackgroundMode(id); setShowBackgroundMenu(false); };
 
-  /* בדף דוגמה: להציג חצי מכל המשניות וחצי מכל פרקי התהילים הזמינים */
-  const allMishnaKeys = Object.keys(mishnayotData);
-  const halfMishnaCount = Math.ceil(allMishnaKeys.length / 2);
-  const exampleMishnayot = allMishnaKeys.slice(0, halfMishnaCount).join(', ');
-  const allTehilimNums = Object.keys(tehilimData).map(Number).sort((a, b) => a - b);
-  const halfTehilimCount = Math.ceil(allTehilimNums.length / 2);
-  const exampleTehilimChapters = allTehilimNums.slice(0, halfTehilimCount).join(',');
+  const finishIntro = useCallback(() => {
+    if (introCloseStartedRef.current) return;
+    introCloseStartedRef.current = true;
+    if (introTimerRef.current) {
+      clearTimeout(introTimerRef.current);
+      introTimerRef.current = null;
+    }
+    setIntroClosing(true);
+    window.setTimeout(() => {
+      setShowIntroScreen(false);
+      setIntroClosing(false);
+      introCloseStartedRef.current = false;
+    }, 520);
+  }, []);
+
+  const dismissIntro = () => {
+    if (introClosing) return;
+    finishIntro();
+  };
+
+  useEffect(() => {
+    const introImage = exampleMemorial?.heroImage || exampleMemorial?.images?.[0];
+    if (introImage) {
+      setShowIntroScreen(true);
+      setIntroClosing(false);
+      introCloseStartedRef.current = false;
+      introTimerRef.current = window.setTimeout(() => {
+        introTimerRef.current = null;
+        finishIntro();
+      }, 3000);
+      return () => {
+        if (introTimerRef.current) {
+          clearTimeout(introTimerRef.current);
+          introTimerRef.current = null;
+        }
+      };
+    }
+    setShowIntroScreen(false);
+    setIntroClosing(false);
+    introCloseStartedRef.current = false;
+    return undefined;
+  }, [finishIntro]);
 
   const shareUrl = EXAMPLE_PAGE_URL;
   const shareTitle = `דף זיכרון - ${exampleMemorial.name}`;
@@ -270,8 +326,90 @@ function MemorialExample() {
     (event.description && event.description.trim())
   ) : [];
 
+  const ceremonyProgramLines = String(memorial.ceremony_program || '')
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const hasCeremonySection = Boolean(
+    (memorial.ceremony_title && memorial.ceremony_title.trim()) ||
+    (memorial.ceremony_date && memorial.ceremony_date.trim()) ||
+    (memorial.ceremony_place && memorial.ceremony_place.trim()) ||
+    (memorial.ceremony_text && memorial.ceremony_text.trim()) ||
+    ceremonyProgramLines.length > 0
+  );
+
+  const memorialName = memorial.hebrewName || memorial.name;
+  const deceasedNameForPrayer = memorialName && memorialName.trim() ? memorialName.trim() : 'הנפטר/ת';
+  const withDeceasedName = (text) =>
+    String(text || '')
+      .replace(/\(שם הנפטר\/ת\)/g, deceasedNameForPrayer)
+      .replace(/\(שם הנפטר\)/g, deceasedNameForPrayer);
+  const personalizedYizkorText = withDeceasedName(yizkorText);
+  const personalizedElMaleRachamimText = withDeceasedName(elMaleRachamimText);
+
+  const introImage = memorial?.heroImage || memorial?.images?.[0];
+  const exampleQrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(EXAMPLE_PAGE_URL)}`;
+
+  if (showIntroScreen && introImage) {
+    const introDisplayName = (memorial.hebrewName && memorial.hebrewName.trim()) || memorial.name;
+    return (
+      <div
+        className={`memorial-intro-screen memorial-example-intro${introClosing ? ' memorial-intro-screen--closing' : ''}`}
+        role="dialog"
+        aria-modal="true"
+        aria-label="דף זיכרון לדוגמה"
+        aria-live="polite"
+        onClick={dismissIntro}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ' || e.key === 'Escape') {
+            e.preventDefault();
+            dismissIntro();
+          }
+        }}
+        tabIndex={-1}
+      >
+        <div className="memorial-intro-ambient" aria-hidden="true">
+          <div className="memorial-intro-side memorial-intro-side--left" />
+          <div className="memorial-intro-side memorial-intro-side--right" />
+          <div className="memorial-intro-side-beam memorial-intro-side-beam--left" />
+          <div className="memorial-intro-side-beam memorial-intro-side-beam--right" />
+          <div className="memorial-intro-dust" />
+        </div>
+        <div className="memorial-intro-inner">
+          <div className="memorial-intro-candle" aria-hidden="true">
+            <div className="memorial-intro-candle-glow" />
+            <div className="memorial-intro-candle-body">
+              <div className="memorial-intro-candle-wick" />
+              <div className="memorial-intro-candle-flame-outer" />
+              <div className="memorial-intro-candle-flame-inner" />
+            </div>
+            <div className="memorial-intro-candle-base" />
+          </div>
+          <figure className="memorial-intro-figure">
+            <div className="memorial-intro-photo-shell">
+              <div className="memorial-intro-photo-ring memorial-intro-photo-ring--glow" aria-hidden="true" />
+              <div className="memorial-intro-photo-crop">
+                <img
+                  src={introImage}
+                  alt={`תמונת פרופיל של ${introDisplayName}`}
+                  className="memorial-intro-image"
+                  width={400}
+                  height={400}
+                />
+                <div className="memorial-intro-photo-shine" aria-hidden="true" />
+              </div>
+              <div className="memorial-intro-photo-ring memorial-intro-photo-ring--outer" aria-hidden="true" />
+            </div>
+          </figure>
+          <p className="memorial-intro-name">{introDisplayName}</p>
+          <p className="memorial-intro-tap-hint memorial-example-intro-hint">לחצו להמשך · המסך ייסגר אוטומטית תוך 3 שניות</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className={`memorial-page memorial-page--bg-${backgroundMode}`}>
+    <div className={`memorial-page memorial-example-page memorial-page--bg-${backgroundMode}`}>
       {/* Yahrzeit Banner */}
       {yahrzeitBanner && (
         <div className="yahrzeit-banner no-print">
@@ -298,6 +436,20 @@ function MemorialExample() {
 
       {/* Header */}
       <div className="memorial-header">
+        <div className="memorial-header-sparkle" aria-hidden="true">
+          {[...Array(20)].map((_, i) => (
+            <span
+              key={i}
+              className="memorial-sparkle-dot"
+              style={{
+                left: `${10 + (i * 4.5) % 80}%`,
+                top: `${15 + (i * 4) % 70}%`,
+                animationDelay: `${(i * 0.25) % 5}s`,
+                animationDuration: `${5 + (i % 2) * 1.5}s`
+              }}
+            />
+          ))}
+        </div>
         <div className="header-overlay">
           <div className="container">
             <div className="header-links no-print">
@@ -382,13 +534,12 @@ function MemorialExample() {
             </h2>
             <div className="media-gallery">
               <Swiper
-                modules={[Navigation, Pagination, Autoplay]}
+                modules={[Navigation, Autoplay]}
                 spaceBetween={20}
                 slidesPerView={1}
                 navigation
-                pagination={{ clickable: true }}
                 autoplay={{ delay: 5000, disableOnInteraction: true }}
-                className="memorial-swiper"
+                className="memorial-swiper memorial-example-gallery-swiper"
               >
                 {allMedia.map((media, index) => (
                   <SwiperSlide key={index}>
@@ -515,14 +666,18 @@ function MemorialExample() {
                 <FaBook /> {t.tehilim}
               </h2>
               <button
+                type="button"
                 className="btn btn-primary"
                 onClick={() => setShowTehilim(!showTehilim)}
               >
                 {showTehilim ? 'סגור תהילים' : 'קרא תהילים'}
               </button>
             </div>
+            <p className="memorial-example-demo-hint">
+              בדף אמיתי בוחרים פרקי תהילים מהרשימה בעת היצירה. כאן מוצגים מספר פרקים לדוגמה בלבד.
+            </p>
             {showTehilim && (
-              <TehilimReader chapters={exampleTehilimChapters} />
+              <TehilimReader chapters={memorial.tehilimChapters} hideProgressCount />
             )}
           </section>
         )}
@@ -535,49 +690,19 @@ function MemorialExample() {
                 <FaBook /> {t.mishnayot}
               </h2>
               <button
+                type="button"
                 className="btn btn-primary"
                 onClick={() => setShowMishnayot(!showMishnayot)}
               >
                 {showMishnayot ? 'סגור משניות' : 'קרא משניות'}
               </button>
             </div>
+            <p className="memorial-example-demo-hint">
+              בדף אמיתי בוחרים מסכתות ופרקים מהרשימה. כאן מוצגות מספר משניות לדוגמה.
+            </p>
             {showMishnayot && (
-              <MishnayotReader mishnayot={exampleMishnayot} />
+              <MishnayotReader mishnayot={memorial.mishnayot} />
             )}
-          </section>
-        )}
-
-        {/* Location Section */}
-        {(memorial.cemeteryName || memorial.cemeteryAddress || (memorial.latitude && memorial.longitude)) && (
-          <section className="location-section">
-            <h2 className="section-title">
-              <FaMapMarkerAlt /> מיקום הקבר
-            </h2>
-            <div className="location-content">
-              {memorial.cemeteryName && (
-                <div className="location-item">
-                  <strong>בית קברות:</strong> {memorial.cemeteryName}
-                </div>
-              )}
-              {memorial.cemeteryAddress && (
-                <div className="location-item">
-                  <strong>כתובת:</strong> {memorial.cemeteryAddress}
-                </div>
-              )}
-              {memorial.latitude && memorial.longitude && (
-                <div className="location-item">
-                  <a
-                    href={`https://www.google.com/maps?q=${memorial.latitude},${memorial.longitude}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="btn btn-primary"
-                    style={{ marginTop: '10px' }}
-                  >
-                    <FaMapMarkerAlt /> פתח ב-Google Maps
-                  </a>
-                </div>
-              )}
-            </div>
           </section>
         )}
 
@@ -709,6 +834,74 @@ function MemorialExample() {
           )}
         </section>
 
+        {/* Location Section */}
+        {(memorial.cemeteryName || memorial.cemeteryAddress || (memorial.latitude && memorial.longitude)) && (
+          <section className="location-section">
+            <h2 className="section-title">
+              <FaMapMarkerAlt /> מיקום הקבר
+            </h2>
+            <div className="location-content">
+              {memorial.cemeteryName && (
+                <div className="location-item">
+                  <strong>בית קברות:</strong> {memorial.cemeteryName}
+                </div>
+              )}
+              {memorial.cemeteryAddress && (
+                <div className="location-item">
+                  <strong>כתובת:</strong> {memorial.cemeteryAddress}
+                </div>
+              )}
+              {memorial.latitude && memorial.longitude && (
+                <div className="location-item">
+                  <a
+                    href={`https://www.google.com/maps?q=${memorial.latitude},${memorial.longitude}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="btn btn-primary"
+                    style={{ marginTop: '10px' }}
+                  >
+                    <FaMapMarkerAlt /> פתח ב-Google Maps
+                  </a>
+                </div>
+              )}
+            </div>
+          </section>
+        )}
+
+        {/* טקס אזכרה אישי */}
+        {hasCeremonySection && (
+          <section className="ceremony-section">
+            <h2 className="section-title">
+              <FaBookOpen /> טקס אזכרה אישי
+            </h2>
+            <div className="ceremony-content">
+              <h3 className="ceremony-title">
+                {(memorial.ceremony_title && memorial.ceremony_title.trim()) || 'טקס אזכרה אישי'}
+              </h3>
+              {(memorial.ceremony_date || memorial.ceremony_place) && (
+                <div className="ceremony-meta">
+                  {memorial.ceremony_date && <span>{memorial.ceremony_date}</span>}
+                  {memorial.ceremony_date && memorial.ceremony_place && ' · '}
+                  {memorial.ceremony_place && <span>{memorial.ceremony_place}</span>}
+                </div>
+              )}
+              {memorial.ceremony_text && memorial.ceremony_text.trim() && (
+                <p className="ceremony-text">{memorial.ceremony_text.trim()}</p>
+              )}
+              {ceremonyProgramLines.length > 0 && (
+                <>
+                  <p className="ceremony-preview-text">
+                    הטקס המלא בדף אמיתי מוצג בדף ייעודי לכל זיכרון. כאן תוכלו לראות תצוגה מקדימה בלבד.
+                  </p>
+                  <Link to="/memorial-prayers" className="btn btn-primary ceremony-open-btn">
+                    סדר תפילות לאזכרה (כללי באתר)
+                  </Link>
+                </>
+              )}
+            </div>
+          </section>
+        )}
+
         {/* אירועים לזכרו – תמיכה במספר אירועים */}
         {(() => {
           const eventsList = memorial.events && Array.isArray(memorial.events) && memorial.events.length > 0
@@ -746,54 +939,80 @@ function MemorialExample() {
           );
         })()}
 
+        {/* תרומה לזכרו */}
+        {memorial.charity_url && memorial.charity_url.trim() && (
+          <section className="charity-section">
+            <h2 className="section-title">
+              <FaHeart /> תרומה לזכרו
+            </h2>
+            <div className="charity-content">
+              <p className="charity-text">
+                {memorial.charity_name && memorial.charity_name.trim()
+                  ? `המשפחה מבקשת לתרום לזכר ${memorial.hebrewName || memorial.name} דרך ${memorial.charity_name.trim()}.`
+                  : `המשפחה מבקשת לתרום לזכר ${memorial.hebrewName || memorial.name}. להלן קישור לדוגמה (לא קישור אמיתי לעמותה).`}
+              </p>
+              <a
+                href={memorial.charity_url.trim()}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn btn-primary charity-link"
+              >
+                כניסה לתרומה לזכר (דוגמה)
+              </a>
+            </div>
+          </section>
+        )}
+
         {/* תזכורות */}
-        <section className="reminder-section">
-          <h2 className="section-title">
-            <FaBell /> {t.reminders}
-          </h2>
-          <div className="reminder-content">
-            <p className="reminder-description">{t.reminderDesc}</p>
-            {reminderSubmitted ? (
-              <p className="reminder-success">{t.reminderSuccess}</p>
-            ) : (
-              <form onSubmit={submitReminder} className="reminder-form-inner">
-                <div className="reminder-checkboxes">
-                  {memorial.deathDate && memorial.deathDate.trim() !== '' && (
-                    <>
+        {((memorial.deathDate && memorial.deathDate.trim() !== '') || (memorial.birthDate && memorial.birthDate.trim() !== '')) && (
+          <section className="reminder-section">
+            <h2 className="section-title">
+              <FaBell /> {t.reminders}
+            </h2>
+            <div className="reminder-content">
+              <p className="reminder-description">{t.reminderDesc}</p>
+              {reminderSubmitted ? (
+                <p className="reminder-success">{t.reminderSuccess}</p>
+              ) : (
+                <form onSubmit={submitReminder} className="reminder-form-inner">
+                  <div className="reminder-checkboxes">
+                    {memorial.deathDate && memorial.deathDate.trim() !== '' && (
+                      <>
+                        <label>
+                          <input type="checkbox" checked={remindOnDay} onChange={(e) => setRemindOnDay(e.target.checked)} />
+                          {t.remindDeath}
+                        </label>
+                        <label>
+                          <input type="checkbox" checked={remind10DaysBefore} onChange={(e) => setRemind10DaysBefore(e.target.checked)} />
+                          {t.remind10Before}
+                        </label>
+                      </>
+                    )}
+                    {memorial.birthDate && memorial.birthDate.trim() !== '' && (
                       <label>
-                        <input type="checkbox" checked={remindOnDay} onChange={(e) => setRemindOnDay(e.target.checked)} />
-                        {t.remindDeath}
+                        <input type="checkbox" checked={remindBirthday} onChange={(e) => setRemindBirthday(e.target.checked)} />
+                        {t.remindBirthday}
                       </label>
-                      <label>
-                        <input type="checkbox" checked={remind10DaysBefore} onChange={(e) => setRemind10DaysBefore(e.target.checked)} />
-                        {t.remind10Before}
-                      </label>
-                    </>
-                  )}
-                  {memorial.birthDate && memorial.birthDate.trim() !== '' && (
-                    <label>
-                      <input type="checkbox" checked={remindBirthday} onChange={(e) => setRemindBirthday(e.target.checked)} />
-                      {t.remindBirthday}
-                    </label>
-                  )}
-                </div>
-                <div className="reminder-form">
-                  <input
-                    type="email"
-                    value={reminderEmail}
-                    onChange={(e) => setReminderEmail(e.target.value)}
-                    placeholder={lang === 'he' ? 'האימייל שלך' : 'Your email'}
-                    className="reminder-email-input"
-                    disabled={reminderSubmitting}
-                  />
-                  <button type="submit" className="btn btn-primary" disabled={reminderSubmitting}>
-                    <FaEnvelope /> {reminderSubmitting ? (lang === 'en' ? 'Subscribing...' : 'נרשם...') : t.subscribeReminder}
-                  </button>
-                </div>
-              </form>
-            )}
-          </div>
-        </section>
+                    )}
+                  </div>
+                  <div className="reminder-form">
+                    <input
+                      type="email"
+                      value={reminderEmail}
+                      onChange={(e) => setReminderEmail(e.target.value)}
+                      placeholder={lang === 'he' ? 'האימייל שלך' : 'Your email'}
+                      className="reminder-email-input"
+                      disabled={reminderSubmitting}
+                    />
+                    <button type="submit" className="btn btn-primary" disabled={reminderSubmitting}>
+                      <FaEnvelope /> {reminderSubmitting ? (lang === 'en' ? 'Subscribing...' : 'נרשם...') : t.subscribeReminder}
+                    </button>
+                  </div>
+                </form>
+              )}
+            </div>
+          </section>
+        )}
 
         {/* תפילות יזכור והנצחה */}
         <section className="yizkor-section">
@@ -802,33 +1021,34 @@ function MemorialExample() {
             <div className="yizkor-card">
               <div className="yizkor-card-header">
                 <h3>{t.yizkorTitle}</h3>
-                <button type="button" className="btn btn-outline btn-sm" onClick={() => copyPrayer(yizkorText, 'yizkor')}>
+                <button type="button" className="btn btn-outline btn-sm" onClick={() => copyPrayer(personalizedYizkorText, 'yizkor')}>
                   {yizkorCopied ? t.copied : t.copyPrayer}
                 </button>
               </div>
-              <p className="yizkor-text">{yizkorText}</p>
+              <p className="yizkor-text">{personalizedYizkorText}</p>
             </div>
             <div className="yizkor-card">
               <div className="yizkor-card-header">
                 <h3>{t.elMaleTitle}</h3>
-                <button type="button" className="btn btn-outline btn-sm" onClick={() => copyPrayer(elMaleRachamimText, 'elMale')}>
+                <button type="button" className="btn btn-outline btn-sm" onClick={() => copyPrayer(personalizedElMaleRachamimText, 'elMale')}>
                   {elMaleCopied ? t.copied : t.copyPrayer}
                 </button>
               </div>
-              <p className="yizkor-text">{elMaleRachamimText}</p>
+              <p className="yizkor-text">{personalizedElMaleRachamimText}</p>
             </div>
           </div>
         </section>
 
-        {/* QR Code – בדוגמה רק הסבר */}
-        <section className="qr-section">
+        {/* QR Code – דוגמה עם קישור לדף זה */}
+        <section className="qr-section memorial-example-qr">
           <h2 className="section-title">{t.qrCode}</h2>
           <div className="qr-content">
-            <div className="qr-image" style={{ background: '#f0f0f0', borderRadius: '12px', padding: '24px', textAlign: 'center', color: '#666' }}>
-              <p style={{ margin: 0 }}>בדף זיכרון אמיתי יופיע כאן קוד QR להדפסה והצבה על המצבה. סריקה תוביל ישירות לדף.</p>
+            <div className="qr-image memorial-example-qr-frame">
+              <img src={exampleQrSrc} alt="קוד QR לדף הדוגמה" width={240} height={240} loading="lazy" />
             </div>
             <div className="qr-info">
-              <p>סרוק קוד זה כדי לגשת לדף הזיכרון במהירות</p>
+              <p>סריקה מובילה לדף הדוגמה הזה. בדף אמיתי הקוד מוביל לדף הזיכרון שלכם וניתן להוריד קובץ להדפסה.</p>
+              <p className="memorial-example-demo-hint memorial-example-qr-url">{EXAMPLE_PAGE_URL}</p>
             </div>
           </div>
         </section>

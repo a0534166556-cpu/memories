@@ -27,6 +27,8 @@ body {
   background: var(--light-bg);
   color: var(--text-color);
   line-height: 1.6;
+  overflow-x: hidden;
+  -webkit-text-size-adjust: 100%;
 }
 
 h1, h2, h3, h4, h5, h6 {
@@ -135,8 +137,19 @@ label {
 /* Responsive */
 @media (max-width: 768px) {
   .btn {
-    padding: 10px 20px;
-    font-size: 14px;
+    padding: 12px 20px;
+    font-size: 15px;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  input,
+  textarea,
+  select {
+    font-size: 16px;
+    min-height: 44px;
   }
 }
 

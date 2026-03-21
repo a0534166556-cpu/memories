@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import axios from 'axios';
@@ -55,6 +55,10 @@ function MemorialPage() {
   const [elMaleCopied, setElMaleCopied] = useState(false);
   const [candleName, setCandleName] = useState('');
   const [fullscreenImageIndex, setFullscreenImageIndex] = useState(null);
+  const [showIntroScreen, setShowIntroScreen] = useState(false);
+  const [introClosing, setIntroClosing] = useState(false);
+  const introTimerRef = useRef(null);
+  const introCloseStartedRef = useRef(false);
   const FONT_SIZE_KEY = 'memorialFontSize';
   const [fontSizeMode, setFontSizeMode] = useState(() => {
     try {
@@ -487,6 +491,49 @@ if (memorialData.backgroundMusic) {
     }
   }, [memorial]);
 
+  const finishIntro = useCallback(() => {
+    if (introCloseStartedRef.current) return;
+    introCloseStartedRef.current = true;
+    if (introTimerRef.current) {
+      clearTimeout(introTimerRef.current);
+      introTimerRef.current = null;
+    }
+    setIntroClosing(true);
+    window.setTimeout(() => {
+      setShowIntroScreen(false);
+      setIntroClosing(false);
+      introCloseStartedRef.current = false;
+    }, 520);
+  }, []);
+
+  const dismissIntro = () => {
+    if (introClosing) return;
+    finishIntro();
+  };
+
+  useEffect(() => {
+    const introImage = memorial?.heroImage || memorial?.images?.[0];
+    if (!loading && introImage) {
+      setShowIntroScreen(true);
+      setIntroClosing(false);
+      introCloseStartedRef.current = false;
+      introTimerRef.current = window.setTimeout(() => {
+        introTimerRef.current = null;
+        finishIntro();
+      }, 3000);
+      return () => {
+        if (introTimerRef.current) {
+          clearTimeout(introTimerRef.current);
+          introTimerRef.current = null;
+        }
+      };
+    }
+    setShowIntroScreen(false);
+    setIntroClosing(false);
+    introCloseStartedRef.current = false;
+    return undefined;
+  }, [loading, memorial?.heroImage, memorial?.images, memorial?.name, finishIntro]);
+
   if (loading) {
     return (
       <div className="loading">
@@ -543,6 +590,66 @@ if (memorialData.backgroundMusic) {
     );
   }
 
+  const introImage = memorial?.heroImage || memorial?.images?.[0];
+
+  if (showIntroScreen && memorial) {
+    const introDisplayName = (memorial.hebrewName && memorial.hebrewName.trim()) || memorial.name;
+    return (
+      <div
+        className={`memorial-intro-screen${introClosing ? ' memorial-intro-screen--closing' : ''}`}
+        role="dialog"
+        aria-modal="true"
+        aria-label="פתיחת דף זיכרון"
+        aria-live="polite"
+        onClick={dismissIntro}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ' || e.key === 'Escape') {
+            e.preventDefault();
+            dismissIntro();
+          }
+        }}
+        tabIndex={-1}
+      >
+        <div className="memorial-intro-ambient" aria-hidden="true">
+          <div className="memorial-intro-side memorial-intro-side--left" />
+          <div className="memorial-intro-side memorial-intro-side--right" />
+          <div className="memorial-intro-side-beam memorial-intro-side-beam--left" />
+          <div className="memorial-intro-side-beam memorial-intro-side-beam--right" />
+          <div className="memorial-intro-dust" />
+        </div>
+        <div className="memorial-intro-inner">
+          <div className="memorial-intro-candle" aria-hidden="true">
+            <div className="memorial-intro-candle-glow" />
+            <div className="memorial-intro-candle-body">
+              <div className="memorial-intro-candle-wick" />
+              <div className="memorial-intro-candle-flame-outer" />
+              <div className="memorial-intro-candle-flame-inner" />
+            </div>
+            <div className="memorial-intro-candle-base" />
+          </div>
+          <figure className="memorial-intro-figure">
+            <div className="memorial-intro-photo-shell">
+              <div className="memorial-intro-photo-ring memorial-intro-photo-ring--glow" aria-hidden="true" />
+              <div className="memorial-intro-photo-crop">
+                <img
+                  src={introImage}
+                  alt={`תמונת פרופיל של ${introDisplayName}`}
+                  className="memorial-intro-image"
+                  width={400}
+                  height={400}
+                />
+                <div className="memorial-intro-photo-shine" aria-hidden="true" />
+              </div>
+              <div className="memorial-intro-photo-ring memorial-intro-photo-ring--outer" aria-hidden="true" />
+            </div>
+          </figure>
+          <p className="memorial-intro-name">{introDisplayName}</p>
+          <p className="memorial-intro-tap-hint">לחצו להמשך · המסך ייסגר אוטומטית תוך 3 שניות</p>
+        </div>
+      </div>
+    );
+  }
+
   // Check if memorial is temporary and expired
   const isTemporary = memorial.status === 'temporary';
   const expiryDate = memorial.expiryDate ? new Date(memorial.expiryDate) : null;
@@ -558,6 +665,17 @@ if (memorialData.backgroundMusic) {
     (event.title && event.title.trim()) ||
     (event.description && event.description.trim())
   ) : [];
+  const ceremonyProgramLines = String(memorial.ceremony_program || '')
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const hasCeremonySection = Boolean(
+    (memorial.ceremony_title && memorial.ceremony_title.trim()) ||
+    (memorial.ceremony_date && memorial.ceremony_date.trim()) ||
+    (memorial.ceremony_place && memorial.ceremony_place.trim()) ||
+    (memorial.ceremony_text && memorial.ceremony_text.trim()) ||
+    ceremonyProgramLines.length > 0
+  );
 
   const pageUrl = `${SITE_URL}/memorial/${id}`;
   const apiBase = (import.meta.env.VITE_API_URL || '').trim().replace(/\/$/, '');
@@ -566,7 +684,21 @@ if (memorialData.backgroundMusic) {
         ? memorial.heroImage
         : (apiBase ? apiBase + (memorial.heroImage.startsWith('/') ? '' : '/') + memorial.heroImage : SITE_URL + (memorial.heroImage.startsWith('/') ? '' : '/') + memorial.heroImage))
     : null;
-  const ogDescription = memorial.heroSummary || `דף זיכרון להנצחת ${memorial.name}. תהא נשמתו צרורה בצרור החיים.`;
+  const memorialName = memorial.hebrewName || memorial.name;
+  const deceasedNameForPrayer = memorialName && memorialName.trim() ? memorialName.trim() : 'הנפטר/ת';
+  const withDeceasedName = (text) =>
+    String(text || '')
+      .replace(/\(שם הנפטר\/ת\)/g, deceasedNameForPrayer)
+      .replace(/\(שם הנפטר\)/g, deceasedNameForPrayer);
+  const personalizedYizkorText = withDeceasedName(yizkorText);
+  const personalizedElMaleRachamimText = withDeceasedName(elMaleRachamimText);
+  const dateInfo = memorial.deathDate
+    ? (memorial.birthDate ? ` (${memorial.birthDate} – ${memorial.deathDate})` : ` (נפטר/ה ${memorial.deathDate})`)
+    : '';
+  const defaultDesc = `דף זיכרון דיגיטלי להנצחת ${memorialName}${dateInfo}. תמונות, סיפור חיים, תהילים ומשניות, קוד QR על המצבה. תהא נשמתו צרורה בצרור החיים.`;
+  const ogDescription = (memorial.heroSummary && memorial.heroSummary.trim())
+    ? `דף זיכרון דיגיטלי – ${memorial.heroSummary.trim().slice(0, 120)}${memorial.heroSummary.trim().length > 120 ? '…' : ''}`
+    : defaultDesc;
 
   // מועד האזכרה הבא – כמה ימים נשארו ותאריך עברי
   let yahrzeitBanner = null;
@@ -600,7 +732,7 @@ if (memorialData.backgroundMusic) {
   return (
     <div className={`memorial-page memorial-page--bg-${backgroundMode}`}>
       <Helmet>
-        <title>דף זיכרון - {memorial.name} | דפי זיכרון דיגיטליים</title>
+        <title>דף זיכרון - {memorial.name} | דף זיכרון דיגיטלי</title>
         <meta name="description" content={ogDescription} />
         <link rel="canonical" href={pageUrl} />
         <meta property="og:title" content={`דף זיכרון - ${memorial.name}`} />
@@ -608,7 +740,7 @@ if (memorialData.backgroundMusic) {
         <meta property="og:url" content={pageUrl} />
         <meta property="og:type" content="website" />
         <meta property="og:locale" content="he_IL" />
-        <meta property="og:site_name" content="דפי זיכרון דיגיטליים" />
+        <meta property="og:site_name" content="דף זיכרון דיגיטלי" />
         {ogImage && (
           <>
             <meta property="og:image" content={ogImage} />
@@ -1161,6 +1293,40 @@ if (memorialData.backgroundMusic) {
           </section>
         )}
 
+        {/* טקס אזכרה אישי */}
+        {hasCeremonySection && (
+          <section className="ceremony-section">
+            <h2 className="section-title">
+              <FaHistory /> טקס אזכרה אישי
+            </h2>
+            <div className="ceremony-content">
+              <h3 className="ceremony-title">
+                {(memorial.ceremony_title && memorial.ceremony_title.trim()) || 'טקס אזכרה אישי'}
+              </h3>
+              {(memorial.ceremony_date || memorial.ceremony_place) && (
+                <div className="ceremony-meta">
+                  {memorial.ceremony_date && <span>{memorial.ceremony_date}</span>}
+                  {memorial.ceremony_date && memorial.ceremony_place && ' · '}
+                  {memorial.ceremony_place && <span>{memorial.ceremony_place}</span>}
+                </div>
+              )}
+              {memorial.ceremony_text && memorial.ceremony_text.trim() && (
+                <p className="ceremony-text">{memorial.ceremony_text.trim()}</p>
+              )}
+              {ceremonyProgramLines.length > 0 && (
+                <>
+                  <p className="ceremony-preview-text">
+                    הטקס המלא זמין בדף ייעודי ונוח לקריאה.
+                  </p>
+                  <Link to={`/memorial/${id}/ceremony`} className="btn btn-primary ceremony-open-btn">
+                    כניסה לטקס האזכרה
+                  </Link>
+                </>
+              )}
+            </div>
+          </section>
+        )}
+
         {/* אירועים לזכרו – תמיכה במספר אירועים */}
         {(() => {
           const eventsList = memorial.events && Array.isArray(memorial.events) && memorial.events.length > 0
@@ -1202,6 +1368,30 @@ if (memorialData.backgroundMusic) {
             </section>
           );
         })()}
+
+        {/* תרומה לזכרו – קישור לעמותה */}
+        {memorial.charity_url && memorial.charity_url.trim() && (
+          <section className="charity-section">
+            <h2 className="section-title">
+              <FaHeart /> תרומה לזכרו
+            </h2>
+            <div className="charity-content">
+              <p className="charity-text">
+                {memorial.charity_name && memorial.charity_name.trim()
+                  ? `המשפחה מבקשת לתרום לזכר ${memorial.hebrewName || memorial.name} דרך ${memorial.charity_name.trim()}.`
+                  : `המשפחה מבקשת לתרום לזכר ${memorial.hebrewName || memorial.name}. להלן קישור לעמותה או לגיוס התרומות.`}
+              </p>
+              <a
+                href={memorial.charity_url.trim()}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn btn-primary charity-link"
+              >
+                כניסה לתרומה לזכר
+              </a>
+            </div>
+          </section>
+        )}
 
         {/* תזכורות – יום הפטירה ויום ההולדת */}
         {((memorial.deathDate && memorial.deathDate.trim() !== '') || (memorial.birthDate && memorial.birthDate.trim() !== '')) && (
@@ -1268,13 +1458,13 @@ if (memorialData.backgroundMusic) {
                 <button
                   type="button"
                   className="btn btn-outline btn-sm"
-                  onClick={() => copyPrayer(yizkorText, 'yizkor')}
+                  onClick={() => copyPrayer(personalizedYizkorText, 'yizkor')}
                 >
                   {yizkorCopied ? t.copied : t.copyPrayer}
                 </button>
               </div>
               <p className="yizkor-text">
-                {yizkorText}
+                {personalizedYizkorText}
               </p>
             </div>
             <div className="yizkor-card">
@@ -1283,13 +1473,13 @@ if (memorialData.backgroundMusic) {
                 <button
                   type="button"
                   className="btn btn-outline btn-sm"
-                  onClick={() => copyPrayer(elMaleRachamimText, 'elMale')}
+                  onClick={() => copyPrayer(personalizedElMaleRachamimText, 'elMale')}
                 >
                   {elMaleCopied ? t.copied : t.copyPrayer}
                 </button>
               </div>
               <p className="yizkor-text">
-                {elMaleRachamimText}
+                {personalizedElMaleRachamimText}
               </p>
             </div>
           </div>

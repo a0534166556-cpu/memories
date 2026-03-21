@@ -79,6 +79,191 @@
   margin: 12px 0 0;
 }
 
+.contact-suggestions {
+  max-width: 720px;
+  margin: 0 auto 48px;
+  padding: 28px 32px 36px;
+  text-align: center;
+  background: linear-gradient(145deg, #fff9e6 0%, #fff 55%, #f5f9ff 100%);
+  border: 1px solid rgba(212, 175, 55, 0.35);
+  border-radius: 16px;
+  box-shadow: 0 6px 28px rgba(41, 128, 185, 0.08);
+}
+
+.contact-suggestions-icon {
+  font-size: 2.25rem;
+  color: #c9a030;
+  margin-bottom: 12px;
+}
+
+.contact-suggestions h2 {
+  font-size: 1.35rem;
+  margin: 0 0 12px;
+  color: #1a2744;
+}
+
+.contact-suggestions-text {
+  margin: 0 0 20px;
+  line-height: 1.7;
+  color: #444;
+  font-size: 1rem;
+}
+
+.contact-suggestions-text a {
+  color: var(--primary-color, #2980b9);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.contact-suggestions-text a:hover {
+  text-decoration: underline;
+}
+
+.contact-suggestions-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.contact-suggestions-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 12px 28px;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 1.05rem;
+  text-decoration: none;
+  color: #1a2744;
+  background: linear-gradient(135deg, #e8c547 0%, #d4af37 50%, #c9a030 100%);
+  border: 1px solid rgba(160, 120, 30, 0.4);
+  box-shadow: 0 4px 16px rgba(212, 175, 55, 0.35);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.contact-suggestions-cta:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 22px rgba(212, 175, 55, 0.42);
+}
+
+.contact-suggestions-cta:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: 0 2px 10px rgba(212, 175, 55, 0.2);
+}
+
+.contact-suggestions-spinner {
+  display: inline-block;
+  animation: contact-spin 0.9s linear infinite;
+}
+
+@keyframes contact-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.contact-suggestions-cta-mailto {
+  display: inline-block;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--primary-color, #2980b9);
+  text-decoration: none;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 2px solid rgba(41, 128, 185, 0.35);
+  background: rgba(255, 255, 255, 0.85);
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.contact-suggestions-cta-mailto:hover {
+  background: #fff;
+  border-color: var(--primary-color, #2980b9);
+  text-decoration: none;
+}
+
+.contact-suggestions-hint {
+  margin: 0;
+  font-size: 0.85rem;
+  line-height: 1.55;
+  color: #666;
+  max-width: 520px;
+  margin-inline: auto;
+}
+
+.contact-feedback-form {
+  text-align: right;
+  margin-top: 8px;
+}
+
+.contact-feedback-row {
+  margin-bottom: 18px;
+}
+
+.contact-feedback-label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: #1a2744;
+  font-size: 0.98rem;
+}
+
+.contact-required {
+  color: #b45309;
+}
+
+.contact-feedback-input,
+.contact-feedback-textarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(26, 39, 68, 0.18);
+  font-family: inherit;
+  font-size: 1rem;
+  background: #fff;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.contact-feedback-input:focus,
+.contact-feedback-textarea:focus {
+  outline: none;
+  border-color: var(--primary-color, #2980b9);
+  box-shadow: 0 0 0 3px rgba(41, 128, 185, 0.15);
+}
+
+.contact-feedback-textarea {
+  resize: vertical;
+  min-height: 110px;
+  line-height: 1.6;
+}
+
+.contact-feedback-status {
+  margin: 0 0 16px;
+  padding: 14px 16px;
+  border-radius: 10px;
+  font-size: 0.98rem;
+  line-height: 1.55;
+  text-align: right;
+}
+
+.contact-feedback-status--ok {
+  background: #ecfdf5;
+  color: #166534;
+  border: 1px solid #bbf7d0;
+}
+
+.contact-feedback-status--err {
+  background: #fef2f2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+}
+
 .contact-bank-section {
   max-width: 560px;
   margin: 0 auto;

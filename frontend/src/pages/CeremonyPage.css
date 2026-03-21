@@ -1,0 +1,107 @@
+.ceremony-page {
+  min-height: 100vh;
+  background: #eef2f8;
+  padding: 24px 14px;
+}
+
+.ceremony-card {
+  max-width: 900px;
+  margin: 0 auto;
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 10px 30px rgba(31, 53, 87, 0.12);
+  padding: 20px;
+}
+
+.ceremony-header h1 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  color: #1f3557;
+}
+
+.ceremony-header p {
+  margin-top: 8px;
+  color: #5b6575;
+}
+
+.ceremony-actions {
+  margin: 14px 0 20px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.ceremony-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 999px;
+  text-decoration: none;
+  background: #1f3557;
+  color: #fff;
+  font-weight: 600;
+}
+
+.ceremony-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 999px;
+  border: none;
+  background: #2a4666;
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.ceremony-action-btn:hover {
+  background: #1f3557;
+}
+
+.ceremony-action-btn--secondary {
+  background: #6b7280;
+}
+
+.ceremony-action-btn--secondary:hover {
+  background: #4b5563;
+}
+
+.ceremony-full-text {
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.9;
+  font-size: 1.02rem;
+  color: #1c1f24;
+  background: #fafbff;
+  border: 1px solid #e7eaf3;
+  border-radius: 12px;
+  padding: 16px;
+  margin: 0;
+  font-family: inherit;
+  max-height: none;
+  overflow: visible;
+}
+
+@media print {
+  .ceremony-actions,
+  .ceremony-back-btn {
+    display: none !important;
+  }
+
+  .ceremony-page {
+    background: #fff;
+    padding: 0;
+  }
+
+  .ceremony-card {
+    box-shadow: none;
+    border-radius: 0;
+    max-width: none;
+    padding: 0;
+  }
+}

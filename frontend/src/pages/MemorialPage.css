@@ -5,18 +5,509 @@
   transition: background 0.4s ease;
 }
 
-/* ערכת צבעים לדף זיכרון – כחול פחות כהה (תואם לשאר הדפים) */
+/* ערכת צבעים לדף זיכרון – כחול כהה יותר */
 .memorial-page {
-  --memorial-primary: #2d4a6f;
-  --memorial-primary-soft: #3a5d85;
+  --memorial-primary: #1f3550;
+  --memorial-primary-soft: #2a4666;
   --memorial-accent: #d4af37;
   --memorial-accent-light: #e5c65c;
-  --memorial-bg: #e8ecf4;
+  --memorial-bg: #d8dde8;
+  --memorial-gradient: linear-gradient(180deg, #2a4666 0%, #1a2f4a 100%);
   --memorial-card-shadow: 0 4px 20px rgba(45, 74, 111, 0.08);
   --memorial-card-border: rgba(45, 74, 111, 0.06);
   --primary-color: var(--memorial-primary);
   --accent-color: var(--memorial-accent);
   --secondary-color: var(--memorial-primary-soft);
+}
+
+/* ========== מסך פתיחה (כמו memoriez): שחור, נר, תמונה מעוגלת, שם ========== */
+.memorial-intro-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background:
+    radial-gradient(ellipse 90% 70% at 50% 45%, #0a0a0c 0%, #000000 55%, #000 100%);
+  direction: rtl;
+  cursor: pointer;
+  animation: memorial-intro-fade-in 0.55s ease-out both;
+}
+
+.memorial-intro-screen--closing {
+  animation: memorial-intro-fade-out 0.52s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  pointer-events: none;
+}
+
+@keyframes memorial-intro-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes memorial-intro-fade-out {
+  from {
+    opacity: 1;
+    filter: blur(0);
+  }
+  to {
+    opacity: 0;
+    filter: blur(8px);
+  }
+}
+
+/* אור ועומק בצדדי המסך */
+.memorial-intro-ambient {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 0;
+}
+
+.memorial-intro-side {
+  position: absolute;
+  top: -15%;
+  width: 42%;
+  max-width: 320px;
+  height: 130%;
+  opacity: 0.55;
+  filter: blur(48px);
+}
+
+.memorial-intro-side--left {
+  left: -8%;
+  background: radial-gradient(
+    ellipse 65% 55% at 30% 45%,
+    rgba(180, 140, 255, 0.22) 0%,
+    rgba(80, 120, 200, 0.12) 40%,
+    transparent 72%
+  );
+  animation: memorial-intro-side-float 7s ease-in-out infinite;
+}
+
+.memorial-intro-side--right {
+  right: -8%;
+  background: radial-gradient(
+    ellipse 65% 55% at 70% 50%,
+    rgba(255, 200, 120, 0.28) 0%,
+    rgba(212, 175, 55, 0.14) 45%,
+    transparent 72%
+  );
+  animation: memorial-intro-side-float 8s ease-in-out infinite reverse;
+}
+
+@keyframes memorial-intro-side-float {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+    opacity: 0.5;
+  }
+  50% {
+    transform: translateY(-12px) scale(1.04);
+    opacity: 0.65;
+  }
+}
+
+.memorial-intro-side-beam {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    rgba(255, 248, 220, 0.07) 20%,
+    rgba(212, 175, 55, 0.35) 50%,
+    rgba(255, 248, 220, 0.07) 80%,
+    transparent 100%
+  );
+  box-shadow:
+    0 0 20px rgba(212, 175, 55, 0.25),
+    0 0 60px rgba(212, 175, 55, 0.08);
+  opacity: 0.85;
+  animation: memorial-intro-beam-pulse 3.2s ease-in-out infinite;
+}
+
+.memorial-intro-side-beam--left {
+  left: 6%;
+}
+
+.memorial-intro-side-beam--right {
+  right: 6%;
+  animation-delay: 1.4s;
+}
+
+@keyframes memorial-intro-beam-pulse {
+  0%,
+  100% {
+    opacity: 0.45;
+    transform: scaleY(1);
+  }
+  50% {
+    opacity: 0.95;
+    transform: scaleY(1.02);
+  }
+}
+
+/* נקודות אור עדינות ברקע */
+.memorial-intro-dust {
+  position: absolute;
+  inset: 0;
+  background-image:
+    radial-gradient(1.5px 1.5px at 12% 22%, rgba(255, 255, 255, 0.35) 50%, transparent 52%),
+    radial-gradient(1px 1px at 88% 18%, rgba(255, 255, 255, 0.28) 50%, transparent 52%),
+    radial-gradient(1px 1px at 18% 78%, rgba(212, 175, 55, 0.4) 50%, transparent 52%),
+    radial-gradient(1.5px 1.5px at 82% 72%, rgba(255, 255, 255, 0.22) 50%, transparent 52%),
+    radial-gradient(1px 1px at 50% 12%, rgba(255, 255, 255, 0.15) 50%, transparent 52%);
+  opacity: 0.7;
+  animation: memorial-intro-dust-twinkle 5s ease-in-out infinite alternate;
+}
+
+@keyframes memorial-intro-dust-twinkle {
+  from {
+    opacity: 0.45;
+  }
+  to {
+    opacity: 0.85;
+  }
+}
+
+.memorial-intro-inner {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(20px, 4vh, 32px);
+  padding: 24px 20px 32px;
+  max-width: 100%;
+  pointer-events: none;
+}
+
+.memorial-intro-inner * {
+  pointer-events: none;
+}
+
+/* נר זיכרון קטן – מעל התמונה */
+.memorial-intro-candle {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex-shrink: 0;
+  margin-bottom: 4px;
+}
+
+.memorial-intro-candle-glow {
+  position: absolute;
+  bottom: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100px;
+  height: 56px;
+  border-radius: 50%;
+  background: radial-gradient(
+    ellipse 70% 50% at center,
+    rgba(255, 200, 120, 0.35) 0%,
+    rgba(255, 160, 60, 0.12) 45%,
+    transparent 70%
+  );
+  filter: blur(6px);
+  pointer-events: none;
+}
+
+.memorial-intro-candle-body {
+  position: relative;
+  width: 36px;
+  height: 72px;
+  border-radius: 5px 5px 16px 16px;
+  background:
+    linear-gradient(100deg, rgba(255, 255, 255, 0.35) 0%, transparent 28%, transparent 72%, rgba(255, 255, 255, 0.12) 100%),
+    linear-gradient(180deg, #faf6ef 0%, #e8dfd0 35%, #d4c4ad 70%, #b8a088 100%);
+  box-shadow:
+    inset 3px 0 8px rgba(255, 255, 255, 0.2),
+    inset -2px 0 6px rgba(0, 0, 0, 0.08),
+    0 6px 18px rgba(0, 0, 0, 0.45);
+}
+
+.memorial-intro-candle-wick {
+  position: absolute;
+  top: -3px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 2px;
+  height: 10px;
+  background: linear-gradient(180deg, #2a1810 0%, #1a0f0a 100%);
+  border-radius: 1px;
+  z-index: 2;
+}
+
+.memorial-intro-candle-flame-outer {
+  position: absolute;
+  top: -28px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 22px;
+  height: 38px;
+  border-radius: 50% 50% 45% 45%;
+  background: radial-gradient(ellipse 55% 100% at 50% 15%, rgba(255, 200, 100, 0.45) 0%, rgba(255, 120, 40, 0.2) 50%, transparent 72%);
+  filter: blur(1.5px);
+  transform-origin: 50% 100%;
+  animation: memorial-intro-flicker-outer 2s ease-in-out infinite alternate;
+  z-index: 1;
+}
+
+.memorial-intro-candle-flame-inner {
+  position: absolute;
+  top: -26px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 11px;
+  height: 34px;
+  border-radius: 50% 50% 40% 40%;
+  background: linear-gradient(
+    180deg,
+    #fffef8 0%,
+    #fff4c0 22%,
+    #ffd966 50%,
+    #ffa726 78%,
+    #e65100 100%
+  );
+  box-shadow:
+    0 0 16px rgba(255, 220, 120, 0.85),
+    0 0 28px rgba(255, 180, 60, 0.45);
+  transform-origin: 50% 100%;
+  animation: memorial-intro-flicker-inner 2.2s ease-in-out infinite alternate;
+  z-index: 2;
+}
+
+.memorial-intro-candle-base {
+  width: 42px;
+  height: 6px;
+  border-radius: 3px;
+  margin-top: -1px;
+  background: linear-gradient(180deg, #7a6550 0%, #5c4a3c 100%);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.4);
+}
+
+@keyframes memorial-intro-flicker-inner {
+  0% {
+    transform: translateX(-50%) scaleY(1) scaleX(1);
+  }
+  50% {
+    transform: translateX(-50%) scaleY(1.05) scaleX(0.96);
+  }
+  100% {
+    transform: translateX(-50%) scaleY(0.98) scaleX(1.03);
+  }
+}
+
+@keyframes memorial-intro-flicker-outer {
+  0% {
+    opacity: 0.88;
+    transform: translateX(-50%) scaleY(1);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(-50%) scaleY(1.06);
+  }
+}
+
+.memorial-intro-figure {
+  margin: 0;
+  padding: 0;
+  line-height: 0;
+}
+
+/* מסגרת זהב + זוהר סביב תמונת הפרופיל */
+.memorial-intro-photo-shell {
+  position: relative;
+  width: min(88vw, 380px);
+  max-width: 100%;
+  padding: 4px;
+  isolation: isolate;
+  border-radius: clamp(18px, 4.5vw, 28px);
+  background: linear-gradient(
+    145deg,
+    rgba(212, 175, 55, 0.95) 0%,
+    rgba(255, 250, 230, 0.55) 22%,
+    rgba(180, 150, 70, 0.75) 45%,
+    rgba(255, 248, 210, 0.5) 68%,
+    rgba(212, 175, 55, 0.9) 100%
+  );
+  background-size: 200% 200%;
+  animation: memorial-intro-gold-shift 8s ease infinite;
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.35),
+    0 28px 56px rgba(0, 0, 0, 0.55),
+    0 0 48px rgba(212, 175, 55, 0.22),
+    0 0 100px rgba(212, 175, 55, 0.08);
+}
+
+@keyframes memorial-intro-gold-shift {
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+.memorial-intro-photo-ring {
+  position: absolute;
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+.memorial-intro-photo-ring--outer {
+  inset: 4px;
+  border-radius: clamp(14px, 3.8vw, 24px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: inset 0 0 28px rgba(255, 255, 255, 0.07);
+  z-index: 2;
+}
+
+.memorial-intro-photo-ring--glow {
+  inset: -14px;
+  border-radius: clamp(28px, 7vw, 40px);
+  background: radial-gradient(
+    ellipse 72% 72% at 50% 50%,
+    rgba(212, 175, 55, 0.4) 0%,
+    rgba(212, 175, 55, 0.1) 42%,
+    transparent 68%
+  );
+  filter: blur(14px);
+  z-index: 0;
+  animation: memorial-intro-portrait-glow 3.5s ease-in-out infinite alternate;
+}
+
+@keyframes memorial-intro-portrait-glow {
+  from {
+    opacity: 0.65;
+    transform: scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1.03);
+  }
+}
+
+.memorial-intro-photo-crop {
+  position: relative;
+  z-index: 1;
+  border-radius: clamp(14px, 3.8vw, 24px);
+  overflow: hidden;
+  aspect-ratio: 1;
+  background: #0a0a0a;
+}
+
+.memorial-intro-image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: scale(1.04);
+  animation: memorial-intro-photo-breathe 6s ease-in-out infinite alternate;
+  filter: saturate(1.05) contrast(1.03);
+}
+
+@keyframes memorial-intro-photo-breathe {
+  from {
+    transform: scale(1.03);
+  }
+  to {
+    transform: scale(1.08);
+  }
+}
+
+/* ברק עדין על פני התמונה */
+.memorial-intro-photo-shine {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    125deg,
+    transparent 0%,
+    transparent 40%,
+    rgba(255, 255, 255, 0.12) 48%,
+    rgba(255, 255, 255, 0.06) 52%,
+    transparent 60%,
+    transparent 100%
+  );
+  background-size: 200% 200%;
+  animation: memorial-intro-shine-sweep 5s ease-in-out infinite;
+  mix-blend-mode: soft-light;
+  pointer-events: none;
+}
+
+@keyframes memorial-intro-shine-sweep {
+  0%,
+  100% {
+    background-position: 100% 50%;
+    opacity: 0.5;
+  }
+  50% {
+    background-position: 0% 50%;
+    opacity: 0.9;
+  }
+}
+
+.memorial-intro-name {
+  margin: 0;
+  padding: 0 12px;
+  font-size: clamp(1.5rem, 5vw, 2rem);
+  font-weight: 600;
+  color: #ffffff;
+  letter-spacing: 0.02em;
+  text-align: center;
+  line-height: 1.35;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.5);
+}
+
+.memorial-intro-tap-hint {
+  margin: 8px 0 0;
+  font-size: 0.82rem;
+  color: rgba(255, 255, 255, 0.48);
+  font-weight: 400;
+  max-width: 22rem;
+  text-align: center;
+  line-height: 1.45;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .memorial-intro-screen {
+    animation: none;
+  }
+
+  .memorial-intro-screen--closing {
+    animation: none;
+    opacity: 0;
+  }
+
+  .memorial-intro-candle-flame-inner,
+  .memorial-intro-candle-flame-outer {
+    animation: none;
+  }
+
+  .memorial-intro-side,
+  .memorial-intro-side-beam,
+  .memorial-intro-dust,
+  .memorial-intro-photo-shell,
+  .memorial-intro-photo-ring--glow,
+  .memorial-intro-image,
+  .memorial-intro-photo-shine {
+    animation: none;
+  }
+
+  .memorial-intro-image {
+    transform: scale(1.05);
+  }
 }
 
 /* באנר מועד האזכרה – בראש הדף */
@@ -61,7 +552,7 @@
 }
 
 .memorial-page--bg-dark {
-  background: #1e2d47;
+  background: #0f1724;
 }
 
 .memorial-page--bg-dark .memorial-content,
@@ -76,6 +567,7 @@
 .memorial-page--bg-dark .location-section,
 .memorial-page--bg-dark .event-section,
 .memorial-page--bg-dark .reminder-section,
+.memorial-page--bg-dark .charity-section,
 .memorial-page--bg-dark .qr-section {
   background: rgba(255, 255, 255, 0.06);
   color: #e8e8e8;
@@ -674,13 +1166,42 @@
 .tehilim-section,
 .location-section,
 .event-section,
-.reminder-section {
+.reminder-section,
+.charity-section {
   background: white;
   border-radius: 16px;
   padding: 40px;
   margin-bottom: 30px;
   box-shadow: var(--memorial-card-shadow);
   border: 1px solid var(--memorial-card-border);
+}
+
+.charity-content {
+  margin-top: 12px;
+}
+
+.charity-text {
+  color: #555;
+  line-height: 1.7;
+  margin: 0 0 20px;
+  font-size: 1.05rem;
+}
+
+.charity-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 28px;
+  font-size: 1.05rem;
+  font-weight: 600;
+  text-decoration: none;
+  border-radius: 12px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.charity-link:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(45, 74, 111, 0.25);
 }
 
 .event-content {
@@ -1367,6 +1888,26 @@
 }
 
 @media (max-width: 768px) {
+  .header-links {
+    width: 100%;
+    justify-content: flex-start;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    gap: 10px;
+    padding-bottom: 6px;
+    scrollbar-width: thin;
+  }
+
+  .header-links .home-link,
+  .header-links .btn-share,
+  .header-links .btn-print,
+  .header-links .btn-background,
+  .header-links .lang-btn {
+    min-height: 44px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
   .memorial-name {
     font-size: 2rem;
   }
@@ -1402,11 +1943,17 @@
   .tehilim-header {
     flex-direction: column;
     align-items: stretch;
+    gap: 10px;
   }
 
   .qr-content {
     flex-direction: column;
     gap: 20px;
+  }
+
+  .qr-image img {
+    max-width: min(82vw, 280px);
+    height: auto;
   }
 
   .timeline-list {

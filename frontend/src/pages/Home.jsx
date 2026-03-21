@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
-import { FaPlus, FaQrcode, FaHeart, FaImages, FaBook, FaHistory, FaShareAlt, FaPrint, FaMusic, FaMapMarkerAlt, FaBell, FaFire, FaCalendarAlt, FaHandsHelping, FaChevronDown } from 'react-icons/fa';
+import { FaPlus, FaQrcode, FaHeart, FaImages, FaBook, FaBookOpen, FaHistory, FaShareAlt, FaPrint, FaMusic, FaMapMarkerAlt, FaBell, FaFire, FaCalendarAlt, FaHandsHelping, FaHandHoldingHeart, FaChevronDown, FaArrowLeft, FaCommentDots, FaStar } from 'react-icons/fa';
+import { EXAMPLE_MEMORIAL_HERO_IMAGE_URL } from '../data/exampleMemorialConstants';
 import './Home.css';
 
 const FAQ_ITEMS = [
@@ -27,14 +28,58 @@ const FAQ_ITEMS = [
   }
 ];
 
+/** תמונת הפרופיל בראש דף הדוגמה – לסנכרון עם `heroImage` ב־MemorialExample.jsx */
+const EXAMPLE_MEMORIAL_PROFILE_SRC =
+  'https://app.memoriez.co.il/wp-content/uploads/2024/09/c2e0d17f-e7a1-4723-b279-e58e81968de5.jpeg';
+
+/** קולאז' בדף הבית – תמונות לפי בקשה + תמונת פרופיל מדף הזיכרון לדוגמה */
+const MEMORIAL_POLAROID_IMAGES = [
+  {
+    src: 'https://otzem-app.s3.eu-central-1.amazonaws.com/wp-content/uploads/2024/09/19122756/%D7%A8%D7%95%D7%A2%D7%99-%D7%95%D7%99%D7%99%D7%96%D7%A8-1.jpeg',
+    alt: 'תמונה להמחשה – דף זיכרון דיגיטלי',
+    className: 'polaroid polaroid--1'
+  },
+  {
+    src: 'https://image-resizer.walla.cloud/image/2024/12/2/images/1733740266616_picture_466x460.webp?width=334',
+    alt: 'תמונה להמחשה – דף זיכרון דיגיטלי',
+    className: 'polaroid polaroid--2'
+  },
+  {
+    src: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcR-KeFR5jtuwwxBqZ9aS9PoLC9uKflfHMQLutqaWTOaYQ&s',
+    alt: 'תמונה להמחשה – דף זיכרון דיגיטלי',
+    className: 'polaroid polaroid--3'
+  },
+  {
+    src: EXAMPLE_MEMORIAL_HERO_IMAGE_URL,
+    alt: 'תמונת פרופיל מדף הזיכרון לדוגמה (כמו בכפתור "דף זיכרון לדוגמה")',
+    className: 'polaroid polaroid--4 polaroid--profile'
+  }
+];
+
+/** כל מה שכלול בדף הזיכרון – תואם לתכונות בפועל באתר */
+const MEMORIAL_SHOWCASE_ITEMS = [
+  { icon: FaHeart, text: 'פרופיל מכובד: שם עברי ולועזי, תאריכי לידה ופטירה, תמונת כותרת ותקציר — הכל ניתן לעדכן שוב ושוב במסלולי השמירה' },
+  { icon: FaImages, text: 'גלריית תמונות וסרטונים במצגת נוחה, עם גלילה בין פריטי המדיה' },
+  { icon: FaBook, text: 'סיפור חיים מלא, ציר זמן (אבני דרך), ופרקי תהילים ומשניות לעילוי הנשמה — קריאה נוחה מהמסך' },
+  { icon: FaBookOpen, text: 'טקס אזכרה אישי: תבנית סדר מלאה (יהי רצון, קדיש, תהילים ועוד) שניתנת לעריכה חופשית מלאה' },
+  { icon: FaHistory, text: 'תפילות יזכור ואל מלא רחמים — כולל העתקה מהירה ללוח' },
+  { icon: FaFire, text: 'הדלקת נר וירטואלי לזכר הנפטר' },
+  { icon: FaCommentDots, text: 'הודעות תנחומים ממבקרים — מוצגות בדף לאחר פרסום' },
+  { icon: FaMapMarkerAlt, text: 'מיקום בית קברות וקישור לניווט, מוזיקת רקע לדף (הפעלה והשתקה)' },
+  { icon: FaBell, text: 'תזכורת במייל לפני יום האזכרה — הרשמה אופציונלית בעת יצירת הדף' },
+  { icon: FaQrcode, text: 'קוד QR להדפסה והצבה על המצבה, שיתוף בוואטסאפ ובמייל, והדפסת הדף עם בחירת גודל טקסט (נגישות)' },
+  { icon: FaCalendarAlt, text: 'אירועים לזכרו — תאריך, מקום, קישור לרישום או פרטים' },
+  { icon: FaHandHoldingHeart, text: 'קישור לתרומה לזכר הנפטר (אם הוגדר) ומשאבים למשפחות דרך עמוד התמיכה וההנחיה' }
+];
+
 function Home() {
   const [openFaqIndex, setOpenFaqIndex] = useState(null);
   return (
     <main className="home" role="main">
       <Helmet>
         <meta property="og:url" content={typeof window !== 'undefined' ? window.location.origin + '/' : 'https://memoriesman.netlify.app/'} />
-        <meta property="og:title" content="דפי זיכרון דיגיטליים" />
-        <meta property="og:description" content="אנחנו כאן כדי לעזור לכם לשמור את הזיכרון בצורה מכובדת וברורה. צרו דף זיכרון – תמונות, סיפורים, תהילים ו־QR על המצבה." />
+        <meta property="og:title" content="דף זיכרון דיגיטלי לנפטר | הנצחה אונליין עם QR למצבה" />
+        <meta property="og:description" content="דף זיכרון דיגיטלי לנפטר — אתר הנצחה אישי: תמונות, סיפור חיים, תהילים ו־QR על המצבה. מקום מכובד לזכרו, זמין מכל מקום." />
       </Helmet>
       {/* Navigation Header */}
       <nav className="top-navigation">
@@ -44,6 +89,7 @@ function Home() {
             <Link to="/about" className="nav-link">אודותינו</Link>
             <Link to="/support" className="nav-link">משאבים למשפחות</Link>
             <Link to="/memorial-prayers" className="nav-link">סדר תפילות לאזכרה</Link>
+            <Link to="/contact" className="nav-link">צור קשר</Link>
             {localStorage.getItem('token') && (
               <Link to="/manage" className="nav-link">ניהול דפי זיכרון</Link>
             )}
@@ -66,6 +112,7 @@ function Home() {
         </div>
       </nav>
 
+      <div className="home-dark-band">
       <header className="hero">
         <div className="hero-sparkle" aria-hidden="true">
           {[...Array(48)].map((_, i) => (
@@ -81,35 +128,121 @@ function Home() {
             />
           ))}
         </div>
+        <div className="hero-constellation" aria-hidden="true" />
         <div className="hero-content">
-          <h1 className="hero-title">
-            ההנצחה הדיגיטלית של <span className="brand">דפי זיכרון</span>
+          <div className="hero-open" aria-label="פתיח">
+            <span className="hero-pill">
+              <span className="hero-pill-dot" aria-hidden="true" />
+              דף זיכרון דיגיטלי לנפטר · QR למצבה
+            </span>
+            <p className="hero-headline">
+              <span className="hero-headline-primary">אתר זיכרון אישי ברשת</span>
+              <span className="hero-headline-accent">לזכרם של יקירכם</span>
+            </p>
+            <p className="hero-subhook">
+              מקום מכובד <span className="hero-subhook-highlight">לסיפור חייו</span>, לתמונות ולזיכרון — נגיש בלחיצה מכל טלפון או מחשב.
+            </p>
+          </div>
+          <h1 className="hero-feel-main">
+            <span className="hero-feel-main__text">להרגיש.</span>
           </h1>
-          <p className="hero-tagline">דף הנצחה אישי שמחבר אתכם ליקיריכם בכל רגע</p>
-          <p className="hero-subtitle">
-            תמונות, סרטונים וטקסטים מרגשים במקום אחד. כרטיס עם קוד QR מחזיר אתכם לזיכרון החי – בכל זמן ובכל מקום.
-          </p>
-          <p className="hero-reassure">בכמה דקות תוכלו ליצור דף שכל המשפחה יכולה לצפות בו ולשתף. אפשר להתחיל בחינם.</p>
-          <span className="hero-feel">להרגיש.</span>
+          <div className="hero-prose">
+            <p className="hero-lead">
+              <span className="hero-lead-intro">בדף אחד מרוכזים</span>
+              פרופיל מכובד לנפטר, גלריה, סיפור חיים, תהילים ומשניות, נר וירטואלי, תנחומים — וקוד{' '}
+              <strong className="hero-lead-strong">QR על המצבה</strong> שנפתח ישר לדף הזיכרון.
+            </p>
+            <p className="hero-lead hero-lead--secondary">
+              הדף נגיש מכל טלפון או מחשב, בישראל ובחו״ל, בלי להוריד אפליקציה.
+            </p>
+          </div>
+          <div className="hero-reassure" role="note">
+            <strong>אתר הנצחה שתיצרו בעצמכם</strong>
+            <span className="hero-reassure-body">
+              — תוך דקות הדף מוכן לשיתוף. מתחילים בחינם (24 שעות), ואפשר להוסיף שמירה לאורך זמן כשתחליטו.
+            </span>
+          </div>
           <div className="hero-buttons">
             <Link to="/create" className="btn btn-secondary">
               <FaPlus /> צור דף זיכרון עכשיו
+            </Link>
+            <Link to="/gallery/example" className="btn btn-primary">
+              דף זיכרון לדוגמה
             </Link>
             <a href="#how-it-works" className="btn btn-primary">
               מה זה דף זיכרון ואיך זה עובד?
             </a>
           </div>
           <div className="hero-links">
-            <Link to="/gallery/example" className="hero-link">לדף זיכרון לדוגמה</Link>
             <Link to="/pricing" className="hero-link">לתוכניות ומחירים</Link>
           </div>
         </div>
       </header>
 
+      <section className="memorial-showcase" aria-labelledby="memorial-showcase-heading">
+        <div className="container">
+          <div className="memorial-showcase-inner">
+            <div className="memorial-showcase-collage">
+              <div className="polaroid-stack">
+                {MEMORIAL_POLAROID_IMAGES.map((item) => (
+                  <div key={item.className} className={item.className}>
+                    <img src={item.src} alt={item.alt} loading="lazy" decoding="async" />
+                  </div>
+                ))}
+                <div className="memorial-showcase-emblem" aria-hidden="true" title="זיכרון מאיר">
+                  <FaStar className="memorial-emblem-star" />
+                </div>
+              </div>
+              <p className="memorial-showcase-collage-caption">
+                התמונות כאן להמחשה בלבד. בדף שתיצרו יופיעו התמונות, הטקסטים והסיפור האמיתיים של יקיריכם.
+              </p>
+            </div>
+            <div className="memorial-showcase-content">
+              <div className="memorial-showcase-panel">
+                <p className="memorial-showcase-eyebrow">כל מה שכלול בדף</p>
+                <h2 id="memorial-showcase-heading" className="memorial-showcase-title">
+                  מה כולל דף הזיכרון אצלנו?
+                </h2>
+                <p className="memorial-showcase-subtitle">
+                  בכל תוכנית שמירה (זמנית, חודשית, שנתית או לצמיתות) מקבלים את אותן התכונות — ההבדל הוא רק במשך הפעילות של הדף.
+                  להלן הרשימה המלאה של מה שמגיע ללקוחות.
+                </p>
+                <ul className="memorial-showcase-list">
+                  {MEMORIAL_SHOWCASE_ITEMS.map((row, i) => {
+                    const Icon = row.icon;
+                    return (
+                      <li key={i} className="memorial-showcase-list-item" style={{ '--item-index': i }}>
+                        <span className="memorial-showcase-list-icon" aria-hidden="true">
+                          <Icon />
+                        </span>
+                        <span className="memorial-showcase-list-text">{row.text}</span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+              <div className="memorial-showcase-cta-wrap">
+                <Link to="/create" className="memorial-showcase-cta">
+                  צרו דף זיכרון
+                  <FaArrowLeft className="memorial-showcase-cta-icon" aria-hidden="true" />
+                </Link>
+                <Link to="/pricing" className="memorial-showcase-cta-secondary">
+                  תוכניות ומחירים
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+      </div>
+
       <section id="how-it-works" className="features" aria-labelledby="features-heading">
         <div className="container">
-          <h2 id="features-heading" className="section-title">איך זה עובד?</h2>
-          <p className="how-intro">התהליך פשוט ומכבד. אתם מובילים – אנחנו מספקים את הכלים. שלושה צעדים קצרים ומגיעים לדף זיכרון מוכן לשיתוף.</p>
+          <h2 id="features-heading" className="section-title section-title--decorated">איך זה עובד?</h2>
+          <p className="how-intro">
+            התהליך <em className="how-intro-em">פשוט ומכבד</em>: אתם ממלאים את התוכן — אנחנו נותנים את המבנה, העיצוב והכלים.
+            <span className="how-intro-line"> שלושה צעדים קצרים ויש לכם דף זיכרון מוכן לשיתוף.</span>
+          </p>
           <div className="features-grid">
             <div className="feature-card">
               <span className="feature-step" aria-hidden="true">1</span>
@@ -132,10 +265,10 @@ function Home() {
             <div className="feature-card">
               <span className="feature-step" aria-hidden="true">3</span>
               <div className="feature-icon">
-                📖
+                <FaShareAlt />
               </div>
               <h3>שתפו והנציחו</h3>
-              <p>שלחו את הקישור למשפחה וחברים. הדף נשאר זמין – לתמיד או לפי התוכנית שבחרתם.</p>
+              <p>שלחו את קישור דף הזיכרון למי שתרצו. הדף נשאר זמין — לפי התוכנית שבחרתם (כולל אפשרות הנצחה).</p>
             </div>
           </div>
         </div>
@@ -143,9 +276,10 @@ function Home() {
 
       <section className="memorial-features-detail" aria-labelledby="memorial-detail-heading">
         <div className="container">
-          <h2 id="memorial-detail-heading" className="section-title">מה יש בדף זיכרון?</h2>
+          <h2 id="memorial-detail-heading" className="section-title section-title--decorated section-title--on-light">מה יש בדף זיכרון?</h2>
           <p className="memorial-detail-intro">
-            בכל התוכניות – זמנית, חודשית, שנתית או לצמיתות – יש את אותן התכונות. ההבדל הוא רק במשך השמירה: 24 שעות בחינם, או שמירה מתמשכת בתשלום. המבקרים יראו דף מסודר, נוח לצפייה ולשיתוף.
+            <span className="memorial-detail-intro-lead">בכל התוכניות — זמנית, חודשית, שנתית או לצמיתות — מופיעות אותן תכונות בדף.</span>{' '}
+            ההבדל הוא רק <strong>במשך השמירה והגישה</strong>: 24 שעות בחינם, או שמירה מתמשכת בתשלום. המבקרים תמיד רואים דף מסודר, נוח לצפייה ולשיתוף.
           </p>
           <div className="memorial-detail-grid">
             <div className="memorial-detail-card">
@@ -169,6 +303,11 @@ function Home() {
               <p>אירועים לאורך השנים עם תאריכים ותיאורים — ציר זמן ויזואלי.</p>
             </div>
             <div className="memorial-detail-card">
+              <div className="memorial-detail-icon"><FaBookOpen /></div>
+              <h3>טקס אזכרה אישי</h3>
+              <p>סדר תפילות מלא לעריכה חופשית, כולל דף ייעודי &quot;כניסה לטקס&quot; עם כל הטקסטים.</p>
+            </div>
+            <div className="memorial-detail-card">
               <div className="memorial-detail-icon"><FaBook /></div>
               <h3>פרקי תהילים ומשניות</h3>
               <p>פרקי תהילים ומשניות לעילוי הנשמה — קריאה נוחה מהמסך.</p>
@@ -179,7 +318,7 @@ function Home() {
               <p>מבקרים יכולים להדליק נר זיכרון וירטואלי בדף.</p>
             </div>
             <div className="memorial-detail-card">
-              <div className="memorial-detail-icon">💬</div>
+              <div className="memorial-detail-icon"><FaCommentDots /></div>
               <h3>תנחומים</h3>
               <p>מבקרים יכולים להשאיר הודעת תנחומים בדף הזיכרון.</p>
             </div>
@@ -218,6 +357,11 @@ function Home() {
               <h3>אירועים לזכרו</h3>
               <p>אירוע שנתי לזכרו: כותרת, תאריך, מקום, קישור לדף פרטים או רישום (אופציונלי), וטקסט קצר — מוצג בדף עם כפתור "פרטים ורישום" אם הוזן קישור.</p>
             </div>
+            <div className="memorial-detail-card">
+              <div className="memorial-detail-icon"><FaHandHoldingHeart /></div>
+              <h3>תרומה לזכר</h3>
+              <p>אפשר להציג קישור לארגון או לקמפיין לזכר הנפטר — לפי מה שתגדירו בדף.</p>
+            </div>
             <Link to="/support" className="memorial-detail-card memorial-detail-card-link">
               <div className="memorial-detail-icon"><FaHandsHelping /></div>
               <h3>משאבים למשפחות</h3>
@@ -229,7 +373,7 @@ function Home() {
 
       <section className="faq-section" aria-labelledby="faq-heading">
         <div className="container">
-          <h2 id="faq-heading" className="section-title">שאלות נפוצות</h2>
+          <h2 id="faq-heading" className="section-title section-title--decorated section-title--on-light">שאלות נפוצות</h2>
           <div className="faq-list">
             {FAQ_ITEMS.map((item, index) => {
               const isOpen = openFaqIndex === index;
@@ -294,6 +438,7 @@ function Home() {
           <Link to="/about">אודות</Link>
           <Link to="/privacy">מדיניות פרטיות</Link>
           <Link to="/support">משאבים למשפחות</Link>
+          <Link to="/contact">צור קשר והצעות</Link>
         </div>
       </footer>
     </main>
