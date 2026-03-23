@@ -402,7 +402,7 @@ function MemorialExample() {
             </div>
           </figure>
           <p className="memorial-intro-name">{introDisplayName}</p>
-          <p className="memorial-intro-tap-hint memorial-example-intro-hint">לחצו להמשך · המסך ייסגר אוטומטית תוך 3 שניות</p>
+          <p className="memorial-intro-tap-hint memorial-example-intro-hint">לחצו להמשך</p>
         </div>
       </div>
     );

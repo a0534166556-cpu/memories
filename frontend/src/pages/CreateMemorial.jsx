@@ -598,9 +598,11 @@ function CreateMemorial() {
                     className="btn btn-outline"
                     onClick={() => {
                       const url = mapsLinkInput.trim();
-                      const match = url.match(/(?:q=|@|query=)(-?\d+\.?\d*),(-?\d+\.?\d*)/);
+                      const match = url.match(/(?:q=|@|query=|!3d)(-?\d+(?:[.,]\d+)?)[,\s]+(?:!4d)?(-?\d+(?:[.,]\d+)?)/);
                       if (match) {
-                        setFormData(prev => ({ ...prev, latitude: match[1], longitude: match[2] }));
+                        const lat = String(match[1]).replace(',', '.');
+                        const lng = String(match[2]).replace(',', '.');
+                        setFormData(prev => ({ ...prev, latitude: lat, longitude: lng }));
                         setLocationError('');
                       } else if (url)
                         setLocationError('לא נמצאו קואורדינטות בקישור. הדבק קישור שיתוף מיקום מגוגל מפות.');

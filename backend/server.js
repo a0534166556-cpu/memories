@@ -169,6 +169,18 @@ function generateSlug(name, hebrewName, id) {
   return suffix ? `${normalized}-${suffix}` : normalized;
 }
 
+function parseCoordinate(value, type = 'lat') {
+  if (value === undefined || value === null) return null;
+  const normalized = String(value).trim().replace(',', '.');
+  if (!normalized) return null;
+  const num = Number(normalized);
+  if (!Number.isFinite(num)) return null;
+  const min = type === 'lng' ? -180 : -90;
+  const max = type === 'lng' ? 180 : 90;
+  if (num < min || num > max) return null;
+  return Number(num.toFixed(8));
+}
+
 // Middleware
 // CORS configuration - Add headers to ALL responses
 app.use((req, res, next) => {
@@ -2397,9 +2409,12 @@ app.post('/api/memorials', checkDbReady, optionalAuth, validateInput, upload.fie
       const expiryDate = new Date();
       expiryDate.setHours(expiryDate.getHours() + 24); // 24 hours from now
 
+      const parsedLatitude = parseCoordinate(latitude, 'lat');
+      const parsedLongitude = parseCoordinate(longitude, 'lng');
+
       await db.execute(`
       INSERT INTO memorials (id, userId, name, hebrewName, birthDate, deathDate, biography, images, videos, backgroundMusic, heroImage, heroSummary, timeline, tehilimChapters, mishnayot, qrCodePath, status, expiryDate, canEdit, cemeteryName, cemeteryAddress, latitude, longitude, event_title, event_date, event_place, event_url, event_description, events, slug, charity_url, charity_name, ceremony_title, ceremony_date, ceremony_place, ceremony_text, ceremony_program)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `, [
       id,
       userId,
@@ -2422,8 +2437,8 @@ app.post('/api/memorials', checkDbReady, optionalAuth, validateInput, upload.fie
       true,  // canEdit default for new memorials (they can upgrade later)
       cemeteryName || null,
       cemeteryAddress || null,
-      latitude ? parseFloat(latitude) : null,
-      longitude ? parseFloat(longitude) : null,
+      parsedLatitude,
+      parsedLongitude,
       (event_title && String(event_title).trim()) || null,
       (event_date && String(event_date).trim()) || null,
       (event_place && String(event_place).trim()) || null,
@@ -2467,8 +2482,8 @@ app.post('/api/memorials', checkDbReady, optionalAuth, validateInput, upload.fie
         expiryDate: expiryDate.toISOString(),
         cemeteryName: cemeteryName || null,
         cemeteryAddress: cemeteryAddress || null,
-        latitude: latitude ? parseFloat(latitude) : null,
-        longitude: longitude ? parseFloat(longitude) : null
+        latitude: parsedLatitude,
+        longitude: parsedLongitude
       },
       redirectTo: `/save/${id}` // Redirect to save page
     });
@@ -3336,6 +3351,9 @@ app.put('/api/memorials/:id', checkDbReady, authenticateToken, validateInput, up
     }
     
     const newSlug = generateSlug(name, hebrewName, id);
+    const parsedLatitude = parseCoordinate(latitude, 'lat');
+    const parsedLongitude = parseCoordinate(longitude, 'lng');
+
     // Update database
     await db.execute(`
       UPDATE memorials 
@@ -3363,8 +3381,8 @@ app.put('/api/memorials/:id', checkDbReady, authenticateToken, validateInput, up
       mishnayot || '',
       cemeteryName || null,
       cemeteryAddress || null,
-      latitude ? parseFloat(latitude) : null,
-      longitude ? parseFloat(longitude) : null,
+      parsedLatitude,
+      parsedLongitude,
       (event_title && String(event_title).trim()) || null,
       (event_date && String(event_date).trim()) || null,
       (event_place && String(event_place).trim()) || null,
