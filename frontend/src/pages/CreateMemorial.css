@@ -726,3 +726,30 @@
     align-items: stretch;
   }
 }
+
+/* אישור קליטת מיקום (GPS / קישור מפות) */
+.location-success-hint {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 0 0 14px;
+  padding: 12px 14px;
+  font-size: 0.95rem;
+  line-height: 1.55;
+  color: #0f5132;
+  background: linear-gradient(135deg, #d1e7dd 0%, #e8f5e9 100%);
+  border: 1px solid #badbcc;
+  border-radius: 10px;
+}
+
+.location-success-hint__icon {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: #198754;
+  font-size: 1.15rem;
+}
+
+.form-row--coords-filled input[type='number'] {
+  border-color: rgba(25, 135, 84, 0.45);
+  box-shadow: 0 0 0 1px rgba(25, 135, 84, 0.12);
+}

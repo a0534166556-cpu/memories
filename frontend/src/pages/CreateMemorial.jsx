@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDropzone } from 'react-dropzone';
 import axios from 'axios';
@@ -6,7 +6,7 @@ import { getApiEndpoint } from '../config';
 import { tehilimData } from '../data/tehilim';
 import { mishnayotData } from '../data/mishnayot';
 import { buildAzkaraCeremonyTemplate } from '../data/ceremonyTemplates';
-import { FaUpload, FaTrash, FaArrowRight, FaPlus, FaMusic, FaBell, FaEnvelope, FaMapMarkerAlt, FaLink } from 'react-icons/fa';
+import { FaUpload, FaTrash, FaArrowRight, FaPlus, FaMusic, FaBell, FaEnvelope, FaMapMarkerAlt, FaLink, FaCheckCircle } from 'react-icons/fa';
 import './CreateMemorial.css';
 
 // ברירת מחדל: חצי מהפרקים שיש להם טקסט מלא מקומי
@@ -64,7 +64,33 @@ function CreateMemorial() {
   const [remind10DaysBefore, setRemind10DaysBefore] = useState(false);
   const [locationLoading, setLocationLoading] = useState(false);
   const [locationError, setLocationError] = useState('');
+  const [locationSuccess, setLocationSuccess] = useState('');
+  const locationSuccessTimerRef = useRef(null);
   const [mapsLinkInput, setMapsLinkInput] = useState('');
+
+  const showLocationCaptured = (lat, lng, source) => {
+    if (locationSuccessTimerRef.current) {
+      clearTimeout(locationSuccessTimerRef.current);
+      locationSuccessTimerRef.current = null;
+    }
+    const latStr = String(lat);
+    const lngStr = String(lng);
+    const prefix =
+      source === 'maps'
+        ? 'הקואורדינטות מהקישור נקלטו בהצלחה.'
+        : 'המיקום מהמכשיר נקלט בהצלחה.';
+    setLocationSuccess(
+      `${prefix} הערכים עודכנו בשדות למטה — קו רוחב: ${latStr}, קו אורך: ${lngStr}.`
+    );
+    locationSuccessTimerRef.current = setTimeout(() => {
+      setLocationSuccess('');
+      locationSuccessTimerRef.current = null;
+    }, 14000);
+  };
+
+  useEffect(() => () => {
+    if (locationSuccessTimerRef.current) clearTimeout(locationSuccessTimerRef.current);
+  }, []);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     accept: {
@@ -322,7 +348,8 @@ function CreateMemorial() {
       }
       
       const response = await axios.post(getApiEndpoint('/api/memorials'), formDataToSend, {
-        headers: headers
+        headers,
+        timeout: 120000, // יצירה עם קבצים — מעבר ל־30 שניות ברירת המחדל של axios
       });
 
       if (response.data.success) {
@@ -369,9 +396,38 @@ function CreateMemorial() {
       let errorMessage = 'שגיאה ביצירת דף הזיכרון. אנא נסה שוב.';
       
       if (error.response) {
+        const status = error.response.status;
         const data = error.response.data;
-        const serverMsg = typeof data === 'object' && data?.error ? data.error : (data?.message || (typeof data === 'string' ? data : ''));
-        errorMessage = serverMsg ? `שגיאה מהשרת: ${serverMsg}` : `שגיאה מהשרת (${error.response.status}). נסה להקטין גודל תמונות/סרטונים או לנסות שוב.`;
+        const serverMsg =
+          typeof data === 'object' && data !== null && data?.error
+            ? data.error
+            : typeof data === 'object' && data !== null && data?.message
+              ? data.message
+              : typeof data === 'string'
+                ? data
+                : '';
+        const compact = typeof serverMsg === 'string' ? serverMsg.replace(/\s+/g, ' ').trim() : '';
+        const looksLikeGatewayOrNetlifyPage =
+          status === 502 ||
+          status === 504 ||
+          /Internal Error\.?\s*ID:/i.test(compact) ||
+          /^<!DOCTYPE/i.test(compact) ||
+          /<html[\s>]/i.test(compact);
+        if (looksLikeGatewayOrNetlifyPage) {
+          console.warn(
+            '[CreateMemorial] שכבת פרוקסי/שער (למשל Netlify) נכשלה או נחתכה בזמן. אפשר להאריך timeout לפונקציית api או להגדיר VITE_API_URL לכתובת ה־API הישירה בבנייה.'
+          );
+          errorMessage =
+            'הבקשה לא הושלמה בזמן. זה קורה לעיתים כשמעלים הרבה תמונות או קבצים גדולים. נסה עם פחות קבצים, קבצים קטנים יותר, או שוב בעוד דקה.';
+        } else if (serverMsg) {
+          const short = compact.length > 280 ? `${compact.slice(0, 280)}…` : compact;
+          errorMessage = `שגיאה מהשרת: ${short}`;
+        } else {
+          errorMessage = `שגיאה מהשרת (${status}). נסה להקטין גודל תמונות/סרטונים או לנסות שוב.`;
+        }
+      } else if (error.code === 'ECONNABORTED' || /timeout/i.test(error.message || '')) {
+        errorMessage =
+          'הבקשה ארכה יותר מדי (לעיתים בגלל העלאת קבצים גדולים). נסה קבצים קטנים יותר או פחות קבצים.';
       } else if (error.request) {
         // Request was made but no response received
         errorMessage = 'לא ניתן להתחבר לשרת. בדוק את חיבור האינטרנט או שהשרת לא זמין.';
@@ -561,6 +617,11 @@ function CreateMemorial() {
                   className="btn btn-secondary"
                   onClick={() => {
                     setLocationError('');
+                    setLocationSuccess('');
+                    if (locationSuccessTimerRef.current) {
+                      clearTimeout(locationSuccessTimerRef.current);
+                      locationSuccessTimerRef.current = null;
+                    }
                     setLocationLoading(true);
                     if (!navigator.geolocation) {
                       setLocationError('הדפדפן לא תומך במיקום');
@@ -569,9 +630,12 @@ function CreateMemorial() {
                     }
                     navigator.geolocation.getCurrentPosition(
                       (pos) => {
-                        setFormData(prev => ({ ...prev, latitude: String(pos.coords.latitude.toFixed(6)), longitude: String(pos.coords.longitude.toFixed(6)) }));
+                        const lat = String(pos.coords.latitude.toFixed(6));
+                        const lng = String(pos.coords.longitude.toFixed(6));
+                        setFormData(prev => ({ ...prev, latitude: lat, longitude: lng }));
                         setLocationLoading(false);
                         setLocationError('');
+                        showLocationCaptured(lat, lng, 'device');
                       },
                       () => {
                         setLocationError('לא ניתן לקבל מיקום. אשר גישה למיקום בהגדרות הדפדפן או השתמש בקישור מגוגל מפות.');
@@ -604,6 +668,7 @@ function CreateMemorial() {
                         const lng = String(match[2]).replace(',', '.');
                         setFormData(prev => ({ ...prev, latitude: lat, longitude: lng }));
                         setLocationError('');
+                        showLocationCaptured(lat, lng, 'maps');
                       } else if (url)
                         setLocationError('לא נמצאו קואורדינטות בקישור. הדבק קישור שיתוף מיקום מגוגל מפות.');
                     }}
@@ -613,6 +678,12 @@ function CreateMemorial() {
                 </div>
               </div>
               {locationError && <p className="form-error" style={{ color: '#c00', fontSize: '0.9rem', marginBottom: '10px' }}>{locationError}</p>}
+              {locationSuccess && (
+                <p className="location-success-hint" role="status" aria-live="polite">
+                  <FaCheckCircle className="location-success-hint__icon" aria-hidden />
+                  {locationSuccess}
+                </p>
+              )}
 
               <div className="form-group">
                 <label htmlFor="cemeteryName">שם בית הקברות</label>
@@ -638,7 +709,7 @@ function CreateMemorial() {
                 />
               </div>
 
-              <div className="form-row">
+              <div className={`form-row${formData.latitude && formData.longitude ? ' form-row--coords-filled' : ''}`}>
                 <div className="form-group">
                   <label htmlFor="latitude">קו רוחב (Latitude)</label>
                   <input

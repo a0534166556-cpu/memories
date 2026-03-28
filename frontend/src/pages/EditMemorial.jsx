@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useDropzone } from 'react-dropzone';
 import axios from 'axios';
@@ -6,7 +6,7 @@ import { getApiEndpoint } from '../config';
 import { tehilimData } from '../data/tehilim';
 import { mishnayotData } from '../data/mishnayot';
 import { buildAzkaraCeremonyTemplate } from '../data/ceremonyTemplates';
-import { FaUpload, FaTrash, FaArrowRight, FaPlus, FaMusic, FaSpinner, FaMapMarkerAlt, FaLink } from 'react-icons/fa';
+import { FaUpload, FaTrash, FaArrowRight, FaPlus, FaMusic, FaSpinner, FaMapMarkerAlt, FaLink, FaCheckCircle } from 'react-icons/fa';
 import './CreateMemorial.css';
 
 function EditMemorial() {
@@ -56,7 +56,33 @@ function EditMemorial() {
   const [error, setError] = useState('');
   const [locationLoading, setLocationLoading] = useState(false);
   const [locationError, setLocationError] = useState('');
+  const [locationSuccess, setLocationSuccess] = useState('');
+  const locationSuccessTimerRef = useRef(null);
   const [mapsLinkInput, setMapsLinkInput] = useState('');
+
+  const showLocationCaptured = (lat, lng, source) => {
+    if (locationSuccessTimerRef.current) {
+      clearTimeout(locationSuccessTimerRef.current);
+      locationSuccessTimerRef.current = null;
+    }
+    const latStr = String(lat);
+    const lngStr = String(lng);
+    const prefix =
+      source === 'maps'
+        ? 'הקואורדינטות מהקישור נקלטו בהצלחה.'
+        : 'המיקום מהמכשיר נקלט בהצלחה.';
+    setLocationSuccess(
+      `${prefix} הערכים עודכנו בשדות למטה — קו רוחב: ${latStr}, קו אורך: ${lngStr}.`
+    );
+    locationSuccessTimerRef.current = setTimeout(() => {
+      setLocationSuccess('');
+      locationSuccessTimerRef.current = null;
+    }, 14000);
+  };
+
+  useEffect(() => () => {
+    if (locationSuccessTimerRef.current) clearTimeout(locationSuccessTimerRef.current);
+  }, []);
 
   // Load memorial data
   useEffect(() => {
@@ -709,6 +735,11 @@ function EditMemorial() {
                   className="btn btn-secondary"
                   onClick={() => {
                     setLocationError('');
+                    setLocationSuccess('');
+                    if (locationSuccessTimerRef.current) {
+                      clearTimeout(locationSuccessTimerRef.current);
+                      locationSuccessTimerRef.current = null;
+                    }
                     setLocationLoading(true);
                     if (!navigator.geolocation) {
                       setLocationError('הדפדפן לא תומך במיקום');
@@ -717,9 +748,12 @@ function EditMemorial() {
                     }
                     navigator.geolocation.getCurrentPosition(
                       (pos) => {
-                        setFormData(prev => ({ ...prev, latitude: String(pos.coords.latitude.toFixed(6)), longitude: String(pos.coords.longitude.toFixed(6)) }));
+                        const lat = String(pos.coords.latitude.toFixed(6));
+                        const lng = String(pos.coords.longitude.toFixed(6));
+                        setFormData(prev => ({ ...prev, latitude: lat, longitude: lng }));
                         setLocationLoading(false);
                         setLocationError('');
+                        showLocationCaptured(lat, lng, 'device');
                       },
                       () => {
                         setLocationError('לא ניתן לקבל מיקום. אשר גישה למיקום בהגדרות הדפדפן או השתמש בקישור מגוגל מפות.');
@@ -752,6 +786,7 @@ function EditMemorial() {
                         const lng = String(match[2]).replace(',', '.');
                         setFormData(prev => ({ ...prev, latitude: lat, longitude: lng }));
                         setLocationError('');
+                        showLocationCaptured(lat, lng, 'maps');
                       } else if (url)
                         setLocationError('לא נמצאו קואורדינטות בקישור. הדבק קישור שיתוף מיקום מגוגל מפות.');
                     }}
@@ -761,6 +796,12 @@ function EditMemorial() {
                 </div>
               </div>
               {locationError && <p className="form-error" style={{ color: '#c00', fontSize: '0.9rem', marginBottom: '10px' }}>{locationError}</p>}
+              {locationSuccess && (
+                <p className="location-success-hint" role="status" aria-live="polite">
+                  <FaCheckCircle className="location-success-hint__icon" aria-hidden />
+                  {locationSuccess}
+                </p>
+              )}
 
               <div className="form-group">
                 <label htmlFor="cemeteryName">שם בית הקברות</label>
@@ -786,7 +827,7 @@ function EditMemorial() {
                 />
               </div>
 
-              <div className="form-row">
+              <div className={`form-row${formData.latitude && formData.longitude ? ' form-row--coords-filled' : ''}`}>
                 <div className="form-group">
                   <label htmlFor="latitude">קו רוחב (Latitude)</label>
                   <input

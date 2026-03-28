@@ -9,6 +9,13 @@
 [build.environment]
   NODE_VERSION = "18"
 
+# פונקציית api מפרקסת POST עם FormData ל־Railway — timeout ארוך יותר מפחית כשלים "Internal Error" (תלוי בתוכנית Netlify; עד ~26 שניות ב־Pro).
+[functions]
+  node_bundler = "esbuild"
+
+[functions.api]
+  timeout = 26
+
 # Proxy API requests to Railway backend using Netlify Function
 # MUST use Function for POST requests with FormData
 # Use :splat - IMPORTANT: Netlify should preserve headers in redirects

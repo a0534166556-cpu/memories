@@ -393,8 +393,8 @@ function MemorialExample() {
                   src={introImage}
                   alt={`תמונת פרופיל של ${introDisplayName}`}
                   className="memorial-intro-image"
-                  width={400}
-                  height={400}
+                  loading="eager"
+                  decoding="async"
                 />
                 <div className="memorial-intro-photo-shine" aria-hidden="true" />
               </div>
